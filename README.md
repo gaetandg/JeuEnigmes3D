@@ -28,7 +28,7 @@ Sur **téléphone / tablette** : pouce gauche = joystick (pousser loin pour cour
 glisser à droite = regarder, toucher = agir, appui long = agir en sens inverse,
 bouton ❚❚ = pause. La qualité graphique passe en « basse » automatiquement.
 
-**Réglages** : volume, sensibilité, qualité graphique (haute / moyenne / basse),
+**Réglages** : volume, musique (générée, une tonalité par zone), sensibilité, qualité graphique (haute / moyenne / basse),
 symboles des couleurs pour les personnes daltoniennes (▲ rouge, ■ vert, ● bleu),
 aides discrètes (après 3 minutes bloqué devant une énigme, une pièce à changer luit doucement).
 

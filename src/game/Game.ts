@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { parsePuzzle } from '../core/light/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
-import { CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell } from '../world/layout.ts';
+import { ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell } from '../world/layout.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../puzzles/zone2.ts';
 import { parseFold } from '../core/fold/index.ts';
 import { FoldView } from '../render/foldView.ts';
 import { buildAtelier } from '../world/atelier.ts';
 import { buildCloitre } from '../world/cloitre.ts';
+import { buildGardenDecor } from '../world/decor.ts';
 import { addPuzzleColliders } from '../world/puzzleColliders.ts';
 import { ZONE3, ZONE3_CADRAN } from '../puzzles/zone3.ts';
 import { parseShadow, startState } from '../core/shadow/index.ts';
@@ -25,6 +26,7 @@ import { Colliders } from './colliders.ts';
 import { DesktopInput, Player } from './player.ts';
 import { TouchInput } from './touch.ts';
 import { Audio } from './audio.ts';
+import type { Zone } from './audio.ts';
 import { clearSave, loadSave, writeSave } from './progress.ts';
 import type { Quality, SaveData, Settings } from './progress.ts';
 import { Hud } from '../ui/hud.ts';
@@ -110,6 +112,7 @@ export class Game {
   /** rais de lumière vers le phare, un par zone terminée */
   private shafts: { id: string; mesh: THREE.Mesh; on: number }[] = [];
   private atelierUpdate: (t: number) => void = () => undefined;
+  private decorUpdate: (t: number) => void = () => undefined;
   private beacon: THREE.Group;
   /** la partie est terminée (phare rallumé) */
   ended = false;
@@ -149,6 +152,9 @@ export class Game {
     this.scene.add(this.water.mesh);
     this.scene.add(buildTerrain());
     this.scene.add(buildVegetation(this.colliders));
+    const decor = buildGardenDecor(this.colliders);
+    this.decorUpdate = decor.update;
+    this.scene.add(decor.group);
     this.scene.add(buildWalls(this.colliders));
     const plaza = buildPlaza(this.colliders);
     this.plazaCrystal = plaza.crystal;
@@ -274,9 +280,18 @@ export class Game {
   }
 
   /** Aides discrètes : après HINT_DELAY secondes près d'une énigme non résolue, une pièce luit. */
+  /** Zone où se trouve le joueur (pour la musique). */
+  private zoneAt(x: number, z: number): Zone {
+    if (Math.hypot(x - ATELIER.x, z - ATELIER.z) < ATELIER.r + 15) return 'atelier';
+    if (Math.abs(x - CLOITRE.x) < CLOITRE.half + 12 && Math.abs(z - CLOITRE.z) < CLOITRE.half + 12) return 'cloitre';
+    if (Math.hypot(x - PHARE.x, z - PHARE.z) < PHARE.r + 12) return 'phare';
+    return 'jardin';
+  }
+
   private updateStuck(dt: number): void {
-    if (!this.hintsOn || !this.playing) return;
     const pos = this.player.position;
+    this.audio.setZone(this.zoneAt(pos.x, pos.z));
+    if (!this.hintsOn || !this.playing) return;
     for (const p of this.panels.values()) {
       if (!p.powered || p.solved) continue;
       const near = this.anchorsOf(p).some((a) => Math.hypot(a.x - pos.x, a.z - pos.z) < p.reach + 2.5);
@@ -319,6 +334,7 @@ export class Game {
       writeSave(this.save);
     };
     this.audio.setVolume(settings.volume);
+    this.audio.setMusicVolume(settings.music ?? 0.5);
     this.player.sensitivity = settings.sensitivity;
     this.applyQuality(settings.quality ?? 'haute');
     this.setSymbols(!!settings.symbols);
@@ -357,6 +373,10 @@ export class Game {
       onSymbols: (on) => {
         this.setSymbols(on);
         saveSettings({ symbols: on });
+      },
+      onMusic: (v) => {
+        this.audio.setMusicVolume(v);
+        saveSettings({ music: v });
       },
       onHints: (on) => {
         this.hintsOn = on;
@@ -574,7 +594,8 @@ export class Game {
         continue;
       }
       const d2 = p.group.position.distanceToSquared(this.camera.position);
-      p.setDetail(d2 < 55 * 55);
+      if (p instanceof LightPanel) p.setLevel(d2 < 32 * 32 ? 2 : d2 < 70 * 70 ? 1 : 0);
+      else p.setDetail(d2 < 55 * 55);
       if (d2 < 55 * 55) p.update(dt, this.time);
     }
     for (const g of this.gates.values()) {
@@ -587,6 +608,7 @@ export class Game {
     if (this.beacon.visible) this.beacon.rotation.y += dt * 0.35;
     if (this.playing) this.save.playTime = (this.save.playTime ?? 0) + dt;
     this.atelierUpdate(this.time);
+    this.decorUpdate(this.time);
     for (const s of this.shafts) {
       if (!s.mesh.visible) continue;
       s.on = Math.min(1, s.on + dt * 0.4);

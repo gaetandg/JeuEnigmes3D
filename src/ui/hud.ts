@@ -11,6 +11,7 @@ export interface HudCallbacks {
   onQuality: (q: Quality) => void;
   onSymbols: (on: boolean) => void;
   onHints: (on: boolean) => void;
+  onMusic: (v: number) => void;
   onPause: () => void;
   onReset: () => void;
 }
@@ -38,6 +39,7 @@ export class Hud {
           <details>
             <summary>Réglages</summary>
             <label>Volume <input type="range" min="0" max="1" step="0.05" data-setting="volume" /></label>
+            <label>Musique <input type="range" min="0" max="1" step="0.05" data-setting="music" /></label>
             <label>Sensibilité <input type="range" min="0.0008" max="0.005" step="0.0001" data-setting="sensitivity" /></label>
             <label>Qualité graphique
               <select data-setting="quality">
@@ -68,6 +70,9 @@ export class Hud {
     symbols.checked = !!settings.symbols;
     quality.addEventListener('change', () => cb.onQuality(quality.value as Quality));
     symbols.addEventListener('change', () => cb.onSymbols(symbols.checked));
+    const music = this.root.querySelector<HTMLInputElement>('[data-setting="music"]')!;
+    music.value = String(settings.music ?? 0.5);
+    music.addEventListener('input', () => cb.onMusic(Number(music.value)));
     const hints = this.root.querySelector<HTMLInputElement>('[data-setting="hints"]')!;
     hints.checked = settings.hints !== false;
     hints.addEventListener('change', () => cb.onHints(hints.checked));
