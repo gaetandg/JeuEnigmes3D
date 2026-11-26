@@ -4,6 +4,7 @@ import { ZONE1, ZONE1_TOWERS } from '../../src/puzzles/zone1.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../../src/puzzles/zone2.ts';
 import { checkFold, initialFoldState, parseFold, solveFold } from '../../src/core/fold/index.ts';
 import { ZONE3, ZONE3_CADRAN } from '../../src/puzzles/zone3.ts';
+import { ZONE4_FOLD, ZONE4_LIGHT } from '../../src/puzzles/zone4.ts';
 import { checkShadow, parseShadow, solveShadow, startState } from '../../src/core/shadow/index.ts';
 
 describe('zone 1 — validation de toutes les énigmes par le solveur', () => {
@@ -54,6 +55,29 @@ describe('zone 3 — validation des énigmes d\'ombres par le solveur', () => {
       const r = solveShadow(p);
       expect(r.count).toBeGreaterThan(0);
       expect(r.count).toBeLessThanOrEqual(2);
+    });
+  }
+});
+
+describe('zone 4 — énigmes combinées', () => {
+  for (const def of ZONE4_LIGHT) {
+    it(`${def.id} (lumière + objets) : solution unique, aucun objet inutile`, () => {
+      const p = parsePuzzle(def);
+      const init = initialState(p);
+      expect(simulate(p, init).solved).toBe(false);
+      const a = analyze(p, init);
+      expect(a.count).toBeGreaterThan(0);
+      expect(a.distinct).toBe(1);
+      expect(a.dead).toEqual([]);
+    });
+  }
+  for (const def of ZONE4_FOLD) {
+    it(`${def.id} (pliage + lumière) : solvable avec exactement le nombre de plis permis`, () => {
+      const p = parseFold(def);
+      expect(checkFold(p, initialFoldState(p)).solved).toBe(false);
+      const r = solveFold(p);
+      expect(r.solution).not.toBeNull();
+      expect(r.minFolds).toBe(def.folds);
     });
   }
 });

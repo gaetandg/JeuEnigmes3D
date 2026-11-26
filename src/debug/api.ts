@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Game } from '../game/Game.ts';
-import { CADRAN, FOLD_PANELS, GRAND_PLI, PANELS, SHADOW_PANELS, TOWERS } from '../world/layout.ts';
+import { CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, SHADOW_PANELS, TOWERS } from '../world/layout.ts';
 
 /** API exposée sur window.__game pour les tests de bout en bout (Playwright). */
 export function exposeDebugApi(game: Game): void {
@@ -22,7 +22,7 @@ export function exposeDebugApi(game: Game): void {
       let progress = true;
       while (progress) {
         progress = false;
-        for (const spot of [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN]) {
+        for (const spot of [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS]) {
           if (game.solvePanel(spot.id)) {
             game.forceUpdatePower();
             progress = true;
@@ -52,6 +52,7 @@ export function exposeDebugApi(game: Game): void {
     freeCamera: () => (game.cameraOverride = null),
     hovered: () => game.hoveredPiece(),
     drawCalls: () => game.lastDrawCalls,
+    ended: () => game.ended,
   };
   (window as unknown as { __game: typeof api }).__game = api;
   api.ready = true;

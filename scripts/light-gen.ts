@@ -27,6 +27,7 @@ interface Profile {
   walls: number;
   filters: number;
   sockets?: number; // socles supplémentaires (réserve = miroirs du chemin convertis en socles)
+  objects?: number; // objets en cubes posés sur des zones 3×3 vides
   socketPath?: number; // nombre de miroirs du chemin transformés en socles
   minSpace: number;
 }
@@ -39,6 +40,9 @@ const PROFILES: Record<string, Profile> = {
   c4: { w: 7, h: 6, sources: ['W', 'Y'], turnsMin: 2, turnsMax: 3, allow: ['mirror', 'splitter', 'filter', 'dark'], decoys: 2, darks: 2, walls: 2, filters: 2, minSpace: 128 },
   // socles
   d3: { w: 6, h: 6, sources: ['R', 'G'], turnsMin: 1, turnsMax: 3, allow: ['mirror', 'socket', 'dark'], decoys: 1, darks: 2, walls: 2, filters: 0, sockets: 3, socketPath: 2, minSpace: 64 },
+  // zone finale : lumière + objets en cubes
+  f2: { w: 8, h: 7, sources: ['R', 'B'], turnsMin: 1, turnsMax: 2, allow: ['mirror', 'dark'], decoys: 1, darks: 2, walls: 1, filters: 0, objects: 2, minSpace: 64 },
+  f3: { w: 9, h: 8, sources: ['W', 'R'], turnsMin: 1, turnsMax: 3, allow: ['mirror', 'splitter', 'filter', 'dark'], decoys: 1, darks: 2, walls: 1, filters: 1, objects: 2, minSpace: 256 },
   // grand final
   d5: { w: 7, h: 7, sources: ['W', 'R', 'B'], turnsMin: 2, turnsMax: 3, allow: ['mirror', 'splitter', 'filter', 'dark', 'prism', 'socket'], decoys: 2, darks: 2, walls: 2, filters: 1, sockets: 2, socketPath: 1, minSpace: 256 },
 };
@@ -171,19 +175,39 @@ for (let attempt = 0; attempt < 40000 && found.length < 60; attempt++) {
   stats.built++;
   const inv = (g as unknown as { inventory: number }).inventory ?? 0;
   const grid = g.map((r) => r.join(' ')).join('\n');
+  // objets en cubes sur des zones 3×3 entièrement vides
+  const objects: { shape: string; at: [number, number]; axis: 'x' | 'y'; start: number }[] = [];
+  const taken = new Set<string>();
+  for (let o = 0; o < (pr.objects ?? 0); o++) {
+    for (let t = 0; t < 60; t++) {
+      const ax = Math.floor(rnd() * (pr.w - 2));
+      const ay = Math.floor(rnd() * (pr.h - 2));
+      let ok = true;
+      for (let dy = 0; dy < 3 && ok; dy++) for (let dx = 0; dx < 3 && ok; dx++) {
+        if (g[ay + dy]![ax + dx] !== '.' || taken.has(`${ax + dx},${ay + dy}`)) ok = false;
+      }
+      if (!ok) continue;
+      for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) taken.add(`${ax + dx},${ay + dy}`);
+      objects.push({ shape: pick(['anneau', 'pont', 'coin', 'zigzag', 'croix', 'bras', 'T']), at: [ax, ay], axis: rnd() < 0.4 ? 'x' : 'y', start: Math.floor(rnd() * 4) });
+      break;
+    }
+  }
+  if ((pr.objects ?? 0) > objects.length) continue;
   let p: LightPuzzle;
   try {
-    p = parsePuzzle({ id: 'gen', grid, inventory: inv });
+    p = parsePuzzle({ id: 'gen', grid, inventory: inv, objects });
   } catch { continue; }
   const init = initialState(p);
   if (simulate(p, init).solved) continue;
   let a;
   try { a = analyze(p, init, 3); } catch { continue; }
   stats.analyzed++;
-  if (a.distinct !== 1 || a.dead.length > 0 || a.space < pr.minSpace) continue;
+  const why = a.count === 0 ? "insoluble" : a.distinct > (pr.objects ? 2 : 1) ? "multi" : a.dead.length > 0 ? "dead" : a.space < pr.minSpace ? "petit" : "";
+  (stats as Record<string, number>)[why || "ok"] = ((stats as Record<string, number>)[why || "ok"] ?? 0) + 1;
+  if (why) continue;
   // tous les éléments demandés doivent compter : chaque cristal noir doit être « menacé »
   const s = score(p, a);
-  found.push({ s, grid: stateToGrid(p, init), inv, text: renderAscii(p, a.solutions[0]!) });
+  found.push({ s, grid: stateToGrid(p, init) + (objects.length ? '\nobjets : ' + JSON.stringify(objects) : ''), inv, text: renderAscii(p, a.solutions[0]!) });
 }
 found.sort((a, b) => b.s - a.s);
 for (const f of found.slice(0, Number(countArg))) {

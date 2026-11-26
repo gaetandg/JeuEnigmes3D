@@ -1,5 +1,6 @@
 import type { Dir, LightPuzzle, LightState, SimResult } from './types.ts';
 import { BLUE, GREEN, PRIMARIES, RED } from './types.ts';
+import { rotated } from '../shadow/engine.ts';
 
 const DX = [0, 1, 0, -1] as const;
 const DY = [-1, 0, 1, 0] as const;
@@ -32,10 +33,22 @@ function orientations(p: LightPuzzle, s: LightState): Int8Array {
   return o;
 }
 
+/** Cases occupées au sol par les objets (elles arrêtent la lumière). */
+export function blockedCells(p: LightPuzzle, s: LightState): Uint8Array {
+  const b = new Uint8Array(p.cells.length);
+  p.objects.forEach((o, j) => {
+    for (const [x, y, z] of rotated(o.shape, o.axis, s[p.interactive.length + j] ?? 0)) {
+      if (y === 0) b[(o.ay + z) * p.width + o.ax + x] = 1;
+    }
+  });
+  return b;
+}
+
 export function simulate(p: LightPuzzle, s: LightState): SimResult {
   const { width: w, height: h, cells } = p;
   const n = w * h;
   const orient = orientations(p, s);
+  const blocked = blockedCells(p, s);
   const received = new Uint8Array(n);
   const halfEdges = new Uint8Array(n * 4);
   const visited = new Uint8Array(n * 4);
@@ -57,7 +70,7 @@ export function simulate(p: LightPuzzle, s: LightState): SimResult {
     if (x < 0 || y < 0 || x >= w || y >= h) continue;
     const ni = y * w + x;
     const cell = cells[ni]!;
-    if (cell.kind === 'wall' || cell.kind === 'source') continue;
+    if (cell.kind === 'wall' || cell.kind === 'source' || blocked[ni]) continue;
     const key = ni * 4 + d;
     if (visited[key]! & c) continue;
     visited[key]! |= c;
@@ -111,6 +124,7 @@ export function simulate(p: LightPuzzle, s: LightState): SimResult {
 export function renderAscii(p: LightPuzzle, s: LightState): string {
   const r = simulate(p, s);
   const o = orientations(p, s);
+  const blocked = blockedCells(p, s);
   const lines: string[] = [];
   for (let y = 0; y < p.height; y++) {
     let line = '';
@@ -131,6 +145,10 @@ export function renderAscii(p: LightPuzzle, s: LightState): string {
         case 'filter': ch = 'Φ'; break;
         case 'prism': ch = '△'; break;
         case 'empty': {
+          if (blocked[i]) {
+            ch = '▓';
+            break;
+          }
           const v = he[0] || he[2];
           const hz = he[1] || he[3];
           ch = v && hz ? '┼' : v ? '│' : hz ? '─' : '·';

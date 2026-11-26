@@ -1,4 +1,5 @@
-import type { Cell, Color, Dir, LightPuzzle, LightState } from './types.ts';
+import type { Cell, Color, Dir, LightObject, LightPuzzle, LightState } from './types.ts';
+import { SHAPES, parseShape } from '../shadow/parse.ts';
 import { BLUE, GREEN, RED, WHITE } from './types.ts';
 
 /**
@@ -20,6 +21,8 @@ export interface LightPuzzleDef {
   id: string;
   grid: string;
   inventory?: number;
+  /** objets en cubes (formes de la zone des ombres), posés sur des cases vides */
+  objects?: { shape: string; at: [number, number]; axis?: 'x' | 'y'; start: number }[];
 }
 
 const COLOR_LETTERS: Record<string, Color> = {
@@ -109,16 +112,38 @@ export function parsePuzzle(def: LightPuzzleDef): LightPuzzle {
       interactive.push(i);
     }
   });
-  return { id: def.id, width, height, cells, inventory: def.inventory ?? 0, interactive };
+  const objects: LightObject[] = (def.objects ?? []).map((o) => {
+    const text = SHAPES[o.shape];
+    if (!text) throw new Error(`${def.id} : forme inconnue ${o.shape}`);
+    const [ax, ay] = o.at;
+    for (let dy = 0; dy < 3; dy++)
+      for (let dx = 0; dx < 3; dx++) {
+        const c = cells[(ay + dy) * width + ax + dx];
+        if (!c || c.kind !== 'empty') throw new Error(`${def.id} : l'objet en (${ax},${ay}) doit reposer sur des cases vides`);
+      }
+    return { shape: parseShape(text), ax, ay, axis: o.axis ?? 'y' };
+  });
+  return {
+    id: def.id, width, height, cells, inventory: def.inventory ?? 0, interactive,
+    objects, objectStart: (def.objects ?? []).map((o) => o.start),
+  };
 }
 
 /** État de départ : orientations écrites dans la grille, socles vides. */
 export function initialState(p: LightPuzzle): LightState {
-  return p.interactive.map((i) => {
-    const c = p.cells[i]!;
-    if (c.kind === 'mirror' || c.kind === 'splitter') return c.orient;
-    return -1;
-  });
+  return [
+    ...p.interactive.map((i) => {
+      const c = p.cells[i]!;
+      if (c.kind === 'mirror' || c.kind === 'splitter') return c.orient;
+      return -1;
+    }),
+    ...p.objectStart,
+  ];
+}
+
+/** Nombre total de pièces manipulables (cases + objets). */
+export function pieceCount(p: LightPuzzle): number {
+  return p.interactive.length + p.objects.length;
 }
 
 /** Nombre de miroirs posés sur des socles. */
@@ -135,8 +160,13 @@ export function piecesUsed(p: LightPuzzle, s: LightState): number {
  * ou null si l'action est impossible (plus de miroir en réserve).
  */
 export function interact(p: LightPuzzle, s: LightState, k: number, reverse = false): LightState | null {
-  const cell = p.cells[p.interactive[k]!]!;
   const next = s.slice();
+  if (k >= p.interactive.length) {
+    // objet : un quart de tour
+    next[k] = (s[k]! + (reverse ? 3 : 1)) % 4;
+    return next;
+  }
+  const cell = p.cells[p.interactive[k]!]!;
   const v = s[k]!;
   if (cell.kind === 'socket') {
     // cycle : vide → / → \ → vide (ou l'inverse)

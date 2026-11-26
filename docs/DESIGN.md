@@ -116,10 +116,21 @@ gravée en or sur son mur.
   deux murs à la fois), o7–o9 (berceau, ombre trouée), o10 (synthèse), puis **le Cadran** :
   le même théâtre, avec des cubes d'un mètre, au centre du cloître.
 
-## 6. Zone 4 — Le Phare *(conception à venir)*
+## 6. Zone 4 — Le Phare (combinaison)
 
-Combinaisons : une feuille pliée devient pochoir pour une lumière, dont l'ombre colorée
-allume un cristal, etc.
+Au sommet de l'île, cinq panneaux en arc au pied du phare. Chacun combine deux langages :
+
+- **Lumière + Ombres** (f1, f2, f5) : des objets en cubes, sur plateau tournant ou berceau,
+  sont posés sur la grille de lumière. Leur **empreinte au sol** (la couche du bas) arrête
+  les rayons : il faut raisonner en 3D (comme au cloître) pour laisser passer ou bloquer
+  la bonne lumière (comme au jardin).
+- **Pliage + Lumière** (f3, f4) : la feuille repose sur une **table lumineuse**. La lumière
+  passe là où le papier est parti et à travers des trous **superposés** ; le motif éclairé
+  doit correspondre au modèle (gravé sur la table et sur une plaque).
+
+Chaque zone terminée envoie un rai de lumière colorée au phare (un quart de sa lampe) ;
+le dernier panneau l'allume entièrement : son faisceau se met à tourner sur la mer et un
+écran de fin s'affiche (énigmes résolues, temps de jeu). On peut ensuite continuer à explorer.
 
 ## 7. Direction artistique
 
@@ -171,4 +182,7 @@ tests/
 | 4 | Zone Pliage | moteur, solveur, énigmes, intégration |
 | 5 | Zone Ombres | idem |
 | 6 | Le Phare | zone finale combinée, fin du jeu |
+
+**Bilan** : 49 énigmes (19 + 1 en zone 1, 12 + 1 en zone 2, 10 + 1 en zone 3, 5 en zone 4),
+toutes vérifiées par les solveurs à chaque modification.
 | 7 | Mobile | contrôles tactiles, performances |

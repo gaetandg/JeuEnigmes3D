@@ -1,5 +1,6 @@
 import type { LightPuzzle, LightState } from './types.ts';
 import { simulate } from './simulate.ts';
+import { rotated } from '../shadow/engine.ts';
 
 export interface SolveReport {
   /** Nombre total de configurations explorées. */
@@ -36,8 +37,20 @@ export function solve(
 ): SolveReport {
   const keep = opts.keep ?? 5;
   const maxSpace = opts.maxSpace ?? 5_000_000;
-  const k = p.interactive.length;
+  const k = p.interactive.length + p.objects.length;
+  const nCells = p.interactive.length;
   const isSocket = p.interactive.map((i) => p.cells[i]!.kind === 'socket');
+  // cases de la boîte de chaque objet et leurs voisines : l'objet compte si la lumière y passe
+  const regions = p.objects.map((o) => {
+    const out = new Set<number>();
+    for (let dy = -1; dy <= 3; dy++)
+      for (let dx = -1; dx <= 3; dx++) {
+        const x = o.ax + dx;
+        const y = o.ay + dy;
+        if (x >= 0 && y >= 0 && x < p.width && y < p.height) out.add(y * p.width + x);
+      }
+    return [...out];
+  });
   const state: LightState = new Array(k).fill(0);
   const keys = new Set<string>();
   const report: SolveReport = {
@@ -47,17 +60,34 @@ export function solve(
   const leaf = () => {
     report.space++;
     const r = simulate(p, state);
-    for (let j = 0; j < k; j++) if (r.received[p.interactive[j]!]) report.reached[j] = true;
+    for (let j = 0; j < nCells; j++) if (r.received[p.interactive[j]!]) report.reached[j] = true;
+    regions.forEach((reg, o) => {
+      if (reg.some((c) => r.received[c] || r.halfEdges[c * 4] || r.halfEdges[c * 4 + 1] || r.halfEdges[c * 4 + 2] || r.halfEdges[c * 4 + 3])) {
+        report.reached[nCells + o] = true;
+      }
+    });
     if (!r.solved) return;
     report.count++;
     if (report.solutions.length < keep) report.solutions.push(state.slice());
     if (opts.initial) report.minClicks = Math.min(report.minClicks, clicksBetween(opts.initial, state));
-    keys.add(state.map((v, j) => (r.received[p.interactive[j]!] ? v : '*')).join(','));
+    // deux orientations d'un objet qui laissent la même empreinte au sol sont équivalentes
+    keys.add(state.map((v, j) => {
+      if (j < nCells) return r.received[p.interactive[j]!] ? v : '*';
+      const o = p.objects[j - nCells]!;
+      return rotated(o.shape, o.axis, v).filter((c) => c[1] === 0).map((c) => `${c[0]}.${c[2]}`).sort().join('+');
+    }).join(','));
   };
 
   const rec = (j: number, used: number) => {
     if (report.space > maxSpace) throw new Error(`${p.id} : espace de recherche trop grand`);
     if (j === k) return leaf();
+    if (j >= nCells) {
+      for (let t = 0; t < 4; t++) {
+        state[j] = t;
+        rec(j + 1, used);
+      }
+      return;
+    }
     if (isSocket[j]) {
       state[j] = -1;
       rec(j + 1, used);

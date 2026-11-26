@@ -17,6 +17,7 @@ type Api = {
   move: (f: number, r: number, s: number) => void;
   hovered: () => { id: string; k: number } | null;
   drawCalls: () => number;
+  ended: () => boolean;
 };
 declare global {
   interface Window { __game: Api }
@@ -50,7 +51,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(44);
+  expect(panels).toHaveLength(49);
   expect(panels.filter((p) => p.powered).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -89,16 +90,17 @@ test('une porte fermée bloque le joueur, ouverte elle le laisse passer', async 
   expect((await page.evaluate(() => window.__game.player())).z).toBeLessThan(84);
 });
 
-test('toutes les énigmes (zones 1 à 3) se résolvent dans l\'ordre et ouvrent les portes', async ({ page }) => {
+test('toutes les énigmes (zones 1 à 4) se résolvent dans l\'ordre et ouvrent les portes', async ({ page }) => {
   test.setTimeout(360_000);
   await boot(page);
   const solved = await page.evaluate(() => window.__game.solveAll());
-  expect(solved).toHaveLength(44);
+  expect(solved).toHaveLength(49);
   await page.evaluate(() => window.__game.advance(4));
   for (const gate of ['porte-plage', 'porte-place', 'porte-nord', 'porte-sortie']) {
     expect(await page.evaluate((g) => window.__game.gateOpen(g), gate)).toBe(1);
   }
-  for (const id of ['tours', 'grand-pli', 'cadran']) {
+  expect(await page.evaluate(() => window.__game.ended())).toBe(true);
+  for (const id of ['grand-pli', 'cadran', 'f5']) {
     await page.evaluate((i) => window.__game.view(i), id);
     await waitFrames(page, 3);
     await page.screenshot({ path: `test-results/panneau-${id}.png` });
@@ -172,6 +174,24 @@ test("un objet tourne sur son plateau et son ombre épouse la silhouette", async
   expect(await page.evaluate(() => window.__game.state('o1'))).toEqual([0]);
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'o1')!.solved).toBe(true);
   await page.screenshot({ path: 'test-results/o1-resolu.png' });
+  expect(errors).toEqual([]);
+});
+
+const ZONE3 = ['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9', 'o10', 'cadran'];
+
+test("zone finale : tourner un objet sur un panneau de lumière change l'empreinte qui arrête les rayons", async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('f1');
+  }, [...ZONE1, ...ZONE2, ...ZONE3]);
+  // f1 : l'anneau (pièce 0) doit faire un demi-tour
+  expect(await page.evaluate(() => window.__game.interact('f1', 0))).toBe('ok');
+  expect(await page.evaluate(() => window.__game.interact('f1', 0))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(1));
+  expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'f1')!.solved).toBe(true);
+  expect(await page.evaluate(() => window.__game.ended())).toBe(false);
+  await page.screenshot({ path: 'test-results/f1-resolu.png' });
   expect(errors).toEqual([]);
 });
 

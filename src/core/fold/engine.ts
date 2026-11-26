@@ -31,6 +31,23 @@ export interface FoldPuzzle {
   cells: FoldCellDef[]; // seulement les cases présentes
   /** nombre de plis permis (affiché sur le panneau) */
   maxFolds: number;
+  /**
+   * Pochoir (zone finale) : la feuille repose sur une table lumineuse. La lumière passe là
+   * où il n'y a plus de papier, ou là où toutes les couches sont trouées. Ensemble « x,y »
+   * des cases du cadre (largeur × hauteur d'origine) qui doivent être éclairées.
+   */
+  light?: Set<string>;
+}
+
+/** Cases du cadre éclairées par la table lumineuse. */
+export function litCells(p: FoldPuzzle, s: FoldState): Set<string> {
+  const blocked = new Set<string>();
+  s.poses.forEach((q, i) => {
+    if (!p.cells[i]!.hole) blocked.add(`${q.x},${q.y}`);
+  });
+  const lit = new Set<string>();
+  for (let y = 0; y < p.height; y++) for (let x = 0; x < p.width; x++) if (!blocked.has(`${x},${y}`)) lit.add(`${x},${y}`);
+  return lit;
 }
 
 /** Un pli : axe, position de la ligne (entre `at - 1` et `at`), côté qui se rabat. */
@@ -197,9 +214,14 @@ export function checkFold(p: FoldPuzzle, s: FoldState): FoldCheck {
       if (m.kind === 'star' && !seen) badStars.push(i);
     }
   });
-  const hasRule = dotsAt.length > 0 || p.cells.some((c) => c.front.kind !== 'none' || c.back.kind !== 'none');
+  const hasRule = dotsAt.length > 0 || !!p.light || p.cells.some((c) => c.front.kind !== 'none' || c.back.kind !== 'none');
+  let lightOk = true;
+  if (p.light) {
+    const lit = litCells(p, s);
+    lightOk = lit.size === p.light.size && [...lit].every((k) => p.light!.has(k));
+  }
   return {
-    solved: hasRule && badDots.length === 0 && badStains.length === 0 && badStars.length === 0,
+    solved: hasRule && lightOk && badDots.length === 0 && badStains.length === 0 && badStars.length === 0,
     visible,
     badDots,
     badStains,

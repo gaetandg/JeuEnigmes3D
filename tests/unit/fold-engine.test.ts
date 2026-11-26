@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  applyFold, checkFold, foldSequence, initialFoldState, legalFolds, parseFold, solveFold,
+  applyFold, checkFold, foldSequence, initialFoldState, legalFolds, litCells, parseFold, solveFold,
 } from '../../src/core/fold/index.ts';
 
 const P = (grid: string, folds = 6) => parseFold({ id: 't', grid, note: '', folds });
@@ -93,5 +93,25 @@ describe('pliage — solveur', () => {
     const r = solveFold(p);
     expect(r.minFolds).toBe(2);
     expect(checkFold(p, foldSequence(p, r.solution!)).solved).toBe(true);
+  });
+});
+
+describe('pliage — pochoir lumineux', () => {
+  it('la lumière passe là où le papier est parti et à travers des trous superposés', () => {
+    const p = parseFold({
+      id: 't', note: '', folds: 1,
+      grid: `
+        O . . O
+        . . . .
+      `,
+      light: `
+        o o . o
+        o o . .
+      `,
+    });
+    expect(checkFold(p, initialFoldState(p)).solved).toBe(false);
+    const s = foldSequence(p, [{ axis: 'x', at: 2, side: -1 }]);
+    expect([...litCells(p, s)].sort()).toEqual(['0,0', '0,1', '1,0', '1,1', '3,0']);
+    expect(checkFold(p, s).solved).toBe(true);
   });
 });
