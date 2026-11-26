@@ -1,3 +1,4 @@
+import { objectLevers } from './levers.ts';
 import type { Cell, Color, Dir, LightObject, LightPuzzle, LightState } from './types.ts';
 import { SHAPES, parseShape } from '../shadow/parse.ts';
 import { BLUE, GREEN, RED, WHITE } from './types.ts';
@@ -23,6 +24,8 @@ export interface LightPuzzleDef {
   inventory?: number;
   /** objets en cubes (formes de la zone des ombres), posés sur des cases vides */
   objects?: { shape: string; at: [number, number]; axis?: 'x' | 'y'; start: number }[];
+  /** manivelles couplées : index des objets que chacune fait tourner */
+  cranks?: number[][];
 }
 
 const COLOR_LETTERS: Record<string, Color> = {
@@ -126,6 +129,7 @@ export function parsePuzzle(def: LightPuzzleDef): LightPuzzle {
   return {
     id: def.id, width, height, cells, inventory: def.inventory ?? 0, interactive,
     objects, objectStart: (def.objects ?? []).map((o) => o.start),
+    ...(def.cranks ? { cranks: def.cranks.map((c) => c.slice()) } : {}),
   };
 }
 
@@ -178,8 +182,13 @@ export function piecesUsed(p: LightPuzzle, s: LightState): number {
 export function interact(p: LightPuzzle, s: LightState, k: number, reverse = false): LightState | null {
   const next = s.slice();
   if (k >= p.interactive.length) {
-    // objet : un quart de tour
-    next[k] = (s[k]! + (reverse ? 3 : 1)) % 4;
+    // objet (ou manivelle couplée) : un quart de tour pour chaque objet entraîné
+    const lever = objectLevers(p)[k - p.interactive.length];
+    if (!lever) return null;
+    for (const j of lever) {
+      const i = p.interactive.length + j;
+      next[i] = (s[i]! + (reverse ? 3 : 1)) % 4;
+    }
     return next;
   }
   const cell = p.cells[p.interactive[k]!]!;

@@ -47,7 +47,9 @@ const HINT_DELAY = 180;
 const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS];
 
 /** Les énigmes qui donnent chacune un quart de lumière au phare. */
-const BEACON_STEPS = ['tours', 'grand-pli', 'cadran', 'f5'];
+/** dernière énigme : elle rallume le phare */
+const FINAL_ID = 'f6';
+const BEACON_STEPS = ['tours', 'grand-pli', 'cadran', FINAL_ID];
 
 /** Liens dessinés au sol (câbles lumineux). */
 function cableLinks(): { from: string; ax: number; az: number; bx: number; bz: number }[] {
@@ -651,7 +653,7 @@ export class Game {
     }
     const lamp = this.lighthouseLamp.material as THREE.MeshStandardMaterial;
     lamp.emissive.set('#ffe9b0').multiplyScalar((steps / 4) * (steps === 4 ? 2.5 : 1));
-    if (this.isSolved('f5') && !this.ended) {
+    if (this.isSolved(FINAL_ID) && !this.ended) {
       this.ended = true;
       this.beacon.visible = true;
       if (!instant) {

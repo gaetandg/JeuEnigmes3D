@@ -30,6 +30,7 @@ interface Obj {
   current: number;
   axis: 'x' | 'y';
   base: THREE.Mesh[];
+  paint: THREE.MeshStandardMaterial;
 }
 
 /** Manivelle couplée : une roue devant la scène, qui entraîne plusieurs objets. */
@@ -115,7 +116,7 @@ export class ShadowView implements PuzzleView {
       const cz = (o.oz + N / 2) * v - D / 2;
       pivot.position.set(cx, (N / 2) * v + v * 0.02, cz);
       const col = new THREE.Color(OBJECT_COLORS[i % OBJECT_COLORS.length]!);
-      const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.6, flatShading: true });
+      const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.6, flatShading: true, emissive: '#000000' });
       const cube = new THREE.BoxGeometry(v * 0.96, v * 0.96, v * 0.96);
       const cubes = o.shape.map(([x, y, z]) => {
         const m = new THREE.Mesh(cube, mat);
@@ -150,7 +151,7 @@ export class ShadowView implements PuzzleView {
       this.stage.add(pick);
       // avec des manivelles, on agit sur les roues, pas sur les objets
       if (!puzzle.cranks) this.pickables.push(pick);
-      this.objs.push({ pivot, turns: this.state[i]!, target: this.state[i]!, current: this.state[i]!, axis: o.axis, base });
+      this.objs.push({ pivot, turns: this.state[i]!, target: this.state[i]!, current: this.state[i]!, axis: o.axis, base, paint: mat });
       this.applyRotation(i, this.state[i]!);
     });
 
@@ -473,6 +474,11 @@ export class ShadowView implements PuzzleView {
         else if (hin.includes(i)) m.set('#2a8fb0').multiplyScalar(pulse(time));
         else m.set('#000000');
       }
+      // avec des manivelles, l'objet lui-même s'éclaire : on voit ce que la roue entraîne
+      if (!this.puzzle.cranks) return;
+      if (hov.includes(i)) o.paint.emissive.set('#4a3a18');
+      else if (hin.includes(i)) o.paint.emissive.set('#2a8fb0').multiplyScalar(0.35 * pulse(time));
+      else o.paint.emissive.set('#000000');
     });
     this.cranks.forEach((c, k) => {
       if (this.hovered === k) c.mat.emissive.set('#6b5320');

@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(62);
+  expect(panels).toHaveLength(63);
   expect(panels.filter((p) => p.powered && !p.id.startsWith('eclat-')).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -75,13 +75,13 @@ test('toutes les énigmes (zones 1 à 4) se résolvent dans l\'ordre et ouvrent 
   test.setTimeout(360_000);
   await boot(page);
   const solved = await page.evaluate(() => window.__game.solveAll());
-  expect(solved).toHaveLength(55);
+  expect(solved).toHaveLength(56);
   await page.evaluate(() => window.__game.advance(4));
   for (const gate of ['porte-plage', 'porte-place', 'porte-nord', 'porte-sortie']) {
     expect(await page.evaluate((g) => window.__game.gateOpen(g), gate)).toBe(1);
   }
   expect(await page.evaluate(() => window.__game.ended())).toBe(true);
-  for (const id of ['grand-pli', 'cadran', 'f5']) {
+  for (const id of ['grand-pli', 'cadran', 'f6']) {
     await page.evaluate((i) => window.__game.view(i), id);
     await waitFrames(page, 3);
     await page.screenshot({ path: `test-results/panneau-${id}.png` });
@@ -198,6 +198,38 @@ test("zone finale : tourner un objet sur un panneau de lumière change l'emprein
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'f1')!.solved).toBe(true);
   expect(await page.evaluate(() => window.__game.ended())).toBe(false);
   await page.screenshot({ path: 'test-results/f1-resolu.png' });
+  expect(errors).toEqual([]);
+});
+
+test("finale : les manivelles mènent les objets du panneau, le phare ne s'allume qu'après f6", async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('f6');
+  }, [...ZONE1, ...ZONE2, ...ZONE3, 'f1', 'f2', 'f3', 'f4', 'f5']);
+  expect(await page.evaluate(() => window.__game.ended())).toBe(false);
+  // la première manivelle (levier 0 : aucune case manipulable) tourne les deux premiers objets
+  expect(await page.evaluate(() => window.__game.state('f6'))).toEqual([2, 2, 2]);
+  expect(await page.evaluate(() => window.__game.interact('f6', 0))).toBe('ok');
+  expect(await page.evaluate(() => window.__game.state('f6'))).toEqual([3, 3, 2]);
+  expect(await page.evaluate(() => window.__game.interact('f6', 2, true))).toBe('ok');
+  expect(await page.evaluate(() => window.__game.state('f6'))).toEqual([3, 3, 1]);
+  // en suivant les aides, on arrive au bout
+  const steps = await page.evaluate(() => {
+    const g = window.__game;
+    for (let i = 0; i < 40; i++) {
+      if (g.panels().find((p) => p.id === 'f6')!.solved) return i;
+      const k = g.hint('f6');
+      if (k === null) return -1;
+      g.interact('f6', k);
+      g.advance(0.5);
+    }
+    return -2;
+  });
+  expect(steps).toBeGreaterThan(0);
+  // l'alimentation suit le câble (court délai réel), puis le phare s'allume
+  await page.waitForFunction(() => window.__game.ended(), null, { timeout: 15_000 });
+  await page.screenshot({ path: 'test-results/f6-finale.png' });
   expect(errors).toEqual([]);
 });
 

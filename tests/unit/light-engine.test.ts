@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BLUE, GREEN, RED, WHITE,
-  initialState, interact, isValidState, parsePuzzle, piecesUsed, reflect, simulate, solve, stateToGrid,
+  initialState, interact, isValidState, leverCount, leverHint, objectPath, parsePuzzle, piecesUsed, reflect, simulate, solve, stateToGrid,
 } from '../../src/core/light/index.ts';
 
 const P = (grid: string, inventory = 0) => parsePuzzle({ id: 't', grid, inventory });
@@ -153,6 +153,35 @@ describe('interaction et réserve', () => {
     expect(interact(p, s, 1)).toBeNull();
     s = interact(p, s, 0, true)!; // retour à vide
     expect(s).toEqual([-1, -1]);
+  });
+});
+
+describe('manivelles couplées sur un panneau de lumière', () => {
+  const def = {
+    id: 'm', inventory: 0, cranks: [[0, 1], [1]],
+    objects: [
+      { shape: 'anneau', at: [1, 0] as [number, number], start: 0 },
+      { shape: 'anneau', at: [4, 0] as [number, number], start: 0 },
+    ],
+    grid: String.raw`
+      .  .  .  .  .  .  .  .
+      >R .  .  .  .  .  .  oR
+      .  .  .  .  .  .  .  .
+    `,
+  };
+  it('les leviers d\'objets sont les manivelles', () => {
+    const p = parsePuzzle(def);
+    expect(leverCount(p)).toBe(2);
+    expect(interact(p, [0, 0], 0)).toEqual([1, 1]);
+    expect(interact(p, [1, 1], 1, true)).toEqual([1, 0]);
+    expect(interact(p, [0, 0], 2)).toBeNull();
+  });
+  it('plus court chemin et aide passent par les manivelles', () => {
+    const p = parsePuzzle(def);
+    expect(objectPath(p, [0, 0], [1, 0])).toEqual([{ lever: 0, reverse: false }, { lever: 1, reverse: true }]);
+    expect(leverHint(p, [0, 0], [[1, 0]])).toBe(0);
+    expect(leverHint(p, [1, 1], [[1, 0]])).toBe(1);
+    expect(leverHint(p, [1, 0], [[1, 0]])).toBeNull();
   });
 });
 

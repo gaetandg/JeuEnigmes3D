@@ -131,7 +131,7 @@ gravée en or sur son mur.
 
 ## 6. Zone 4 — Le Phare (combinaison)
 
-Au sommet de l'île, cinq panneaux en arc au pied du phare. Chacun combine deux langages :
+Au sommet de l'île, six panneaux en arc au pied du phare. Chacun combine plusieurs langages :
 
 - **Lumière + Ombres** (f1, f2, f5) : des objets en cubes, sur plateau tournant ou berceau,
   sont posés sur la grille de lumière. Leur **empreinte au sol** (la couche du bas) arrête
@@ -140,6 +140,16 @@ Au sommet de l'île, cinq panneaux en arc au pied du phare. Chacun combine deux 
 - **Pliage + Lumière** (f3, f4) : la feuille repose sur une **table lumineuse**. La lumière
   passe là où le papier est parti et à travers des trous **superposés** ; le motif éclairé
   doit correspondre au modèle (gravé sur la table et sur une plaque).
+- **La finale (f6)** réunit tout : rayons et couleurs du jardin, objets en cubes du cloître,
+  et les **manivelles couplées** (trois roues sur le rebord du panneau, en chaîne). Il y a cinq
+  rayons à trier :
+  - le rouge qui tombe doit être arrêté, sinon il teinterait le cristal bleu en magenta ;
+  - le vert doit être arrêté aussi, par un cristal noir ;
+  - les trois autres doivent passer.
+
+  Il faut 6 gestes au minimum, avec une solution unique. Chaque objet compte : le tourner seul
+  défait la solution. La grille a été trouvée par `scripts/finale-search.ts`, qui pose les
+  cristaux par construction. Au survol d'une roue, les objets qu'elle entraîne s'éclairent.
 
 Chaque zone terminée envoie un rai de lumière colorée au phare (un quart de sa lampe) ;
 le dernier panneau l'allume entièrement : son faisceau se met à tourner sur la mer et un
@@ -206,6 +216,6 @@ tests/
 | 5 | Zone Ombres | idem |
 | 6 | Le Phare | zone finale combinée, fin du jeu |
 
-**Bilan** : 55 énigmes (22 + 1 en zone 1, 13 + 1 en zone 2, 12 + 1 en zone 3, 5 en zone 4),
+**Bilan** : 56 énigmes (22 + 1 en zone 1, 13 + 1 en zone 2, 12 + 1 en zone 3, 6 en zone 4),
 toutes vérifiées par les solveurs à chaque modification.
 | 7 | Mobile | contrôles tactiles, performances |

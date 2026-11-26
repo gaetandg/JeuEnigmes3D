@@ -55,6 +55,11 @@ export interface LightPuzzle {
   objects: LightObject[];
   /** Quarts de tour de départ des objets. */
   objectStart: number[];
+  /**
+   * Manivelles couplées (facultatif) : chacune fait tourner ensemble les objets qu'elle liste.
+   * Les leviers d'objets sont alors les manivelles, et non plus les objets un à un.
+   */
+  cranks?: number[][];
 }
 
 /**

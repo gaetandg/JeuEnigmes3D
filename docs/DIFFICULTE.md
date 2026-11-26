@@ -10,7 +10,7 @@ choisit toujours l'action qui améliore le plus la situation visible. Une énigm
 ne se résout pas par petites améliorations : il faut une **idée**. Les énigmes d'apprentissage sont
 volontairement à 0 % ; les énigmes de fin d'allée et de zone devraient en demander une.
 
-Les **manivelles couplées** (o11, o12, Cadran) sont à 100 % : chaque roue entraîne deux objets,
+Les **manivelles couplées** (o11, o12, Cadran, et la finale f6) sont à 100 % : chaque roue entraîne deux objets,
 donc régler l'un dérègle l'autre, et aucune action ne fait progresser la situation visible.
 Sans le couplage, les mêmes scènes sont à 0 %.
 
@@ -71,3 +71,4 @@ Sans le couplage, les mêmes scènes sont à 0 %.
 | 4 Phare | f3 | pliage+lumière | 8 | 1 | 7 | 3.0 ███ | 0 % |
 | 4 Phare | f4 | pliage+lumière | 16 | 2 | 50 | 5.7 ██████ | 0 % |
 | 4 Phare | f5 | lumière+objets | 3 | 3 | 25 | 4.7 █████ | 51 % |
+| 4 Phare | f6 | lumière+objets+manivelles | 3 | 6 | 48 | 5.6 ██████ | 100 % |
