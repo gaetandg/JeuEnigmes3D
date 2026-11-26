@@ -4,10 +4,10 @@
  *   node scripts/light-report.ts b2 c1      → seulement celles-ci
  */
 import { analyze, initialState, parsePuzzle, renderAscii } from '../src/core/light/index.ts';
-import { ZONE1 } from '../src/puzzles/zone1.ts';
+import { ZONE1, ZONE1_TOWERS } from '../src/puzzles/zone1.ts';
 
 const only = process.argv.slice(2);
-for (const def of ZONE1) {
+for (const def of [...ZONE1, ZONE1_TOWERS]) {
   if (only.length && !only.includes(def.id)) continue;
   const p = parsePuzzle(def);
   const init = initialState(p);

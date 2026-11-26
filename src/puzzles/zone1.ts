@@ -234,3 +234,18 @@ export const ZONE1: Zone1Puzzle[] = [
     `,
   },
 ];
+
+/**
+ * Énigme d'environnement de la zone 1 : les Tours-Miroirs.
+ * Même moteur, même règles, mais chaque case mesure plusieurs mètres :
+ * les miroirs sont des tours, les filtres de grands vitraux, le cristal garde la porte nord.
+ */
+export const ZONE1_TOWERS: Zone1Puzzle = {
+  id: 'tours',
+  note: 'Le jardin est un panneau géant : la lumière du soleil, divisée, doit revenir en magenta.',
+  grid: String.raw`
+    .  M\ .  oM .  M/ .
+    .  fR .  .  .  fB .
+    >W S\ .  .  .  M\ .
+  `,
+};

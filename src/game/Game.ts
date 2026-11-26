@@ -1,13 +1,15 @@
 import * as THREE from 'three';
 import { parsePuzzle, solve } from '../core/light/index.ts';
-import { ZONE1 } from '../puzzles/zone1.ts';
-import { GATES, PANELS, START, standPoint } from '../world/layout.ts';
+import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
+import { GATES, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell } from '../world/layout.ts';
 import { buildTerrain, heightAt } from '../world/terrain.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../world/props.ts';
 import type { GateView } from '../world/props.ts';
 import { HORIZON, buildLights, buildSky, buildWater } from '../render/environment.ts';
 import type { Lights } from '../render/environment.ts';
 import { LightPanel } from '../render/panelView.ts';
+import { WorldLightPuzzle } from '../render/worldPuzzle.ts';
+import type { PuzzleView } from '../render/puzzleView.ts';
 import { Cables } from '../render/cables.ts';
 import { Colliders } from './colliders.ts';
 import { DesktopInput, Player } from './player.ts';
@@ -16,7 +18,10 @@ import { clearSave, loadSave, writeSave } from './progress.ts';
 import type { SaveData } from './progress.ts';
 import { Hud } from '../ui/hud.ts';
 
-const REACH = 3.4;
+const REACH = 5;
+
+/** Qui alimente quoi : panneaux + énigme d'environnement. */
+const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS];
 
 export interface GameOptions {
   canvas: HTMLCanvasElement;
@@ -31,7 +36,7 @@ export class Game {
   readonly camera: THREE.PerspectiveCamera;
   readonly colliders = new Colliders();
   readonly player: Player;
-  readonly panels = new Map<string, LightPanel>();
+  readonly panels = new Map<string, PuzzleView>();
   readonly gates = new Map<string, GateView & { open: number; opening: boolean }>();
   readonly audio = new Audio();
   readonly cables = new Cables();
@@ -41,12 +46,14 @@ export class Game {
   private input: DesktopInput | null = null;
   private hud: Hud | null = null;
   private raycaster = new THREE.Raycaster();
-  private hovered: { panel: LightPanel; k: number } | null = null;
+  private hovered: { panel: PuzzleView; k: number } | null = null;
   private timer = new THREE.Timer();
   private time = 0;
   private saveTimer = 0;
   private plazaCrystal: THREE.Mesh;
   readonly lighthouseLamp: THREE.Mesh;
+  private shaft: THREE.Mesh;
+  private shaftOn = 0;
   frames = 0;
   lastDrawCalls = 0;
   running = false;
@@ -108,6 +115,24 @@ export class Game {
       this.colliders.addCircle(spot.x, spot.z, 0.45);
       this.scene.add(panel.group);
     }
+    const towers = new WorldLightPuzzle(parsePuzzle(ZONE1_TOWERS), this.colliders);
+    towers.onSolved = () => this.onPanelSolved(towers);
+    this.panels.set(TOWERS.id, towers);
+    this.scene.add(towers.group);
+
+    // rai de lumière du cristal des tours jusqu'au phare (visible une fois la zone finie)
+    const from = towerCell(3, 0);
+    const a = new THREE.Vector3(from.x, heightAt(from.x, from.z) + TOWERS.beamY + 0.3, from.z);
+    const b = new THREE.Vector3(LIGHTHOUSE.x, heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z) + 28.6, LIGHTHOUSE.z);
+    const len = a.distanceTo(b);
+    this.shaft = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.35, 0.35, len, 8, 1, true),
+      new THREE.MeshBasicMaterial({ color: '#ff8de6', toneMapped: false, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }),
+    );
+    this.shaft.position.copy(a).add(b).multiplyScalar(0.5);
+    this.shaft.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    this.shaft.visible = false;
+    this.scene.add(this.shaft);
 
     this.player = new Player(this.camera, this.colliders);
     this.restore();
@@ -169,7 +194,7 @@ export class Game {
 
   /** Allume les panneaux et ouvre les portes dont les conditions sont remplies. */
   private updatePower(instant: boolean): void {
-    for (const spot of PANELS) {
+    for (const spot of POWER) {
       const panel = this.panels.get(spot.id)!;
       const on = spot.requires.every((r) => this.isSolved(r));
       if (on && !panel.powered) {
@@ -188,12 +213,20 @@ export class Game {
       }
     }
     for (const id of this.save.solved) this.cables.light(id, instant);
-    const allees = ['a5', 'b5', 'c4', 'd5'].filter((id) => this.isSolved(id)).length;
+    const allees = ['a5', 'b5', 'c4', 'd5', 'tours'].filter((id) => this.isSolved(id)).length;
     const m = this.plazaCrystal.material as THREE.MeshStandardMaterial;
-    m.emissive.set('#ffd98a').multiplyScalar(allees * 0.35);
+    m.emissive.set('#ffd98a').multiplyScalar(allees * 0.25);
+    // zone 1 terminée : le phare reçoit un premier tiers de lumière
+    const zones = this.isSolved('tours') ? 1 : 0;
+    const lamp = this.lighthouseLamp.material as THREE.MeshStandardMaterial;
+    lamp.emissive.set('#ffe9b0').multiplyScalar(zones / 3);
+    if (zones && !this.shaft.visible) {
+      this.shaft.visible = true;
+      this.shaftOn = instant ? 1 : 0;
+    }
   }
 
-  private onPanelSolved(panel: LightPanel): void {
+  private onPanelSolved(panel: PuzzleView): void {
     const id = panel.puzzle.id;
     if (!this.save.solved.includes(id)) this.save.solved.push(id);
     this.audio.solved();
@@ -250,11 +283,12 @@ export class Game {
     const candidates: THREE.Object3D[] = [];
     for (const p of this.panels.values()) {
       if (!p.powered || p.solved) continue;
-      if (p.group.position.distanceToSquared(this.camera.position) > 25) continue;
+      if (p instanceof LightPanel && p.group.position.distanceToSquared(this.camera.position) > 25) continue;
       candidates.push(...p.pickables);
     }
-    const hit = candidates.length ? this.raycaster.intersectObjects(candidates, false)[0] : undefined;
-    const next = hit ? { panel: hit.object.userData.panel as LightPanel, k: hit.object.userData.k as number } : null;
+    let hit = candidates.length ? this.raycaster.intersectObjects(candidates, false)[0] : undefined;
+    if (hit && hit.distance > (hit.object.userData.panel as PuzzleView).reach) hit = undefined;
+    const next = hit ? { panel: hit.object.userData.panel as PuzzleView, k: hit.object.userData.k as number } : null;
     if (this.hovered && (!next || next.panel !== this.hovered.panel || next.k !== this.hovered.k)) {
       this.hovered.panel.setHover(null);
     }
@@ -289,6 +323,10 @@ export class Game {
     this.water.update(this.time);
     this.cables.update(dt);
     for (const p of this.panels.values()) {
+      if (!(p instanceof LightPanel)) {
+        p.update(dt, this.time);
+        continue;
+      }
       const d2 = p.group.position.distanceToSquared(this.camera.position);
       p.setDetail(d2 < 55 * 55);
       if (d2 < 55 * 55) p.update(dt, this.time);
@@ -300,6 +338,10 @@ export class Game {
       }
     }
     this.plazaCrystal.rotation.y += dt * 0.2;
+    if (this.shaft.visible) {
+      this.shaftOn = Math.min(1, this.shaftOn + dt * 0.4);
+      (this.shaft.material as THREE.MeshBasicMaterial).opacity = 0.55 * this.shaftOn * (0.85 + 0.15 * Math.sin(this.time * 3));
+    }
     this.updateHover();
     this.audio.setSeaProximity(1 - Math.min(1, Math.max(0, (this.player.position.y - 2) / 6)));
     this.saveTimer += dt;
@@ -317,6 +359,11 @@ export class Game {
 
   /** Place le joueur devant un panneau. */
   view(id: string): void {
+    if (id === TOWERS.id) {
+      // belvédère : devant la dernière allée, regard vers les tours
+      this.player.place(4, 1, 0, 0.02);
+      return;
+    }
     const spot = PANELS.find((p) => p.id === id);
     if (!spot) throw new Error(`panneau ${id} inconnu`);
     const s = standPoint(spot, 1.55);

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { heightAt } from '../world/terrain.ts';
-import { GATES, PANELS } from '../world/layout.ts';
+import { GATES, PANELS, TOWERS, towerCell } from '../world/layout.ts';
 
 /**
  * Câbles lumineux au sol : relient un panneau à ce qu'il alimente
@@ -24,10 +24,15 @@ export class Cables {
   constructor() {
     this.group.name = 'câbles';
     const tile = new THREE.BoxGeometry(0.16, 0.05, 0.42);
-    const targets: { id: string; x: number; z: number; requires: string[] }[] = [...PANELS, ...GATES];
+    const source = towerCell(0, 2);
+    const crystal = towerCell(3, 0);
+    const targets: { id: string; x: number; z: number; requires: string[] }[] = [
+      ...PANELS, ...GATES, { id: TOWERS.id, x: source.x + 1.5, z: source.z, requires: TOWERS.requires },
+    ];
+    const sources = [...PANELS, { id: TOWERS.id, ...crystal }];
     for (const t of targets) {
       for (const req of t.requires) {
-        const src = PANELS.find((p) => p.id === req);
+        const src = sources.find((p) => p.id === req);
         if (!src) continue;
         this.add(src.id, src.x, src.z, t.x, t.z, tile);
       }
