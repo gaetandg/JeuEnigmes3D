@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Perlin2D, clamp, lerp, smoothstep } from './noise.ts';
-import { FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS } from './layout.ts';
+import { FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS } from './layout.ts';
 
 const noise = new Perlin2D(7);
 const ISLAND_CENTER = { x: 0, z: -15 };
@@ -52,12 +52,12 @@ function gardenMask(x: number, z: number): number {
 }
 
 /** Altitude du sol en (x, z), aménagements compris. Utilisée par le rendu ET par le joueur. */
-export function heightAt(x: number, z: number): number {
+/** Altitude aménagée (jardin, plage, plateaux), sans chemins ni cercles aplanis. */
+function baseHeight(x: number, z: number): number {
   let h = natural(x, z);
   // jardin : plateau légèrement ondulé
   const g = gardenMask(x, z);
-  const gardenH = GARDEN_Y + noise.fbm(x * 0.05, z * 0.05, 2) * 0.8;
-  h = lerp(h, gardenH, g);
+  if (g > 0) h = lerp(h, GARDEN_Y + noise.fbm(x * 0.05, z * 0.05, 2) * 0.8, g);
   // plage au sud : pente douce vers la mer
   if (z > GARDEN.z1 - 4 && Math.abs(x) < 70) {
     const t = smoothstep(GARDEN.z1 - 4, 132, z);
@@ -65,10 +65,35 @@ export function heightAt(x: number, z: number): number {
     const w = 1 - smoothstep(40, 70, Math.abs(x));
     h = lerp(h, beach, w);
   }
-  // chemins et zones aplanies
+  // plateaux des autres zones
+  for (const pl of PLATEAUS) {
+    const d = Math.hypot(x - pl.x, z - pl.z);
+    if (d < pl.r + 14) {
+      const t = 1 - smoothstep(pl.r, pl.r + 14, d);
+      h = lerp(h, plateauHeight(pl) + noise.fbm(x * 0.06, z * 0.06, 2) * 0.4, t);
+    }
+  }
+  return h;
+}
+
+const plateauCache = new Map<string, number>();
+function plateauHeight(pl: { x: number; z: number }): number {
+  const key = `${pl.x},${pl.z}`;
+  let v = plateauCache.get(key);
+  if (v === undefined) {
+    v = natural(pl.x, pl.z);
+    plateauCache.set(key, v);
+  }
+  return v;
+}
+
+/** Altitude du sol en (x, z), aménagements compris. Utilisée par le rendu ET par le joueur. */
+export function heightAt(x: number, z: number): number {
+  let h = baseHeight(x, z);
+  // chemins : légèrement adoucis
   const dp = distToPath(x, z);
   const pathW = 1 - smoothstep(1.2, 3.5, dp);
-  if (pathW > 0) h = lerp(h, Math.max(h - 0.25, Math.min(h, smoothPathHeight(x, z))), pathW * 0.6);
+  if (pathW > 0) h = lerp(h, Math.min(h, baseHeight(x, z) - 0.05), pathW * 0.6);
   for (const f of FLATS) {
     const d = Math.hypot(x - f.x, z - f.z);
     if (d < f.r + 3) {
@@ -79,22 +104,12 @@ export function heightAt(x: number, z: number): number {
   return h;
 }
 
-function smoothPathHeight(x: number, z: number): number {
-  return natural(x, z) * (1 - gardenMask(x, z)) + GARDEN_Y * gardenMask(x, z);
-}
-
 const flatCache = new Map<string, number>();
 function flatHeight(x: number, z: number): number {
   const key = `${x},${z}`;
   let v = flatCache.get(key);
   if (v === undefined) {
-    // altitude « naturelle aménagée » au centre, sans les cercles (évite la récursion)
-    const g = gardenMask(x, z);
-    v = lerp(natural(x, z), GARDEN_Y + noise.fbm(x * 0.05, z * 0.05, 2) * 0.8, g);
-    if (z > GARDEN.z1 - 4) {
-      const t = smoothstep(GARDEN.z1 - 4, 132, z);
-      v = lerp(v, lerp(GARDEN_Y, -2.5, t), 1);
-    }
+    v = baseHeight(x, z);
     flatCache.set(key, v);
   }
   return v;

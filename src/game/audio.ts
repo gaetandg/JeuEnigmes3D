@@ -173,6 +173,25 @@ export class Audio {
     src.start();
   }
 
+  /** Une feuille de papier se plie : froissement bref. */
+  fold(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer(0.5);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 2400;
+    f.Q.value = 0.8;
+    const g = ctx.createGain();
+    const t = ctx.currentTime;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.25, t + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+    src.connect(f).connect(g).connect(this.master);
+    src.start();
+  }
+
   /** Un panneau s'allume. */
   power(): void {
     const ctx = this.ctx;

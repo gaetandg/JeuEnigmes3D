@@ -50,7 +50,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(20);
+  expect(panels).toHaveLength(33);
   expect(panels.filter((p) => p.powered).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -89,15 +89,15 @@ test('une porte fermée bloque le joueur, ouverte elle le laisse passer', async 
   expect((await page.evaluate(() => window.__game.player())).z).toBeLessThan(84);
 });
 
-test('toutes les énigmes (panneaux + Tours-Miroirs) se résolvent dans l\'ordre et ouvrent les portes', async ({ page }) => {
+test('toutes les énigmes (zones 1 et 2) se résolvent dans l\'ordre et ouvrent les portes', async ({ page }) => {
   await boot(page);
   const solved = await page.evaluate(() => window.__game.solveAll());
-  expect(solved).toHaveLength(20);
+  expect(solved).toHaveLength(33);
   await page.evaluate(() => window.__game.advance(4));
   for (const gate of ['porte-plage', 'porte-place', 'porte-nord', 'porte-sortie']) {
     expect(await page.evaluate((g) => window.__game.gateOpen(g), gate)).toBe(1);
   }
-  for (const id of ['a5', 'b3', 'c4', 'd5', 'tours']) {
+  for (const id of ['a5', 'b3', 'c4', 'd5', 'tours', 'p6', 'p12', 'grand-pli']) {
     await page.evaluate((i) => window.__game.view(i), id);
     await waitFrames(page, 3);
     await page.screenshot({ path: `test-results/panneau-${id}.png` });
@@ -116,6 +116,42 @@ test('les Tours-Miroirs se tournent en visant la tour', async ({ page }) => {
   const h = await page.evaluate(() => window.__game.hovered());
   expect(h?.id).toBe('tours');
   expect(await page.evaluate((k) => window.__game.interact('tours', k), h!.k)).toBe('ok');
+});
+
+const ZONE1 = ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'c1', 'c2', 'c3', 'c4', 'd1', 'd2', 'd3', 'd4', 'd5', 'tours'];
+
+test('une feuille de pliage se plie en visant une ligne de pli', async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('p1');
+    window.__game.aim('p1', 1);
+  }, ZONE1);
+  await waitFrames(page, 3);
+  expect(await page.evaluate(() => window.__game.hovered())).toEqual({ id: 'p1', k: 1 });
+  expect(await page.evaluate(() => window.__game.interact('p1', 1))).toBe('ok');
+  // l'animation du pli se joue, puis la feuille est vérifiée
+  await page.evaluate(() => window.__game.advance(1));
+  expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'p1')!.solved).toBe(true);
+  await page.screenshot({ path: 'test-results/p1-plie.png' });
+  expect(errors).toEqual([]);
+});
+
+test('un mauvais pliage se déplie tout seul quand la réserve est vide', async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of [...ids, 'p1']) window.__game.solve(id);
+    window.__game.view('p2');
+  }, ZONE1);
+  // p2 : « R . . R », un seul pli permis ; plier au premier tiers est une erreur
+  expect(await page.evaluate(() => window.__game.interact('p2', 1))).toBe('ok');
+  expect(await page.evaluate(() => window.__game.state('p2'))).toEqual([0, 1, -1]);
+  await page.evaluate(() => window.__game.advance(1));
+  // les marques fautives clignotent, puis la feuille se déplie
+  expect(await page.evaluate(() => window.__game.state('p2'))).toEqual([0, 1, -1]);
+  await page.evaluate(() => window.__game.advance(2));
+  expect(await page.evaluate(() => window.__game.state('p2'))).toEqual([]);
+  expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'p2')!.solved).toBe(false);
 });
 
 test('la progression est sauvegardée et restaurée', async ({ page }) => {

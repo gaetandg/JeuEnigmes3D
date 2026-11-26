@@ -91,12 +91,35 @@ export const WALLS: [number, number, number, number][] = (() => {
   return segs;
 })();
 
+// ── zone 2 : l'Atelier de Papier (plateau à l'ouest, au-delà de la porte nord) ──
+export const ATELIER = { x: -50, z: -56, r: 21 };
+
+/** Douze pupitres en cercle autour de l'atelier, le joueur regarde vers le centre. */
+export const FOLD_PANELS: PanelSpot[] = Array.from({ length: 12 }, (_, i) => {
+  const a = 0.35 + (i / 12) * Math.PI * 2; // départ côté est (vers la porte nord)
+  const r = 15;
+  return {
+    id: `p${i + 1}`,
+    x: ATELIER.x + Math.cos(a) * r,
+    z: ATELIER.z + Math.sin(a) * r,
+    yaw: Math.atan2(Math.cos(a), Math.sin(a)),
+    requires: i === 0 ? ['tours'] : [`p${i}`],
+  };
+});
+
+/** Le Grand Pli, sur l'estrade au centre de l'atelier. */
+export const GRAND_PLI = { id: 'grand-pli', x: ATELIER.x, z: ATELIER.z, yaw: 0, requires: ['p12'], cell: 2.6 };
+
+/** Plateaux aplanis hors du jardin. */
+export const PLATEAUS: { x: number; z: number; r: number }[] = [ATELIER];
+
 /** Chemins : suites de points (x, z). */
 export const PATHS: [number, number][][] = [
   [[0, 108], [0, 98], [0, 86], [-4, 80], [2, 73], [-2, 65], [2, 58], [0, 50], [0, 38]],
   [[0, 38], [-10, 39], [-18, 42], [-26, 40], [-33, 41], [-40, 38], [-45, 35]],
   [[0, 38], [10, 39], [18, 42], [26, 40], [34, 41], [41, 42]],
-  [[0, 38], [0, 26], [0, 22], [-5, 16], [4, 12], [-3, 6], [2, 0], [0, -8], [0, -24], [0, -40]],
+  [[0, 38], [0, 26], [0, 22], [-5, 16], [4, 12], [-3, 6], [2, 0], [0, -8], [0, -24], [0, -34]],
+  [[0, -34], [-14, -40], [-26, -46], [-34, -50]],
 ];
 
 /** Place centrale du jardin. */
@@ -105,11 +128,13 @@ export const PLAZA = { x: 0, z: 38, r: 9 };
 /** Zones à aplanir (cercles) : autour des panneaux, de la place, des portes. */
 export const FLATS: { x: number; z: number; r: number }[] = [
   ...PANELS.map((p) => ({ x: p.x, z: p.z, r: 3.5 })),
+  ...FOLD_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...GATES.map((g) => ({ x: g.x, z: g.z, r: 4 })),
   PLAZA,
   // dalles des tours
   ...[[1, 0], [3, 0], [5, 0], [1, 1], [5, 1], [0, 2], [1, 2], [5, 2]].map(([c, r]) => ({ ...towerCell(c!, r!), r: 2.5 })),
 ];
+
 
 /** Position où se tient le joueur pour faire face à un panneau. */
 export function standPoint(p: PanelSpot, dist = 1.9): { x: number; z: number } {

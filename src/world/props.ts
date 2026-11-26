@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32, smoothstep } from './noise.ts';
 import { heightAt, distToPath, distToSegment } from './terrain.ts';
-import { FLATS, GARDEN, GATES, LIGHTHOUSE, PLAZA, WALLS } from './layout.ts';
+import { ATELIER, FLATS, GARDEN, GATES, LIGHTHOUSE, PLAZA, WALLS } from './layout.ts';
 import type { Colliders } from '../game/colliders.ts';
 
 export const STONE = new THREE.Color('#efe7da');
@@ -20,6 +20,7 @@ function freeSpot(x: number, z: number, margin: number): boolean {
   if (FLATS.some((f) => Math.hypot(x - f.x, z - f.z) < f.r + 1.5 + margin)) return false;
   if (nearWall(x, z, 1.5 + margin)) return false;
   if (Math.hypot(x - LIGHTHOUSE.x, z - LIGHTHOUSE.z) < 10) return false;
+  if (Math.hypot(x - ATELIER.x, z - ATELIER.z) < ATELIER.r + 1 + margin) return false;
   return true;
 }
 
