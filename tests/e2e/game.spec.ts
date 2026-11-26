@@ -230,6 +230,8 @@ test('en suivant les aides discrètes, on résout une énigme de chaque langage'
   }, ['p9', ...ZONE2.slice(9), 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9']);
   expect(await follow('o10')).toBeGreaterThan(0);
   // les manivelles : l'aide désigne la bonne roue, même quand il faut passer par un état moins bon
+  // (o10 vient d'être résolue à la main : son câble allume o11 après un court délai réel)
+  await page.waitForFunction(() => window.__game.panels().find((p) => p.id === 'o11')!.powered, null, { timeout: 15_000 });
   await page.evaluate(() => {
     window.__game.solve('o11');
   });
