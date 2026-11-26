@@ -124,7 +124,7 @@ export class Hud {
   }
 
   /** Écran de fin. */
-  showEnding(stats: { solved: number; total: number; minutes: number }): void {
+  showEnding(stats: { solved: number; total: number; minutes: number; shards: number; shardsTotal: number }): void {
     const el = document.createElement('div');
     el.className = 'overlay ending';
     el.innerHTML = `
@@ -132,6 +132,7 @@ export class Hud {
         <h1>Lueur</h1>
         <p class="subtitle">Le phare brille à nouveau.</p>
         <p>${stats.solved} énigmes sur ${stats.total} · ${stats.minutes} min de jeu</p>
+        <p>${stats.shards === stats.shardsTotal ? 'Les sept éclats sont réunis : toute la lumière de l\'île.' : `Éclats trouvés : ${stats.shards} / ${stats.shardsTotal} — l'île cache encore des secrets.`}</p>
         <p class="help">Merci d'avoir joué.<br/>Un jeu imaginé avec gaetandg et entièrement conçu, codé et testé par Claude.</p>
         <button class="primary" data-action="continue">Continuer à explorer</button>
       </div>`;

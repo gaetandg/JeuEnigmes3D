@@ -19,6 +19,7 @@ export type Api = {
   ended: () => boolean;
   hint: (id: string) => number | null;
   guides: () => number;
+  shards: () => number;
 };
 declare global {
   interface Window {

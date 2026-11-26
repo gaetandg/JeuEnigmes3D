@@ -160,6 +160,27 @@ export const FINAL_PANELS: (PanelSpot & { kind: 'light' | 'fold' })[] = ['f1', '
   };
 });
 
+// ── les Éclats : énigmes secrètes ──
+export type SecretKind = 'world-light' | 'light' | 'fold-desk' | 'fold-easel' | 'shadow';
+export interface SecretSpot extends PanelSpot {
+  kind: SecretKind;
+}
+
+export const SECRETS: SecretSpot[] = [
+  { id: 'eclat-plage', kind: 'world-light', x: -46, z: 96, yaw: 0, requires: [] },
+  { id: 'eclat-bosquet', kind: 'light', x: 66, z: 22, yaw: E, requires: [] },
+  { id: 'eclat-voile', kind: 'fold-easel', x: -72, z: 8, yaw: W, requires: [] },
+  { id: 'eclat-statues', kind: 'shadow', x: 84, z: -40, yaw: E, requires: [] },
+  { id: 'eclat-belvedere', kind: 'light', x: -16, z: -104, yaw: W, requires: [] },
+  { id: 'eclat-dunes', kind: 'fold-desk', x: 38, z: 102, yaw: N, requires: [] },
+  { id: 'eclat-gardiens', kind: 'shadow', x: 8, z: -121, yaw: Math.PI, requires: [] },
+];
+
+/** Le jardin des lanternes (grille d'environnement de la plage ouest). */
+export const SECRET_PLAGE = { x0: -46, z0: 96, dx: 4, dz: 4, beamY: 1.7, scale: 0.42, name: 'jardin des lanternes' };
+/** Taille d'une case de la voile (chevalet) */
+export const SECRET_VOILE_CELL = 1.3;
+
 /** Plateaux aplanis hors du jardin. */
 export const PLATEAUS: { x: number; z: number; r: number }[] = [ATELIER, CLOITRE, PHARE];
 
@@ -183,6 +204,8 @@ export const FLATS: { x: number; z: number; r: number }[] = [
   ...FOLD_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...SHADOW_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...FINAL_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
+  ...SECRETS.filter((s) => s.kind !== 'world-light').map((s) => ({ x: s.x, z: s.z, r: s.kind === 'fold-easel' ? 5 : 3 })),
+  ...[0, 1, 2].flatMap((r) => [0, 1, 2, 3, 4].map((c) => ({ x: SECRET_PLAGE.x0 + c * SECRET_PLAGE.dx, z: SECRET_PLAGE.z0 + r * SECRET_PLAGE.dz, r: 1.5 }))),
   ...GATES.map((g) => ({ x: g.x, z: g.z, r: 4 })),
   PLAZA,
   // dalles des tours

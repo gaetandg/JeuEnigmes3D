@@ -55,6 +55,7 @@ export function exposeDebugApi(game: Game): void {
     ended: () => game.ended,
     hint: (id: string) => game.panels.get(id)?.hint() ?? null,
     guides: () => game.guides.mesh.count,
+    shards: () => game.stats().shards,
   };
   (window as unknown as { __game: typeof api }).__game = api;
   api.ready = true;

@@ -30,8 +30,8 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(53);
-  expect(panels.filter((p) => p.powered).map((p) => p.id)).toEqual(['a1']);
+  expect(panels).toHaveLength(60);
+  expect(panels.filter((p) => p.powered && !p.id.startsWith('eclat-')).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
 });
@@ -205,6 +205,22 @@ test('en suivant les aides discrètes, on résout une énigme de chaque langage'
     for (const id of ids) window.__game.solve(id);
   }, ['p9', ...ZONE2.slice(9), 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9']);
   expect(await follow('o10')).toBeGreaterThan(0);
+  expect(errors).toEqual([]);
+});
+
+test('les sept énigmes secrètes donnent sept éclats', async ({ page }) => {
+  await boot(page);
+  const ids = ['eclat-plage', 'eclat-bosquet', 'eclat-voile', 'eclat-statues', 'eclat-belvedere', 'eclat-dunes', 'eclat-gardiens'];
+  // allumées dès le départ, sans câble : on peut les résoudre sans avoir fini le jeu
+  const powered = await page.evaluate((list) => window.__game.panels().filter((p) => list.includes(p.id) && p.powered).length, ids);
+  expect(powered).toBe(7);
+  await page.evaluate((list) => {
+    for (const id of list) window.__game.solve(id);
+    window.__game.advance(7);
+  }, ids);
+  expect(await page.evaluate(() => window.__game.shards())).toBe(7);
+  // les secrets n'ont pas de guide lumineux
+  await page.evaluate(() => window.__game.teleport(0, 104, 0));
   expect(errors).toEqual([]);
 });
 
