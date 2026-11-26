@@ -60,6 +60,7 @@ export class ShadowView implements PuzzleView {
   private time = 0;
   private solvedAt = -1;
   private stage: THREE.Group;
+  private readonly start: number[];
 
   constructor(readonly puzzle: ShadowPuzzle, readonly place: ShadowPlacement, start: number[]) {
     this.v = place.voxel;
@@ -67,6 +68,7 @@ export class ShadowView implements PuzzleView {
     this.gap = place.voxel * (place.voxel > 0.5 ? 1.2 : 2.2);
     this.reach = place.voxel > 0.5 ? 12 : 3.6;
     this.state = start.slice();
+    this.start = start.slice();
     const v = this.v;
     const W = puzzle.width * v;
     const D = puzzle.depth * v;
@@ -319,7 +321,9 @@ export class ShadowView implements PuzzleView {
   }
 
   applyState(s: number[], instant = true): void {
-    this.state = s.map((t) => ((t % 4) + 4) % 4);
+    // une sauvegarde abîmée (longueur, valeurs non entières) repart de la position de départ
+    const ok = Array.isArray(s) && s.length === this.objs.length && s.every((t) => Number.isInteger(t));
+    this.state = (ok ? s : this.start).map((t) => ((t % 4) + 4) % 4);
     this.objs.forEach((o, i) => {
       o.target = this.state[i]!;
       if (instant) {

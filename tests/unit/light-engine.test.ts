@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BLUE, GREEN, RED, WHITE,
-  initialState, interact, parsePuzzle, piecesUsed, reflect, simulate, solve, stateToGrid,
+  initialState, interact, isValidState, parsePuzzle, piecesUsed, reflect, simulate, solve, stateToGrid,
 } from '../../src/core/light/index.ts';
 
 const P = (grid: string, inventory = 0) => parsePuzzle({ id: 't', grid, inventory });
@@ -153,6 +153,21 @@ describe('interaction et réserve', () => {
     expect(interact(p, s, 1)).toBeNull();
     s = interact(p, s, 0, true)!; // retour à vide
     expect(s).toEqual([-1, -1]);
+  });
+});
+
+describe('validation des états (sauvegardes abîmées)', () => {
+  it('accepte les états du jeu et refuse les valeurs hors domaine', () => {
+    const p = P(String.raw`>R M/ _ _ oR`, 1);
+    expect(isValidState(p, initialState(p))).toBe(true);
+    expect(isValidState(p, [1, 0, -1])).toBe(true);
+    expect(isValidState(p, [1, 0])).toBe(false); // longueur
+    expect(isValidState(p, [2, -1, -1])).toBe(false); // miroir : 0 ou 1
+    expect(isValidState(p, [-1, -1, -1])).toBe(false);
+    expect(isValidState(p, [0.5, -1, -1])).toBe(false);
+    expect(isValidState(p, [Number.NaN, -1, -1])).toBe(false);
+    expect(isValidState(p, [0, 2, -1])).toBe(false); // socle : -1, 0 ou 1
+    expect(isValidState(p, [0, 0, 1])).toBe(false); // deux miroirs posés pour une réserve de 1
   });
 });
 

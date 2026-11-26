@@ -251,6 +251,35 @@ test('pas de fuite de mémoire : survoler et plier ne crée pas de géométries'
   expect(after - before).toBeLessThanOrEqual(2);
 });
 
+test('un pliage en cours est sauvegardé et restauré', async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of [...ids, 'p1', 'p2', 'p3', 'p4']) window.__game.solve(id);
+    sessionStorage.setItem('keep', '1');
+  }, ZONE1);
+  // p5 « s . R R » : deux plis permis, un seul pli laisse la feuille en cours
+  expect(await page.evaluate(() => window.__game.interact('p5', 2))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(1));
+  const state = await page.evaluate(() => window.__game.state('p5'));
+  expect(state.length).toBe(3);
+  await page.reload();
+  await page.waitForFunction(() => window.__game?.ready === true);
+  expect(await page.evaluate(() => window.__game.state('p5'))).toEqual(state);
+  // une sauvegarde abîmée ne casse rien : chaque vue retombe sur un état valide
+  await page.evaluate(() => {
+    const key = 'lueur-sauvegarde-v2';
+    const save = JSON.parse(localStorage.getItem(key)!);
+    save.states.p5 = [0, 9, 1, 7, 7, 7];
+    save.states.a2 = [5, 0.5, Number.NaN];
+    save.states.o1 = ['x'];
+    localStorage.setItem(key, JSON.stringify(save));
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__game?.ready === true);
+  expect(await page.evaluate(() => window.__game.state('p5'))).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 test('la progression est sauvegardée et restaurée', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => {

@@ -141,6 +141,22 @@ export function initialState(p: LightPuzzle): LightState {
   ];
 }
 
+/**
+ * Un état vient-il bien de cette énigme ? (une sauvegarde abîmée ou d'une ancienne version
+ * ne doit jamais produire une grille impossible : valeurs hors domaine, trop de miroirs posés…)
+ */
+export function isValidState(p: LightPuzzle, s: readonly number[]): boolean {
+  if (!Array.isArray(s) || s.length !== pieceCount(p)) return false;
+  if (!s.every((v) => Number.isInteger(v))) return false;
+  const cellsOk = p.interactive.every((i, k) => {
+    const v = s[k]!;
+    return p.cells[i]!.kind === 'socket' ? v >= -1 && v <= 1 : v === 0 || v === 1;
+  });
+  if (!cellsOk) return false;
+  if (!p.objects.every((_, j) => s[p.interactive.length + j]! >= 0 && s[p.interactive.length + j]! <= 3)) return false;
+  return piecesUsed(p, s) <= p.inventory;
+}
+
 /** Nombre total de pièces manipulables (cases + objets). */
 export function pieceCount(p: LightPuzzle): number {
   return p.interactive.length + p.objects.length;
