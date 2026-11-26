@@ -205,8 +205,27 @@ test("finale : les manivelles mènent les objets du panneau, le phare ne s'allum
   await boot(page);
   await page.evaluate((ids) => {
     for (const id of ids) window.__game.solve(id);
+    window.__game.view('f4');
+  }, [...ZONE1, ...ZONE2, ...ZONE3, 'f1', 'f2', 'f3']);
+  // le pochoir en trois plis se résout en suivant les aides
+  const folds = await page.evaluate(() => {
+    const g = window.__game;
+    for (let i = 0; i < 20; i++) {
+      if (g.panels().find((p) => p.id === 'f4')!.solved) return i;
+      const k = g.hint('f4');
+      if (k === null) return -1;
+      g.interact('f4', k);
+      g.advance(1.2);
+    }
+    return -2;
+  });
+  expect(folds).toBe(3);
+  await page.screenshot({ path: 'test-results/f4-pochoir.png' });
+  await page.waitForFunction(() => window.__game.panels().find((p) => p.id === 'f5')!.powered, null, { timeout: 15_000 });
+  await page.evaluate(() => {
+    window.__game.solve('f5');
     window.__game.view('f6');
-  }, [...ZONE1, ...ZONE2, ...ZONE3, 'f1', 'f2', 'f3', 'f4', 'f5']);
+  });
   expect(await page.evaluate(() => window.__game.ended())).toBe(false);
   // la première manivelle (levier 0 : aucune case manipulable) tourne les deux premiers objets
   expect(await page.evaluate(() => window.__game.state('f6'))).toEqual([2, 2, 2]);

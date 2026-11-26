@@ -86,18 +86,20 @@ export const ZONE4_FOLD: FoldPuzzleDef[] = [
     `,
   },
   {
-    id: 'f4', folds: 2, note: 'Le pochoir en deux plis : aligner trois trous.',
+    // trouvé par scripts/stencil-search.ts : trois plis, la lumière doit traverser des trous
+    // superposés ; aucun pli pris seul ne rapproche visiblement du motif (déclic 100 %)
+    id: 'f4', folds: 3, note: 'Le pochoir en trois plis : superposer les trous pour laisser passer la lumière.',
     grid: `
-      .  .  .  O
+      .  .  O  O
       .  O  .  O
       .  .  .  .
       .  .  .  .
     `,
     light: `
-      o  .  .  o
-      o  .  .  o
-      o  .  .  .
       o  o  o  o
+      o  o  .  o
+      o  o  .  .
+      o  o  .  .
     `,
   },
 ];

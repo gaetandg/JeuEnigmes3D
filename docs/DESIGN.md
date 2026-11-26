@@ -139,7 +139,9 @@ Au sommet de l'île, six panneaux en arc au pied du phare. Chacun combine plusie
   la bonne lumière (comme au jardin).
 - **Pliage + Lumière** (f3, f4) : la feuille repose sur une **table lumineuse**. La lumière
   passe là où le papier est parti et à travers des trous **superposés** ; le motif éclairé
-  doit correspondre au modèle (gravé sur la table et sur une plaque).
+  doit correspondre au modèle (gravé sur la table et sur une plaque). f3 l'enseigne en un pli.
+  f4 en demande trois : une case ne s'allume qu'à travers deux trous empilés, et aucun pli
+  pris seul ne rapproche visiblement du motif.
 - **La finale (f6)** réunit tout : rayons et couleurs du jardin, objets en cubes du cloître,
   et les **manivelles couplées** (trois roues sur le rebord du panneau, en chaîne). Il y a cinq
   rayons à trier :

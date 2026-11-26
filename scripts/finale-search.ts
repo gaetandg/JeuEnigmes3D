@@ -17,7 +17,9 @@ const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
 const pick = <T>(a: readonly T[]) => a[Math.floor(rnd() * a.length)]!;
 const W = Number(process.env.W ?? 9);
 const H = Number(process.env.H ?? 7);
-const CRANKS = [[0, 1], [1, 2], [2]];
+const NOBJ = Number(process.env.OBJ ?? 3);
+// sans manivelles (NOCRANK=1) : chaque objet se tourne seul
+const CRANKS = process.env.NOCRANK ? undefined : NOBJ === 2 ? [[0, 1], [1]] : [[0, 1], [1, 2], [2]];
 const shapes = Object.keys(SHAPES).filter((s) => s !== 'marche'); // la marche couvre tout le sol
 
 const why: Record<string, number> = {};
@@ -30,13 +32,13 @@ function attempt(): { def: LightPuzzleDef; len: number; ins: number } | null {
   const g: string[][] = Array.from({ length: H }, () => Array.from({ length: W }, () => '.'));
   // trois boîtes d'objets sans chevauchement, à l'intérieur (pas sur le pourtour)
   const boxes: [number, number][] = [];
-  for (let t = 0; boxes.length < 3 && t < 200; t++) {
+  for (let t = 0; boxes.length < NOBJ && t < 200; t++) {
     const ax = 1 + Math.floor(rnd() * (W - 4));
     const ay = Math.floor(rnd() * (H - 2));
     if (boxes.some(([bx, by]) => Math.abs(bx - ax) < 3 && Math.abs(by - ay) < 3)) continue;
     boxes.push([ax, ay]);
   }
-  if (boxes.length < 3) return fail('boîtes');
+  if (boxes.length < NOBJ) return fail('boîtes');
   boxes.sort((a, b) => a[0] - b[0] || a[1] - b[1]); // de gauche à droite (comme les manivelles)
   const inBox = (x: number, y: number) => boxes.some(([bx, by]) => x >= bx && x < bx + 3 && y >= by && y < by + 3);
   // sources : à gauche (vers l'est) ou en haut (vers le sud)
@@ -67,8 +69,8 @@ function attempt(): { def: LightPuzzleDef; len: number; ins: number } | null {
   {
     const p0 = parsePuzzle({ id: 'f', grid: g.map((r) => r.map((c) => c.padEnd(2)).join(' ')).join('\n'), objects, cranks: CRANKS });
     let bestLit = -1;
-    for (let a = 0; a < 64; a++) {
-      const st = [a >> 4, (a >> 2) & 3, a & 3];
+    for (let a = 0; a < 4 ** NOBJ; a++) {
+      const st = Array.from({ length: NOBJ }, (_, j) => (a >> (2 * (NOBJ - 1 - j))) & 3);
       const rr = simulate(p0, st);
       let lit = 0;
       for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if ((x === 0 || y === 0 || x === W - 1 || y === H - 1) && rr.received[y * W + x] && !inBox(x, y)) lit++;
@@ -81,7 +83,7 @@ function attempt(): { def: LightPuzzleDef; len: number; ins: number } | null {
   }
   const text = () => g.map((r) => r.map((c) => c.padEnd(2)).join(' ')).join('\n');
   const all: number[][] = [];
-  for (let a = 0; a < 64; a++) all.push([a >> 4, (a >> 2) & 3, a & 3]);
+  for (let a = 0; a < 4 ** NOBJ; a++) all.push(Array.from({ length: NOBJ }, (_, j) => (a >> (2 * (NOBJ - 1 - j))) & 3));
   // pose des cristaux sur le pourtour jusqu'à l'unicité
   const border: [number, number][] = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if ((x === 0 || y === 0 || x === W - 1 || y === H - 1) && g[y]![x] === '.' && !inBox(x, y)) border.push([x, y]);
@@ -120,7 +122,7 @@ function attempt(): { def: LightPuzzleDef; len: number; ins: number } | null {
   if (r.count > Number(process.env.MAXSOL ?? 4)) return fail('trop de solutions');
   // chaque objet compte : le tourner seul défait chaque solution
   for (const sol2 of r.solutions) {
-    for (let j = 0; j < 3; j++) {
+    for (let j = 0; j < NOBJ; j++) {
       const breaks = [1, 2, 3].some((d) => {
         const t = sol2.slice();
         t[j] = (t[j]! + d) % 4;
