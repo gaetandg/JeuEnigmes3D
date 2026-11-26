@@ -21,7 +21,10 @@ export interface SolveReport {
   minClicks: number;
 }
 
-/** Nombre minimal de clics pour passer d'un état à l'autre (clic droit = sens inverse). */
+/**
+ * Nombre de cases qui diffèrent entre deux états (un clic par case). Pour les gestes réels,
+ * objets et manivelles compris, voir movesBetween.
+ */
 export function clicksBetween(a: LightState, b: LightState): number {
   let n = 0;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) n++;
@@ -70,7 +73,7 @@ export function solve(
     if (!r.solved) return;
     report.count++;
     if (report.solutions.length < keep) report.solutions.push(state.slice());
-    if (opts.initial) report.minClicks = Math.min(report.minClicks, p.cranks ? movesBetween(p, opts.initial, state) : clicksBetween(opts.initial, state));
+    if (opts.initial) report.minClicks = Math.min(report.minClicks, movesBetween(p, opts.initial, state));
     // deux orientations d'un objet qui laissent la même empreinte au sol sont équivalentes
     keys.add(state.map((v, j) => {
       if (j < nCells) return r.received[p.interactive[j]!] ? v : '*';

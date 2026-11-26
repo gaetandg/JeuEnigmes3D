@@ -72,9 +72,9 @@ l'aveugle » de f4 (7,6) surestime le pliage, comme en zone 2.
 | 3 Ombres | o11 | ombres+manivelles | 2 | 2 | 12 | 3.7 ████ | 100 % |
 | 3 Ombres | o12 | ombres+manivelles | 3 | 4 | 50 | 5.7 ██████ | 100 % |
 | 3 Ombres | cadran | ombres+manivelles | 3 | 5 | 57 | 5.9 ██████ | 100 % |
-| 4 Phare | f1 | lumière+objets | 1 | 1 | 4 | 2.3 ██ | 0 % |
+| 4 Phare | f1 | lumière+objets | 1 | 2 | 4 | 2.3 ██ | 0 % |
 | 4 Phare | f2 | lumière+objets | 1 | 1 | 3 | 2.0 ██ | 0 % |
 | 4 Phare | f3 | pliage+lumière | 8 | 1 | 7 | 3.0 ███ | 0 % |
 | 4 Phare | f4 | pliage+lumière | 16 | 3 | 195 | 7.6 ████████ ⚠ saut | 100 % |
-| 4 Phare | f5 | lumière+objets | 3 | 3 | 27 | 4.8 █████ | 48 % |
+| 4 Phare | f5 | lumière+objets | 3 | 5 | 27 | 4.8 █████ | 48 % |
 | 4 Phare | f6 | lumière+objets+manivelles | 3 | 6 | 46 | 5.6 ██████ | 100 % |

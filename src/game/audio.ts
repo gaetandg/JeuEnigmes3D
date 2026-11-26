@@ -79,6 +79,9 @@ export class Audio {
   private scheduleMusic(): void {
     const ctx = this.ctx;
     if (!ctx || !this.music) return;
+    // onglet en arrière-plan : le minuteur ralentit mais l'horloge audio continue ; on ne
+    // rattrape pas les mesures manquées (elles partiraient toutes en même temps)
+    if (this.nextBar < ctx.currentTime) this.nextBar = ctx.currentTime + 0.1;
     while (this.nextBar < ctx.currentTime + 2) {
       const { root, steps } = ZONE_SCALES[this.zone];
       const t = this.nextBar;

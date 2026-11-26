@@ -14,7 +14,26 @@ export class TouchInput {
   private knob: HTMLElement;
   /** agir (inverse = appui long) */
   onTap: ((reverse: boolean) => void) | null = null;
-  enabled = false;
+  private on = false;
+
+  get enabled(): boolean {
+    return this.on;
+  }
+  /**
+   * Désactivé (pause), on oublie les gestes en cours : un doigt encore posé sur le joystick
+   * ne doit ni laisser le joueur marcher seul, ni bloquer le joystick à la reprise.
+   */
+  set enabled(v: boolean) {
+    this.on = v;
+    if (v) return;
+    clearTimeout(this.longTimer);
+    this.stick = null;
+    this.look = null;
+    this.base.hidden = true;
+    this.player.move.forward = 0;
+    this.player.move.right = 0;
+    this.player.move.run = false;
+  }
 
   static supported(): boolean {
     return typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0) && matchMedia('(pointer: coarse)').matches;

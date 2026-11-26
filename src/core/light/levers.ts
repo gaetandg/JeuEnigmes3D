@@ -59,7 +59,11 @@ export function movesBetween(p: LightPuzzle, a: LightState, b: LightState): numb
   let d = 0;
   for (let i = 0; i < n; i++) if (a[i] !== b[i]) d++;
   if (!p.cranks) {
-    for (let i = n; i < a.length; i++) if (a[i] !== b[i]) d++;
+    // un objet tourne d'un quart de tour par geste, dans un sens ou dans l'autre
+    for (let i = n; i < a.length; i++) {
+      const t = (((a[i]! - b[i]!) % 4) + 4) % 4;
+      d += Math.min(t, 4 - t);
+    }
     return d;
   }
   const path = objectPath(p, a.slice(n), b.slice(n));
