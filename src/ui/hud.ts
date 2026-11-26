@@ -2,10 +2,15 @@
  * Interface minimale : écran titre, viseur, menu pause.
  * Le monde du jeu reste sans texte ; seuls les menus en contiennent.
  */
+import type { Quality, Settings } from '../game/progress.ts';
+
 export interface HudCallbacks {
   onStart: () => void;
   onVolume: (v: number) => void;
   onSensitivity: (v: number) => void;
+  onQuality: (q: Quality) => void;
+  onSymbols: (on: boolean) => void;
+  onPause: () => void;
   onReset: () => void;
 }
 
@@ -15,12 +20,15 @@ export class Hud {
   private crosshair: HTMLElement;
   private toast: HTMLElement;
   private toastTimer = 0;
+  private pauseBtn: HTMLButtonElement;
+  private touch: boolean;
 
-  constructor(parent: HTMLElement, cb: HudCallbacks, settings: { volume: number; sensitivity: number }, hasSave: boolean) {
+  constructor(parent: HTMLElement, cb: HudCallbacks, settings: Settings, hasSave: boolean, touch: boolean) {
     this.root = parent;
     this.root.innerHTML = `
       <div class="crosshair" hidden></div>
       <div class="toast" hidden></div>
+      <button class="pause" data-action="pause" hidden aria-label="Pause">❚❚</button>
       <div class="overlay" data-screen="title">
         <div class="panel">
           <h1>Lueur</h1>
@@ -29,11 +37,20 @@ export class Hud {
           <details>
             <summary>Réglages</summary>
             <label>Volume <input type="range" min="0" max="1" step="0.05" data-setting="volume" /></label>
-            <label>Sensibilité de la souris <input type="range" min="0.0008" max="0.005" step="0.0001" data-setting="sensitivity" /></label>
+            <label>Sensibilité <input type="range" min="0.0008" max="0.005" step="0.0001" data-setting="sensitivity" /></label>
+            <label>Qualité graphique
+              <select data-setting="quality">
+                <option value="haute">Haute</option>
+                <option value="moyenne">Moyenne</option>
+                <option value="basse">Basse</option>
+              </select>
+            </label>
+            <label>Symboles des couleurs (daltonisme) <input type="checkbox" data-setting="symbols" /></label>
             <button class="ghost" data-action="reset">Recommencer depuis le début</button>
           </details>
-          <p class="help">Souris : regarder · ZQSD / WASD / flèches : marcher · Maj : courir<br/>
-          Clic gauche : agir · Clic droit : agir en sens inverse · Échap : pause</p>
+          <p class="help">${touch
+            ? 'Pouce gauche : marcher · Glisser à droite : regarder<br/>Toucher : agir · Appui long : agir en sens inverse'
+            : 'Souris : regarder · ZQSD / WASD / flèches : marcher · Maj : courir<br/>Clic gauche : agir · Clic droit : agir en sens inverse · Échap : pause'}</p>
         </div>
       </div>`;
     this.title = this.root.querySelector('.overlay')!;
@@ -41,8 +58,17 @@ export class Hud {
     this.toast = this.root.querySelector('.toast')!;
     const vol = this.root.querySelector<HTMLInputElement>('[data-setting="volume"]')!;
     const sens = this.root.querySelector<HTMLInputElement>('[data-setting="sensitivity"]')!;
+    const quality = this.root.querySelector<HTMLSelectElement>('[data-setting="quality"]')!;
+    const symbols = this.root.querySelector<HTMLInputElement>('[data-setting="symbols"]')!;
     vol.value = String(settings.volume);
     sens.value = String(settings.sensitivity);
+    quality.value = settings.quality ?? 'haute';
+    symbols.checked = !!settings.symbols;
+    quality.addEventListener('change', () => cb.onQuality(quality.value as Quality));
+    symbols.addEventListener('change', () => cb.onSymbols(symbols.checked));
+    this.pauseBtn = this.root.querySelector<HTMLButtonElement>('[data-action="pause"]')!;
+    this.pauseBtn.addEventListener('click', () => cb.onPause());
+    this.touch = touch;
     vol.addEventListener('input', () => cb.onVolume(Number(vol.value)));
     sens.addEventListener('input', () => cb.onSensitivity(Number(sens.value)));
     this.root.querySelector('[data-action="start"]')!.addEventListener('click', () => cb.onStart());
@@ -54,6 +80,7 @@ export class Hud {
   showTitle(paused: boolean): void {
     this.title.hidden = false;
     this.crosshair.hidden = true;
+    this.pauseBtn.hidden = true;
     const btn = this.root.querySelector<HTMLButtonElement>('[data-action="start"]')!;
     if (paused) btn.textContent = 'Reprendre';
   }
@@ -61,6 +88,7 @@ export class Hud {
   hideTitle(): void {
     this.title.hidden = true;
     this.crosshair.hidden = false;
+    this.pauseBtn.hidden = !this.touch;
   }
 
   setCrosshairActive(active: boolean): void {

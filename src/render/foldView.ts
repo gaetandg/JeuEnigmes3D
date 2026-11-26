@@ -6,6 +6,7 @@ import type { Fold, FoldCellDef, FoldPuzzle, FoldState, Mark } from '../core/fol
 import { heightAt } from '../world/terrain.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
+import { EASEL_TILT } from '../world/puzzleColliders.ts';
 
 /** Placement d'une feuille : sur un pupitre (panneau) ou à plat sur une estrade (paysage). */
 export interface FoldPlacement {
@@ -225,7 +226,7 @@ export class FoldView implements PuzzleView {
       this.board.rotation.x = 0.62;
     } else {
       // grand chevalet de bois incliné vers le joueur
-      const tilt = 1.05;
+      const tilt = EASEL_TILT;
       const wood = new THREE.MeshStandardMaterial({ color: '#7a5a40', roughness: 0.9, flatShading: true });
       const topY = 0.9 + H * Math.sin(tilt);
       for (const s of [-1, 1]) {

@@ -19,6 +19,8 @@ export class Player {
   readonly move = { forward: 0, right: 0, run: false };
   sensitivity = 0.0022;
   private bob = 0;
+  /** appelé à chaque pas (sons) */
+  onStep: (() => void) | null = null;
   private velocity = new THREE.Vector2();
 
   constructor(private camera: THREE.PerspectiveCamera, private colliders: Colliders) {}
@@ -72,7 +74,9 @@ export class Player {
       this.position.z = res.z;
     }
     const moving = Math.hypot(this.velocity.x, this.velocity.y);
+    const before = Math.floor(this.bob / Math.PI);
     this.bob += dt * moving * 1.9;
+    if (moving > 1 && Math.floor(this.bob / Math.PI) !== before) this.onStep?.();
     const ground = heightAt(this.position.x, this.position.z) + EYE + Math.sin(this.bob) * 0.025 * Math.min(1, moving / WALK);
     this.position.y += (ground - this.position.y) * Math.min(1, dt * 14);
     this.apply();

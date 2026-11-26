@@ -2,13 +2,23 @@
 
 const KEY = 'lueur-sauvegarde-v1';
 
+export type Quality = 'haute' | 'moyenne' | 'basse';
+
+export interface Settings {
+  volume: number;
+  sensitivity: number;
+  quality?: Quality;
+  /** symboles sur les couleurs (daltonisme) */
+  symbols?: boolean;
+}
+
 export interface SaveData {
   solved: string[];
   states: Record<string, number[]>;
   player?: { x: number; z: number; yaw: number };
   /** temps de jeu en secondes */
   playTime?: number;
-  settings?: { volume: number; sensitivity: number };
+  settings?: Settings;
 }
 
 export function loadSave(): SaveData {

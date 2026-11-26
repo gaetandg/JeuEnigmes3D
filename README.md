@@ -12,7 +12,7 @@ d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombr
 | Le Cloître des Ombres | Ombres | 10 théâtres d'ombres + le Cadran |
 | Le Phare | Combinaisons | 5 panneaux, puis le phare se rallume |
 
-**▶ Jouer : https://gaetandg.github.io/JeuEnigmes3D/** (PC, navigateur récent)
+**▶ Jouer : https://gaetandg.github.io/JeuEnigmes3D/** (PC ou mobile, navigateur récent)
 
 ## Contrôles
 
@@ -24,12 +24,19 @@ d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombr
 | Interagir | clic gauche (clic droit : sens inverse) |
 | Pause | Échap |
 
+Sur **téléphone / tablette** : pouce gauche = joystick (pousser loin pour courir),
+glisser à droite = regarder, toucher = agir, appui long = agir en sens inverse,
+bouton ❚❚ = pause. La qualité graphique passe en « basse » automatiquement.
+
+**Réglages** : volume, sensibilité, qualité graphique (haute / moyenne / basse),
+symboles des couleurs pour les personnes daltoniennes (▲ rouge, ■ vert, ● bleu).
+
 ## Développement
 
 ```bash
 npm install
 npm run dev        # serveur local
-npm test           # tests unitaires + validation de toutes les énigmes par le solveur
+npm test           # tests unitaires : moteurs, validation de toutes les énigmes, navigation
 npm run e2e        # tests de bout en bout (Playwright) avec captures d'écran
 npm run build      # version de production dans dist/
 ```

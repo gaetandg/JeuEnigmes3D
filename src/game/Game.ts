@@ -7,6 +7,7 @@ import { parseFold } from '../core/fold/index.ts';
 import { FoldView } from '../render/foldView.ts';
 import { buildAtelier } from '../world/atelier.ts';
 import { buildCloitre } from '../world/cloitre.ts';
+import { addPuzzleColliders } from '../world/puzzleColliders.ts';
 import { ZONE3, ZONE3_CADRAN } from '../puzzles/zone3.ts';
 import { parseShadow, startState } from '../core/shadow/index.ts';
 import { ShadowView } from '../render/shadowView.ts';
@@ -22,9 +23,10 @@ import type { PuzzleView } from '../render/puzzleView.ts';
 import { Cables } from '../render/cables.ts';
 import { Colliders } from './colliders.ts';
 import { DesktopInput, Player } from './player.ts';
+import { TouchInput } from './touch.ts';
 import { Audio } from './audio.ts';
 import { clearSave, loadSave, writeSave } from './progress.ts';
-import type { SaveData } from './progress.ts';
+import type { Quality, SaveData, Settings } from './progress.ts';
 import { Hud } from '../ui/hud.ts';
 
 const REACH = 5;
@@ -160,9 +162,9 @@ export class Game {
       const panel = new LightPanel(parsePuzzle(def), spot);
       panel.onSolved = () => this.onPanelSolved(panel);
       this.panels.set(spot.id, panel);
-      this.colliders.addCircle(spot.x, spot.z, 0.45);
       this.scene.add(panel.group);
     }
+    addPuzzleColliders(this.colliders);
     const towers = new WorldLightPuzzle(parsePuzzle(ZONE1_TOWERS), this.colliders);
     towers.onSolved = () => this.onPanelSolved(towers);
     this.panels.set(TOWERS.id, towers);
@@ -176,19 +178,9 @@ export class Game {
       const def = ZONE2.find((d) => d.id === spot.id)!;
       const view = new FoldView(parseFold(def), { x: spot.x, z: spot.z, yaw: spot.yaw, cell: 0.36, kind: 'desk' });
       this.addFoldView(view);
-      this.colliders.addCircle(spot.x, spot.z, 0.45);
     }
     const grand = new FoldView(parseFold(ZONE2_GRAND_PLI), { x: GRAND_PLI.x, z: GRAND_PLI.z, yaw: GRAND_PLI.yaw, cell: GRAND_PLI.cell, kind: 'easel' });
     this.addFoldView(grand);
-    {
-      // le chevalet ne se traverse pas
-      const hw = (grand.puzzle.width * GRAND_PLI.cell) / 2 + 1;
-      const depth = (grand.puzzle.height * GRAND_PLI.cell * Math.cos(1.05)) / 2 + 0.8;
-      const { x, z } = GRAND_PLI;
-      for (const [ax, az, bx, bz] of [[x - hw, z - depth, x + hw, z - depth], [x + hw, z - depth, x + hw, z + depth], [x + hw, z + depth, x - hw, z + depth], [x - hw, z + depth, x - hw, z - depth]] as const) {
-        this.colliders.addSegment({ ax, az, bx, bz, r: 0.3 });
-      }
-    }
 
     // zone 3 : le Cloître des Ombres
     this.scene.add(buildCloitre(this.colliders));
@@ -196,17 +188,10 @@ export class Game {
       const def = ZONE3.find((d) => d.id === spot.id)!;
       const view = new ShadowView(parseShadow(def), { x: spot.x, z: spot.z, yaw: spot.yaw, voxel: 0.2, stageY: 0.8 }, startState(def));
       this.addShadowView(view);
-      this.colliders.addCircle(spot.x, spot.z, 0.75);
     }
     {
       const cad = new ShadowView(parseShadow(ZONE3_CADRAN), { x: CADRAN.x, z: CADRAN.z, yaw: CADRAN.yaw, voxel: CADRAN.voxel, stageY: 0.5 }, startState(ZONE3_CADRAN));
       this.addShadowView(cad);
-      const hw = (cad.puzzle.width * CADRAN.voxel) / 2 + 1;
-      const hd = (cad.puzzle.depth * CADRAN.voxel) / 2 + 1;
-      const { x, z } = CADRAN;
-      for (const [ax, az, bx, bz] of [[x - hw, z - hd, x + hw, z - hd], [x + hw, z - hd, x + hw, z + hd], [x + hw, z + hd, x - hw, z + hd], [x - hw, z + hd, x - hw, z - hd]] as const) {
-        this.colliders.addSegment({ ax, az, bx, bz, r: 0.3 });
-      }
     }
 
     // zone 4 : le pied du phare
@@ -221,7 +206,6 @@ export class Game {
         const def = ZONE4_FOLD.find((d) => d.id === spot.id)!;
         this.addFoldView(new FoldView(parseFold(def), { x: spot.x, z: spot.z, yaw: spot.yaw, cell: 0.34, kind: 'desk' }));
       }
-      this.colliders.addCircle(spot.x, spot.z, 0.45);
     }
     // faisceau tournant du phare (fin du jeu)
     this.beacon = new THREE.Group();
@@ -246,6 +230,7 @@ export class Game {
     this.addShaft(GRAND_PLI.id, new THREE.Vector3(GRAND_PLI.x, heightAt(GRAND_PLI.x, GRAND_PLI.z) + 8.5, GRAND_PLI.z - 2), '#ffd98a');
 
     this.player = new Player(this.camera, this.colliders);
+    this.player.onStep = () => this.audio.step();
     this.restore();
 
     window.addEventListener('resize', () => this.resize());
@@ -289,27 +274,58 @@ export class Game {
   }
 
   private setupInput(): void {
-    const settings = this.save.settings ?? { volume: 0.7, sensitivity: 0.0022 };
+    const touch = TouchInput.supported();
+    const settings: Settings = {
+      volume: 0.7, sensitivity: 0.0022, quality: touch ? 'basse' : 'haute', symbols: false, ...this.save.settings,
+    };
+    const saveSettings = (patch: Partial<Settings>) => {
+      this.save.settings = { ...settings, ...this.save.settings, ...patch };
+      writeSave(this.save);
+    };
     this.audio.setVolume(settings.volume);
     this.player.sensitivity = settings.sensitivity;
+    this.applyQuality(settings.quality ?? 'haute');
+    this.setSymbols(!!settings.symbols);
     this.input = new DesktopInput(this.opts.canvas, this.player);
+    // le joystick est ajouté à l'interface APRÈS sa construction (qui remplace son contenu)
+    let touchInput: TouchInput | null = null;
     this.hud = new Hud(this.opts.ui, {
       onStart: () => {
         this.audio.start();
-        this.input!.requestLock();
+        if (touchInput) {
+          touchInput.enabled = true;
+          this.hud!.hideTitle();
+          document.documentElement.requestFullscreen?.().catch(() => undefined);
+        } else this.input!.requestLock();
+      },
+      onPause: () => {
+        if (touchInput) touchInput.enabled = false;
+        this.hud!.showTitle(true);
+        this.persist();
       },
       onVolume: (v) => {
         this.audio.setVolume(v);
-        this.save.settings = { ...(this.save.settings ?? settings), volume: v };
-        writeSave(this.save);
+        saveSettings({ volume: v });
       },
       onSensitivity: (v) => {
         this.player.sensitivity = v;
-        this.save.settings = { ...(this.save.settings ?? settings), sensitivity: v };
-        writeSave(this.save);
+        saveSettings({ sensitivity: v });
+      },
+      onQuality: (q) => {
+        this.applyQuality(q);
+        saveSettings({ quality: q });
+      },
+      onSymbols: (on) => {
+        this.setSymbols(on);
+        saveSettings({ symbols: on });
       },
       onReset: () => this.reset(),
-    }, settings, this.save.solved.length > 0);
+    }, settings, this.save.solved.length > 0, touch);
+    if (touch) {
+      touchInput = new TouchInput(this.opts.canvas, this.opts.ui, this.player);
+      touchInput.onTap = (reverse) => this.click(reverse);
+    }
+    this.hud.onContinue = () => (touchInput ? (touchInput.enabled = true) : this.input!.requestLock());
     this.input.onLockChange = (locked) => {
       if (locked) this.hud!.hideTitle();
       else {
@@ -318,6 +334,27 @@ export class Game {
       }
     };
     this.input.onClick = (button) => this.click(button === 2);
+  }
+
+  /** Qualité graphique : finesse de l'image, des ombres et distance de vue. */
+  applyQuality(q: Quality): void {
+    const ratio = { haute: 1.75, moyenne: 1.25, basse: 0.85 }[q];
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, ratio));
+    const size = { haute: 2048, moyenne: 1024, basse: 512 }[q];
+    const shadow = this.lights.sun.shadow;
+    if (shadow.mapSize.x !== size) {
+      shadow.mapSize.set(size, size);
+      shadow.map?.dispose();
+      shadow.map = null;
+    }
+    const fog = this.scene.fog as THREE.Fog;
+    fog.far = { haute: 420, moyenne: 340, basse: 260 }[q];
+    this.resize();
+  }
+
+  /** Symboles des couleurs sur les panneaux de lumière (daltonisme). */
+  setSymbols(on: boolean): void {
+    for (const p of this.panels.values()) if (p instanceof LightPanel) p.setSymbols(on);
   }
 
   /** Applique la sauvegarde (ou l'état de départ). */
