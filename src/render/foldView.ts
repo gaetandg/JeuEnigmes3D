@@ -229,7 +229,8 @@ export class FoldView implements PuzzleView {
   constructor(readonly puzzle: FoldPuzzle, readonly place: FoldPlacement) {
     this.cell = place.cell;
     this.thick = Math.max(0.006, place.cell * 0.025);
-    this.reach = place.kind === 'easel' ? 12 : 3.4;
+    // le chevalet se manipule de loin : on recule pour voir toute la feuille
+    this.reach = place.kind === 'easel' ? 26 : 3.4;
     this.fs = initialFoldState(puzzle);
     this.group.name = `pliage ${puzzle.id}`;
     this.group.position.set(place.x, heightAt(place.x, place.z), place.z);
@@ -498,6 +499,13 @@ export class FoldView implements PuzzleView {
     this.hintFold = onTrack && next ? next : null;
     this.paintLines();
     return this.hintK;
+  }
+
+  /** clic droit si la ligne plie dans les deux sens et que l'aide veut l'autre moitié */
+  activeHint(): { k: number; reverse: boolean } | null {
+    if (this.hintK === null || !this.powered || this.solved || this.anim) return null;
+    const two = (this.lineFolds.get(this.hintK)?.length ?? 0) > 1;
+    return { k: this.hintK, reverse: two && this.hintFold?.side === 1 };
   }
 
   interact(k: number, reverse = false): InteractResult {

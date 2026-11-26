@@ -25,7 +25,9 @@ export const ZONE2: FoldPuzzleDef[] = [
   },
   // ── taches ─────────────────────────────────────────────────────────────
   { id: 'p5', folds: 2, note: 'La tache doit disparaître : la couvrir ou la retourner.', grid: 's . R R' },
-  { id: 'p6', folds: 1, note: 'Une tache au dos : retourner la mauvaise moitié la fait apparaître.', grid: 'R. .. .s R.' },
+  // leçon du clic droit : la ligne du milieu plie dans les deux sens ; replier la moitié gauche
+  // (clic gauche) retourne la tache du dos, il faut replier la moitié droite (clic droit)
+  { id: 'p6', folds: 1, note: "Une tache au dos : retourner la mauvaise moitié la fait apparaître. Clic droit : l'autre moitié.", grid: 'R. .s .. R.' },
   // ── étoiles et trous ───────────────────────────────────────────────────
   {
     id: 'p7', folds: 2, note: "L'étoile doit rester visible : plier de l'autre côté.",

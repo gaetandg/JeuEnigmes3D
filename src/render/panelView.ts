@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
   BLUE, GREEN, RED,
-  initialState, interact, isValidState, leverHint, objectLevers, piecesUsed, simulate, solve,
+  initialState, interact, isValidState, leverHintMove, objectLevers, piecesUsed, simulate, solve,
 } from '../core/light/index.ts';
 import type { Cell, Color, LightPuzzle, LightState, SimResult } from '../core/light/index.ts';
 import { heightAt } from '../world/terrain.ts';
@@ -619,8 +619,10 @@ export class LightPanel implements PuzzleView {
 
   hint(): number | null {
     if (!this.powered || this.solved) return null;
-    const k = leverHint(this.puzzle, this.state, solve(this.puzzle, { keep: 300 }).solutions);
+    const move = leverHintMove(this.puzzle, this.state, solve(this.puzzle, { keep: 300 }).solutions);
+    const k = move?.k ?? null;
     this.hintK = k;
+    this.hintRev = move?.reverse ?? false;
     const piece = k === null ? undefined : this.pieces.find((p) => p.k === k);
     this.hintRing.visible = !!piece;
     if (piece) {
@@ -628,6 +630,12 @@ export class LightPanel implements PuzzleView {
       this.hintRing.position.y = this.cell * 0.1;
     }
     return k;
+  }
+
+  private hintRev = false;
+
+  activeHint(): { k: number; reverse: boolean } | null {
+    return this.hintK !== null && this.powered && !this.solved ? { k: this.hintK, reverse: this.hintRev } : null;
   }
 
   /** Action du joueur. */

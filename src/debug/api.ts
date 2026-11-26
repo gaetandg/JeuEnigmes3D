@@ -54,6 +54,8 @@ export function exposeDebugApi(game: Game): void {
     drawCalls: () => game.lastDrawCalls,
     ended: () => game.ended,
     hint: (id: string) => game.panels.get(id)?.hint() ?? null,
+    /** l'aide affichée : pièce désignée et sens du geste (clic droit si reverse) */
+    hintMove: (id: string) => game.panels.get(id)?.activeHint() ?? null,
     guides: () => game.guides.mesh.count,
     shards: () => game.stats().shards,
     memory: () => ({ ...game.renderer.info.memory }),

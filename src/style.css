@@ -41,6 +41,31 @@ html, body {
   background: #ffe7a3;
 }
 
+/* aide : la souris avec le bouton à utiliser, sous le réticule */
+.mouse-hint {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 22px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(20, 28, 36, 0.62);
+  color: #dff6ff;
+  font: 600 14px/1 system-ui, sans-serif;
+  animation: mouse-hint-in 0.25s ease-out;
+}
+.mouse-hint .body { fill: #f4efe6; stroke: #3a3530; stroke-width: 2.5; }
+.mouse-hint .seam { stroke: #3a3530; stroke-width: 2; fill: none; }
+.mouse-hint .btn { fill: transparent; }
+.mouse-hint.left .btn-left,
+.mouse-hint.right .btn-right { fill: #4fd2ff; animation: mouse-hint-pulse 1s ease-in-out infinite; }
+.mouse-hint.touch svg { display: none; }
+@keyframes mouse-hint-pulse { 50% { fill: #b8eeff; } }
+@keyframes mouse-hint-in { from { opacity: 0; transform: translate(-50%, 6px); } }
+
 .toast {
   position: absolute;
   left: 50%;

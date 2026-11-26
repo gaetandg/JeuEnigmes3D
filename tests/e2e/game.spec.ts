@@ -105,6 +105,20 @@ test('les Tours-Miroirs se tournent en visant la tour', async ({ page }) => {
 
 const ZONE1 = ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'c1', 'c2', 'c3', 'c4', 'c5', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'tours'];
 
+test('le Grand Pli se manipule de loin (portée propre à chaque énigme)', async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    // à 16 m devant le chevalet (bien au-delà des 5 m des pupitres)
+    window.__game.teleport(-50, -40, 0);
+    window.__game.aim('grand-pli', 2);
+  }, [...ZONE1, 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11', 'p12', 'p13']);
+  await waitFrames(page, 3);
+  expect(await page.evaluate(() => window.__game.hovered())).toEqual({ id: 'grand-pli', k: 2 });
+  await page.screenshot({ path: 'test-results/grand-pli-de-loin.png' });
+  expect(errors).toEqual([]);
+});
+
 test('une feuille de pliage se plie en visant une ligne de pli', async ({ page }) => {
   await boot(page);
   await page.evaluate((ids) => {
@@ -139,14 +153,32 @@ test('un mauvais pliage se déplie tout seul quand la réserve est vide', async 
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'p2')!.solved).toBe(false);
 });
 
+test('p6, leçon du clic droit : seule la moitié droite se replie sans montrer la tache', async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('p6');
+  }, [...ZONE1, 'p1', 'p2', 'p3', 'p4', 'p5']);
+  expect(await page.evaluate(() => window.__game.hint('p6'))).toBe(2);
+  expect(await page.evaluate(() => window.__game.hintMove('p6'))).toEqual({ k: 2, reverse: true });
+  expect(await page.evaluate(() => window.__game.interact('p6', 2))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(3));
+  expect(await page.evaluate(() => window.__game.state('p6'))).toEqual([]);
+  expect(await page.evaluate(() => window.__game.interact('p6', 2, true))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(1));
+  expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'p6')!.solved).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test("p8 : la ligne du milieu plie dans les deux sens ; seul le clic droit fait voir l'étoile par le trou", async ({ page }) => {
   await boot(page);
   await page.evaluate((ids) => {
     for (const id of ids) window.__game.solve(id);
     window.__game.view('p8');
   }, [...ZONE1, 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']);
-  // l'aide désigne la ligne du milieu
+  // l'aide désigne la ligne du milieu, avec le clic droit
   expect(await page.evaluate(() => window.__game.hint('p8'))).toBe(2);
+  expect(await page.evaluate(() => window.__game.hintMove('p8'))).toEqual({ k: 2, reverse: true });
   // clic gauche : la moitié gauche se rabat, l'étoile se cache, la feuille se déplie
   expect(await page.evaluate(() => window.__game.interact('p8', 2))).toBe('ok');
   await page.evaluate(() => window.__game.advance(3));
@@ -281,7 +313,7 @@ test('en suivant les aides discrètes, on résout une énigme de chaque langage'
         if (g.panels().find((p) => p.id === pid)!.solved) return i;
         const k = g.hint(pid);
         if (k === null) return -1;
-        g.interact(pid, k);
+        g.interact(pid, k, g.hintMove(pid)?.reverse ?? false);
         g.advance(1.2); // laisse finir les animations (plis, rotations)
       }
       return -2;

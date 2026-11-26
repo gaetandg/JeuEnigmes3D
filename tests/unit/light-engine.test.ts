@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BLUE, GREEN, RED, WHITE,
-  initialState, interact, isValidState, leverCount, leverHint, objectPath, parsePuzzle, piecesUsed, reflect, simulate, solve, stateToGrid,
+  initialState, interact, isValidState, leverCount, leverHint, leverHintMove, objectPath, parsePuzzle, piecesUsed, reflect, simulate, solve, stateToGrid,
 } from '../../src/core/light/index.ts';
 
 const P = (grid: string, inventory = 0) => parsePuzzle({ id: 't', grid, inventory });
@@ -182,6 +182,17 @@ describe('manivelles couplées sur un panneau de lumière', () => {
     expect(leverHint(p, [0, 0], [[1, 0]])).toBe(0);
     expect(leverHint(p, [1, 1], [[1, 0]])).toBe(1);
     expect(leverHint(p, [1, 0], [[1, 0]])).toBeNull();
+  });
+  it("l'aide dit aussi le sens : clic droit quand le chemin le plus court tourne à rebours", () => {
+    const p = parsePuzzle(def);
+    expect(leverHintMove(p, [1, 1], [[1, 0]])).toEqual({ k: 1, reverse: true });
+    expect(leverHintMove(p, [0, 0], [[1, 0]])).toEqual({ k: 0, reverse: false });
+  });
+  it('socle : le sens inverse quand il faut deux pas en avant', () => {
+    const p = P(String.raw`>R _ oR`, 1);
+    // vide → « / » → « \ » : pour « \ », un clic droit suffit
+    expect(leverHintMove(p, [-1], [[1]])).toEqual({ k: 0, reverse: true });
+    expect(leverHintMove(p, [-1], [[0]])).toEqual({ k: 0, reverse: false });
   });
 });
 

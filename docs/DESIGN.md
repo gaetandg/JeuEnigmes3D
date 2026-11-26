@@ -103,6 +103,15 @@ de 13 m sur un chevalet au centre de l'atelier.
   c'est le clic droit (appui long sur mobile). Sans cet aperçu, un testeur a cru p8 impossible,
   car il ne voyait que trois plis là où il y en a quatre. L'aide montre la moitié à plier, et
   pas seulement la ligne.
+- **Leçon du clic droit (p6)** : la tache du dos est dans la moitié gauche ; replier la gauche
+  (clic gauche) la retourne face visible, il faut donc replier la droite (clic droit). C'est la
+  première énigme qui l'impose, et elle est très facile : un seul pli, quatre cases.
+- **L'aide montre le geste** : quand elle se déclenche et qu'on vise la pièce désignée, une
+  souris apparaît sous le réticule, avec le bon bouton allumé (« clic gauche » ou « clic
+  droit » ; au tactile, « toucher » ou « appui long »). C'est le cas pour toutes les énigmes :
+  sens des socles, des objets, des manivelles et des plis.
+- **Le Grand Pli se manipule de loin** (jusqu'à 26 m) : on recule pour voir toute la feuille.
+  Chaque énigme a sa portée : la visée n'est plus coupée à 5 m pour toutes.
 
 ## 5. Zone 3 — Ombres (le Cloître des Ombres)
 

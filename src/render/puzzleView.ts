@@ -25,6 +25,11 @@ export interface PuzzleView {
    * Renvoie l'indice de la pièce désignée, ou null s'il n'y a rien à montrer.
    */
   hint(): number | null;
+  /**
+   * L'aide affichée en ce moment (pièce désignée et sens du geste : clic droit si `reverse`),
+   * ou null. Le HUD montre alors la souris avec le bon bouton quand on vise cette pièce.
+   */
+  activeHint(): { k: number; reverse: boolean } | null;
   markSolved(): void;
   setDetail(visible: boolean): void;
   update(dt: number, time: number): void;

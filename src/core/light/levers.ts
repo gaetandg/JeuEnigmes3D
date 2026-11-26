@@ -70,11 +70,17 @@ export function movesBetween(p: LightPuzzle, a: LightState, b: LightState): numb
   return path ? d + path.length : Infinity;
 }
 
+/** Geste conseillé par l'aide : le levier, et faut-il agir en sens inverse (clic droit) ? */
+export interface HintMove {
+  k: number;
+  reverse: boolean;
+}
+
 /**
  * Aide : le levier à actionner pour se rapprocher de la solution la plus proche
- * (une case d'abord, sinon le premier geste du plus court chemin des objets).
+ * (une case d'abord, sinon le premier geste du plus court chemin des objets), et son sens.
  */
-export function leverHint(p: LightPuzzle, s: LightState, solutions: LightState[]): number | null {
+export function leverHintMove(p: LightPuzzle, s: LightState, solutions: LightState[]): HintMove | null {
   let best: LightState | null = null;
   let bestD = Infinity;
   for (const sol of solutions) {
@@ -86,11 +92,28 @@ export function leverHint(p: LightPuzzle, s: LightState, solutions: LightState[]
   }
   if (!best || bestD === 0 || bestD === Infinity) return null;
   const n = p.interactive.length;
-  for (let i = 0; i < n; i++) if (s[i] !== best[i]) return i;
+  for (let i = 0; i < n; i++) {
+    if (s[i] === best[i]) continue;
+    // socle : vide → « / » → « \ » → vide ; le sens inverse est plus court s'il faut deux pas
+    if (p.cells[p.interactive[i]!]!.kind === 'socket') {
+      const cycle = [-1, 0, 1];
+      const ahead = (cycle.indexOf(best[i]!) - cycle.indexOf(s[i]!) + 3) % 3;
+      return { k: i, reverse: ahead === 2 };
+    }
+    return { k: i, reverse: false }; // miroir ou lame : un clic suffit, dans un sens ou l'autre
+  }
   if (!p.cranks) {
-    for (let i = n; i < s.length; i++) if (s[i] !== best[i]) return i;
+    for (let i = n; i < s.length; i++) {
+      if (s[i] === best[i]) continue;
+      return { k: i, reverse: (best[i]! - s[i]! + 4) % 4 === 3 };
+    }
     return null;
   }
   const path = objectPath(p, s.slice(n), best.slice(n));
-  return path && path.length ? n + path[0]!.lever : null;
+  return path && path.length ? { k: n + path[0]!.lever, reverse: path[0]!.reverse } : null;
+}
+
+/** Aide : le levier à actionner (voir leverHintMove). */
+export function leverHint(p: LightPuzzle, s: LightState, solutions: LightState[]): number | null {
+  return leverHintMove(p, s, solutions)?.k ?? null;
 }
