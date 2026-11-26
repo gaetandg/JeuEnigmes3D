@@ -134,7 +134,8 @@ describe('navigation — on peut marcher jusqu\'à chaque énigme', () => {
 
   it('les énigmes d\'environnement (tours, Grand Pli, Cadran)', () => {
     // chaque tour pivotante : on doit pouvoir s'en approcher à moins de 4 m
-    for (const [c, r] of [[1, 0], [5, 0], [1, 2], [5, 2]] as const) {
+    const tours = parsePuzzle(ZONE1_TOWERS);
+    for (const [c, r] of tours.interactive.map((i) => [i % tours.width, Math.floor(i / tours.width)] as const)) {
       const t = towerCell(c, r);
       const ok = [[2.5, 0], [-2.5, 0], [0, 2.5], [0, -2.5]].some(([dx, dz]) => reach(t.x + dx!, t.z + dz!));
       expect(ok, `tour ${c},${r}`).toBe(true);

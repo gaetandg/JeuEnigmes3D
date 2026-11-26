@@ -162,14 +162,15 @@ export function buildTerrain(size = 320, segments = 160): THREE.Mesh {
   const colors = new Float32Array(segments * segments * 6 * 3);
   const col = new THREE.Color();
   let p = 0;
+  // pente et couleur calculées par CARRÉ (les deux triangles partagent la même teinte de
+  // base) : sinon la diagonale alternée dessine un damier sur les pentes
+  let quadSlope = 0;
   const pushTri = (pts: [number, number, number][]) => {
     const [a, b, c] = pts;
     const cx = (a![0] + b![0] + c![0]) / 3;
     const czz = (a![2] + b![2] + c![2]) / 3;
     const ch = (a![1] + b![1] + c![1]) / 3;
-    const ys = [a![1], b![1], c![1]];
-    const slope = (Math.max(...ys) - Math.min(...ys)) / step;
-    colorAt(cx, czz, ch, slope, col);
+    colorAt(cx, czz, ch, quadSlope, col);
     // légère variation par triangle pour l'aspect « facettes »
     const v = 0.96 + ((Math.sin(cx * 12.9898 + czz * 78.233) * 43758.5453) % 1 + 1) % 1 * 0.08;
     for (const pt of pts) {
@@ -192,6 +193,7 @@ export function buildTerrain(size = 320, segments = 160): THREE.Mesh {
       const b: [number, number, number] = [x1, H(i + 1, j), z0];
       const c: [number, number, number] = [x0, H(i, j + 1), z1];
       const d: [number, number, number] = [x1, H(i + 1, j + 1), z1];
+      quadSlope = (Math.max(a[1], b[1], c[1], d[1]) - Math.min(a[1], b[1], c[1], d[1])) / (step * Math.SQRT2);
       if ((i + j) % 2 === 0) {
         pushTri([a, c, b]);
         pushTri([b, c, d]);

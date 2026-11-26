@@ -125,6 +125,11 @@ export class DesktopInput {
     });
   }
 
+  /** Libère la souris (séquence de fin). */
+  release(): void {
+    if (this.locked) document.exitPointerLock?.();
+  }
+
   requestLock(): void {
     const p = this.canvas.requestPointerLock() as unknown as Promise<void> | undefined;
     p?.catch?.(() => undefined);

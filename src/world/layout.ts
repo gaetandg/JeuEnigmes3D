@@ -1,3 +1,4 @@
+import { ZONE1_TOWERS } from '../puzzles/zone1.ts';
 /**
  * Plan de l'île : position des panneaux, portes, murs et chemins.
  * Repère : x vers l'est, z vers le sud (la caméra regarde vers -z quand yaw = 0).
@@ -76,6 +77,16 @@ export const TOWERS = { id: 'tours', requires: ['d6'], x0: -24, dx: 8, z0: -19, 
 
 export function towerCell(c: number, r: number): { x: number; z: number } {
   return { x: TOWERS.x0 + c * TOWERS.dx, z: TOWERS.z0 + r * TOWERS.dz };
+}
+
+/** Cases occupées de la grille des tours (lues dans la définition de l'énigme). */
+export function towerCells(): [number, number][] {
+  const rows = ZONE1_TOWERS.grid.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => l.split(/\s+/));
+  const out: [number, number][] = [];
+  rows.forEach((row, r) => row.forEach((t, c) => {
+    if (t !== '.') out.push([c, r]);
+  }));
+  return out;
 }
 
 /** Murs du jardin (segments), percés aux portes. */
@@ -175,7 +186,7 @@ export const FLATS: { x: number; z: number; r: number }[] = [
   ...GATES.map((g) => ({ x: g.x, z: g.z, r: 4 })),
   PLAZA,
   // dalles des tours
-  ...[[1, 0], [3, 0], [5, 0], [1, 1], [5, 1], [0, 2], [1, 2], [5, 2]].map(([c, r]) => ({ ...towerCell(c!, r!), r: 2.5 })),
+  ...towerCells().map(([c, r]) => ({ ...towerCell(c, r), r: 2.5 })),
 ];
 
 

@@ -49,15 +49,18 @@ export class Cables {
   }
 
   /** Allume les câbles qui partent de ce panneau (animé sauf si `instant`). */
-  light(from: string, instant = false): void {
+  light(from: string, instant = false): boolean {
+    let any = false;
     for (const c of this.cables) {
       if (c.from !== from || c.lit) continue;
       c.lit = true;
+      any = true;
       if (instant) {
         c.progress = 1;
         this.paint(c);
       }
     }
+    return any;
   }
 
   reset(): void {

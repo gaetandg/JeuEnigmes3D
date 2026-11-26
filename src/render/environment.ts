@@ -3,6 +3,8 @@ import * as THREE from 'three';
 export const SUN_DIR = new THREE.Vector3(-0.62, 0.5, 0.6).normalize();
 export const HORIZON = new THREE.Color('#f6d7b0');
 export const ZENITH = new THREE.Color('#5c9fd6');
+/** halo du soleil dans le ciel (partagé : l'heure le fait varier) */
+export const SUN_GLOW = new THREE.Color('#fff2d0');
 
 /** Ciel en dégradé avec un soleil diffus. */
 export function buildSky(): THREE.Mesh {
@@ -16,7 +18,7 @@ export function buildSky(): THREE.Mesh {
       uHorizon: { value: HORIZON },
       uGround: { value: new THREE.Color('#8fc7cf') },
       uSunDir: { value: SUN_DIR },
-      uSunColor: { value: new THREE.Color('#fff2d0') },
+      uSunColor: { value: SUN_GLOW },
     },
     vertexShader: /* glsl */ `
       varying vec3 vDir;
@@ -83,6 +85,8 @@ export function buildWater(): { mesh: THREE.Mesh; update: (t: number) => void } 
 export interface Lights {
   sun: THREE.DirectionalLight;
   hemi: THREE.HemisphereLight;
+  /** direction de la lumière du soleil (jamais sous l'horizon) */
+  sunDir: THREE.Vector3;
   /** Fait suivre la zone d'ombre au joueur. */
   follow: (target: THREE.Vector3) => void;
 }
@@ -104,13 +108,14 @@ export function buildLights(scene: THREE.Scene): Lights {
   sun.shadow.normalBias = 0.04;
   scene.add(sun);
   scene.add(sun.target);
+  const sunDir = SUN_DIR.clone();
   const follow = (t: THREE.Vector3) => {
     // aligner sur une grille pour éviter le scintillement des ombres
     const snap = 2;
     const x = Math.round(t.x / snap) * snap;
     const z = Math.round(t.z / snap) * snap;
     sun.target.position.set(x, t.y, z);
-    sun.position.set(x + SUN_DIR.x * 100, t.y + SUN_DIR.y * 100, z + SUN_DIR.z * 100);
+    sun.position.set(x + sunDir.x * 100, t.y + sunDir.y * 100, z + sunDir.z * 100);
   };
-  return { sun, hemi, follow };
+  return { sun, hemi, sunDir, follow };
 }
