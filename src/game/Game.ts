@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { parsePuzzle } from '../core/light/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
-import { ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell } from '../world/layout.ts';
+import { SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell } from '../world/layout.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../puzzles/zone2.ts';
 import { parseFold } from '../core/fold/index.ts';
 import { FoldView } from '../render/foldView.ts';
@@ -23,6 +23,8 @@ import { applyDaylight, buildStars } from '../render/daylight.ts';
 import { Sparks } from '../render/sparks.ts';
 import { GuideBeams } from '../render/guides.ts';
 import { GamepadInput } from './gamepad.ts';
+import { Shards } from '../render/shards.ts';
+import { SECRET_FOLD, SECRET_IDS, SECRET_LIGHT, SECRET_SHADOW } from '../puzzles/secrets.ts';
 import type { Lights } from '../render/environment.ts';
 import { LightPanel } from '../render/panelView.ts';
 import { WorldLightPuzzle } from '../render/worldPuzzle.ts';
@@ -128,6 +130,8 @@ export class Game {
   readonly guides = new GuideBeams();
   guidesOn = true;
   private gamepad: GamepadInput | null = null;
+  private shards!: Shards;
+  private glintClock = 0;
   private refreshEnv: () => void;
   /** séquence de fin (caméra qui s'élève au-dessus de l'île) */
   private cinematic: { t: number; a0: number } | null = null;
@@ -253,6 +257,35 @@ export class Game {
         this.addFoldView(new FoldView(parseFold(def), { x: spot.x, z: spot.z, yaw: spot.yaw, cell: 0.34, kind: 'desk' }));
       }
     }
+    // les Éclats : énigmes secrètes, allumées dès le départ, sans câble ni guide
+    for (const s of SECRETS) {
+      let view: PuzzleView;
+      if (s.kind === 'world-light') {
+        view = new WorldLightPuzzle(parsePuzzle(SECRET_LIGHT.find((d) => d.id === s.id)!), this.colliders, SECRET_PLAGE);
+      } else if (s.kind === 'light') {
+        const panel = new LightPanel(parsePuzzle(SECRET_LIGHT.find((d) => d.id === s.id)!), s);
+        panel.onCrystal = (c) => this.audio.crystal(c);
+        view = panel;
+      } else if (s.kind === 'shadow') {
+        const def = SECRET_SHADOW.find((d) => d.id === s.id)!;
+        const sv = new ShadowView(parseShadow(def), { x: s.x, z: s.z, yaw: s.yaw, voxel: 0.2, stageY: 0.8 }, startState(def));
+        sv.onTurn = () => this.audio.click();
+        view = sv;
+      } else {
+        const def = SECRET_FOLD.find((d) => d.id === s.id)!;
+        const fv = new FoldView(parseFold(def), s.kind === 'fold-easel'
+          ? { x: s.x, z: s.z, yaw: s.yaw, cell: SECRET_VOILE_CELL, kind: 'easel' }
+          : { x: s.x, z: s.z, yaw: s.yaw, cell: 0.34, kind: 'desk' });
+        fv.onFoldSound = () => this.audio.fold();
+        fv.onFailSound = () => this.audio.denied();
+        view = fv;
+      }
+      view.onSolved = () => this.onPanelSolved(view);
+      view.setPowered(true);
+      this.panels.set(view.id, view);
+      this.scene.add(view.group);
+    }
+
     // faisceau tournant du phare (fin du jeu)
     this.beacon = new THREE.Group();
     this.beacon.position.set(LIGHTHOUSE.x, heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z) + 28.6, LIGHTHOUSE.z);
@@ -268,6 +301,8 @@ export class Game {
     }
     this.beacon.visible = false;
     this.scene.add(this.beacon);
+    this.shards = new Shards(this.beacon.position.clone());
+    this.scene.add(this.shards.group);
 
     // rais de lumière jusqu'au phare (visibles une fois chaque zone finie)
     const crystal = towerCell(3, 0);
@@ -323,7 +358,7 @@ export class Game {
     const pos = this.player.position;
     const pts: THREE.Vector3[] = [];
     for (const p of this.panels.values()) {
-      if (!p.powered || p.solved) continue;
+      if (!p.powered || p.solved || SECRET_IDS.includes(p.id)) continue;
       const a = this.anchorsOf(p)[0]!;
       if (Math.hypot(a.x - pos.x, a.z - pos.z) < 9) continue;
       pts.push(new THREE.Vector3(a.x, heightAt(a.x, a.z) + 2.2, a.z));
@@ -382,9 +417,28 @@ export class Game {
 
   private hudEndingShown = false;
 
+  /** Un scintillement furtif près des secrets non trouvés, quand on passe à proximité. */
+  private glintSecrets(): void {
+    const pos = this.player.position;
+    for (const s of SECRETS) {
+      const v = this.panels.get(s.id);
+      if (!v || v.solved) continue;
+      const a = this.sparkAt(v).at;
+      const d = Math.hypot(a.x - pos.x, a.z - pos.z);
+      if (d < 35 && d > 6) this.sparks.burst(a, new THREE.Color('#ffffff'), 10, 0.5);
+    }
+  }
+
   /** Bilan affiché à la fin. */
-  stats(): { solved: number; total: number; minutes: number } {
-    return { solved: this.save.solved.length, total: this.panels.size, minutes: Math.round((this.save.playTime ?? 0) / 60) };
+  stats(): { solved: number; total: number; minutes: number; shards: number; shardsTotal: number } {
+    const main = [...this.panels.keys()].filter((id) => !SECRET_IDS.includes(id));
+    return {
+      solved: main.filter((id) => this.isSolved(id)).length,
+      total: main.length,
+      minutes: Math.round((this.save.playTime ?? 0) / 60),
+      shards: SECRET_IDS.filter((id) => this.isSolved(id)).length,
+      shardsTotal: SECRET_IDS.length,
+    };
   }
 
   private addShadowView(view: ShadowView): void {
@@ -546,6 +600,7 @@ export class Game {
       if (solved.has(id)) panel.markSolved();
     }
     this.updatePower(true);
+    for (const id of SECRET_IDS) if (this.isSolved(id)) this.shards.add(null);
     const p = this.save.player;
     if (p) this.player.place(p.x, p.z, p.yaw);
     else this.player.place(START.x, START.z, START.yaw);
@@ -623,6 +678,10 @@ export class Game {
 
   private onPanelSolved(panel: PuzzleView): void {
     const id = panel.id;
+    if (this.save.solved.includes(id) === false && SECRET_IDS.includes(id)) {
+      this.shards.add(this.sparkAt(panel).at);
+      this.audio.finale();
+    }
     if (this.save.solved.includes(id) === false) {
       const s = this.sparkAt(panel);
       this.sparks.burst(s.at, new THREE.Color('#ffaa2e'), s.big ? 220 : 70, s.big ? 3 : 0.7);
@@ -742,6 +801,17 @@ export class Game {
     }
     this.plazaCrystal.rotation.y += dt * 0.2;
     if (this.beacon.visible) this.beacon.rotation.y += dt * 0.35;
+    this.shards.update(dt);
+    if (this.shards.complete) {
+      const hue = (this.time * 0.05) % 1;
+      for (const c of this.beacon.children) ((c as THREE.Mesh).material as THREE.MeshBasicMaterial).color.setHSL(hue, 0.7, 0.75);
+      (this.plazaCrystal.material as THREE.MeshStandardMaterial).emissive.setHSL((hue + 0.5) % 1, 0.8, 0.5);
+    }
+    this.glintClock += dt;
+    if (this.glintClock > 3.5) {
+      this.glintClock = 0;
+      this.glintSecrets();
+    }
     this.sparks.update(dt);
     this.updateDay(dt);
     this.guides.update(this.time, this.guidesOn && !this.ended);
@@ -784,6 +854,21 @@ export class Game {
     }
     if (id === CADRAN.id) {
       this.player.place(CADRAN.x - 7, CADRAN.z + 10, -0.6, -0.1);
+      return;
+    }
+    const sec = SECRETS.find((p) => p.id === id);
+    if (sec) {
+      if (sec.kind === 'world-light') this.player.place(SECRET_PLAGE.x0 + 8, SECRET_PLAGE.z0 + 13, 0, -0.35);
+      else if (sec.kind === 'fold-easel') {
+        const d = 6.5;
+        this.player.place(sec.x + Math.sin(sec.yaw) * d, sec.z + Math.cos(sec.yaw) * d, sec.yaw, 0.05);
+      } else if (sec.kind === 'shadow') {
+        const yaw = sec.yaw - 0.4;
+        this.player.place(sec.x + Math.sin(yaw) * 2.3, sec.z + Math.cos(yaw) * 2.3, yaw, -0.22);
+      } else {
+        const st = standPoint(sec, 1.55);
+        this.player.place(st.x, st.z, sec.yaw, -0.5);
+      }
       return;
     }
     const fin = FINAL_PANELS.find((p) => p.id === id);
@@ -835,6 +920,7 @@ export class Game {
       for (const p of this.panels.values()) p.update(0.05, this.time);
       this.updateDay(0.05);
       this.sparks.update(0.05);
+      this.shards.update(0.05);
       for (const g of this.gates.values()) {
         if (g.opening && g.open < 1) {
           g.open = Math.min(1, g.open + 0.05 / 2.5);

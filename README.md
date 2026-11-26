@@ -12,6 +12,10 @@ d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombr
 | Le Cloître des Ombres | Ombres | 10 théâtres d'ombres + le Cadran |
 | Le Phare | Combinaisons | 5 panneaux, puis le phare se rallume |
 
+Et **sept éclats** à trouver : des énigmes secrètes cachées hors des chemins, sans câble ni
+guide (un scintillement furtif trahit leur présence). Chaque éclat rejoint le phare ; les sept
+réunis l'irisent de toutes les couleurs.
+
 **▶ Jouer : https://gaetandg.github.io/JeuEnigmes3D/** (PC ou mobile, navigateur récent)
 
 ## Contrôles

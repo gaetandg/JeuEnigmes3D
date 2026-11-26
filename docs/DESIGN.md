@@ -132,6 +132,16 @@ Chaque zone terminée envoie un rai de lumière colorée au phare (un quart de s
 le dernier panneau l'allume entièrement : son faisceau se met à tourner sur la mer et un
 écran de fin s'affiche (énigmes résolues, temps de jeu). On peut ensuite continuer à explorer.
 
+## 6 bis. Les Éclats (secrets)
+
+Sept énigmes cachées hors des chemins, allumées dès le départ, sans câble ni guide lumineux :
+le jardin des lanternes (grille d'environnement sur la plage ouest), un panneau dans le bosquet
+est, une voile de papier dans les bois ouest, deux statues derrière le cloître, un panneau au
+bord du plateau du phare, une feuille dans les dunes est, trois gardiens derrière le phare.
+Toutes choisies pour leur « déclic » (l'agent glouton y échoue souvent). Un scintillement furtif
+attire l'œil quand on passe à moins de 35 m. Chaque éclat gagné vole jusqu'au phare et tourne
+autour de la lampe ; les sept réunis irisent le faisceau et le grand cristal de la place.
+
 ## 7. Direction artistique
 
 - Low-poly à facettes, géométrie générée par le code (aucun modèle importé requis).

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Colliders } from '../../src/game/colliders.ts';
 import { heightAt } from '../../src/world/terrain.ts';
 import {
-  CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, PLAZA, SHADOW_PANELS, START, standPoint, towerCell,
+  CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, PLAZA, SECRETS, SECRET_PLAGE, SHADOW_PANELS, START, standPoint, towerCell,
 } from '../../src/world/layout.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../../src/world/props.ts';
 import { buildAtelier } from '../../src/world/atelier.ts';
@@ -12,6 +12,7 @@ import { addPuzzleColliders } from '../../src/world/puzzleColliders.ts';
 import { WorldLightPuzzle } from '../../src/render/worldPuzzle.ts';
 import { parsePuzzle } from '../../src/core/light/index.ts';
 import { ZONE1_TOWERS } from '../../src/puzzles/zone1.ts';
+import { SECRET_LIGHT } from '../../src/puzzles/secrets.ts';
 
 /**
  * Test de navigation : on reconstruit tous les obstacles du jeu (sans rendu) et on vérifie,
@@ -34,6 +35,7 @@ function world(open: Set<string>) {
   buildAtelier(c);
   buildCloitre(c);
   new WorldLightPuzzle(parsePuzzle(ZONE1_TOWERS), c);
+  new WorldLightPuzzle(parsePuzzle(SECRET_LIGHT[0]!), c, SECRET_PLAGE);
   addPuzzleColliders(c);
   // index spatial des cercles
   const B = 4;
@@ -142,6 +144,25 @@ describe('navigation — on peut marcher jusqu\'à chaque énigme', () => {
     }
     expect(reach(GRAND_PLI.x, GRAND_PLI.z + 10.5)).toBe(true);
     expect(reach(CADRAN.x - 7, CADRAN.z + 10)).toBe(true);
+  });
+});
+
+describe('navigation — les secrets sont accessibles', () => {
+  const reach = explore(ALL_GATES);
+  it('chaque énigme secrète', () => {
+    const missing: string[] = [];
+    for (const s of SECRETS) {
+      let ok: boolean;
+      if (s.kind === 'world-light') ok = reach(SECRET_PLAGE.x0 + 8, SECRET_PLAGE.z0 + 13) || reach(SECRET_PLAGE.x0 + 8, SECRET_PLAGE.z0 - 3);
+      else if (s.kind === 'fold-easel') ok = reach(s.x + Math.sin(s.yaw) * 6.5, s.z + Math.cos(s.yaw) * 6.5);
+      else if (s.kind === 'shadow') ok = reach(s.x + Math.sin(s.yaw - 0.4) * 2.3, s.z + Math.cos(s.yaw - 0.4) * 2.3);
+      else {
+        const p = standPoint(s, 1.6);
+        ok = reach(p.x, p.z);
+      }
+      if (!ok) missing.push(s.id);
+    }
+    expect(missing).toEqual([]);
   });
 });
 

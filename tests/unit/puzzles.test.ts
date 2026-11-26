@@ -5,6 +5,7 @@ import { ZONE2, ZONE2_GRAND_PLI } from '../../src/puzzles/zone2.ts';
 import { checkFold, initialFoldState, parseFold, solveFold } from '../../src/core/fold/index.ts';
 import { ZONE3, ZONE3_CADRAN } from '../../src/puzzles/zone3.ts';
 import { ZONE4_FOLD, ZONE4_LIGHT } from '../../src/puzzles/zone4.ts';
+import { SECRET_FOLD, SECRET_IDS, SECRET_LIGHT, SECRET_SHADOW } from '../../src/puzzles/secrets.ts';
 import { checkShadow, parseShadow, solveShadow, startState } from '../../src/core/shadow/index.ts';
 
 describe('zone 1 — validation de toutes les énigmes par le solveur', () => {
@@ -78,6 +79,37 @@ describe('zone 4 — énigmes combinées', () => {
       const r = solveFold(p);
       expect(r.solution).not.toBeNull();
       expect(r.minFolds).toBe(def.folds);
+    });
+  }
+});
+
+describe('les Éclats — énigmes secrètes', () => {
+  it('sept secrets aux identifiants uniques', () => {
+    expect(SECRET_IDS).toHaveLength(7);
+    expect(new Set(SECRET_IDS).size).toBe(7);
+  });
+  for (const def of SECRET_LIGHT) {
+    it(`${def.id} : solution unique, aucune pièce inutile`, () => {
+      const p = parsePuzzle(def);
+      const init = initialState(p);
+      expect(simulate(p, init).solved).toBe(false);
+      const a = analyze(p, init);
+      expect(a.distinct).toBe(1);
+      expect(a.dead).toEqual([]);
+    });
+  }
+  for (const def of SECRET_FOLD) {
+    it(`${def.id} : solvable avec exactement le nombre de plis permis`, () => {
+      const p = parseFold(def);
+      expect(checkFold(p, initialFoldState(p)).solved).toBe(false);
+      expect(solveFold(p).minFolds).toBe(def.folds);
+    });
+  }
+  for (const def of SECRET_SHADOW) {
+    it(`${def.id} : une seule orientation convient`, () => {
+      const p = parseShadow(def);
+      expect(checkShadow(p, startState(def)).solved).toBe(false);
+      expect(solveShadow(p).count).toBe(1);
     });
   }
 });

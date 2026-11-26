@@ -2,7 +2,19 @@ import * as THREE from 'three';
 import { initialState, interact, simulate, solve } from '../core/light/index.ts';
 import type { Cell, Color, LightPuzzle, LightState, SimResult } from '../core/light/index.ts';
 import { heightAt } from '../world/terrain.ts';
-import { TOWERS, towerCell } from '../world/layout.ts';
+import { TOWERS } from '../world/layout.ts';
+
+/** Où poser une grille d'environnement : coin, taille des cases, hauteur des rayons, échelle des pièces. */
+export interface WorldPlacement {
+  x0: number;
+  z0: number;
+  dx: number;
+  dz: number;
+  beamY: number;
+  /** échelle des tours, colonnes et cristaux (1 = Tours-Miroirs) */
+  scale?: number;
+  name?: string;
+}
 import { stoneMaterial } from '../world/props.ts';
 import type { Colliders } from '../game/colliders.ts';
 import { displayColor } from './panelView.ts';
@@ -51,8 +63,11 @@ export class WorldLightPuzzle implements PuzzleView {
   private solvedAt = -1;
   private time = 0;
 
-  constructor(readonly puzzle: LightPuzzle, colliders: Colliders) {
-    this.group.name = 'tours-miroirs';
+  readonly place: WorldPlacement;
+
+  constructor(readonly puzzle: LightPuzzle, colliders: Colliders, place: WorldPlacement = TOWERS) {
+    this.place = place;
+    this.group.name = place.name ?? 'tours-miroirs';
     this.state = initialState(puzzle);
     puzzle.cells.forEach((cell, i) => this.build(cell, i, colliders));
     const geo = new THREE.BoxGeometry(1, 1, 1);
@@ -74,17 +89,22 @@ export class WorldLightPuzzle implements PuzzleView {
 
   private pos(i: number): THREE.Vector3 {
     const w = this.puzzle.width;
-    const { x, z } = towerCell(i % w, Math.floor(i / w));
+    const x = this.place.x0 + (i % w) * this.place.dx;
+    const z = this.place.z0 + Math.floor(i / w) * this.place.dz;
     return new THREE.Vector3(x, heightAt(x, z), z);
   }
 
   private build(def: Cell, i: number, colliders: Colliders): void {
     const p = this.pos(i);
-    const Y = TOWERS.beamY;
+    // les pièces sont construites à l'échelle 1 puis réduites : la hauteur locale des rayons suit
+    const sc = this.place.scale ?? 1;
+    const Y = this.place.beamY / sc;
     const k = this.puzzle.interactive.indexOf(i);
     const stone = stoneMaterial();
+    const addCircle = (x: number, z: number, r: number) => colliders.addCircle(p.x + (x - p.x) * sc, p.z + (z - p.z) * sc, r * sc);
     const add = (o: THREE.Object3D) => {
-      o.position.add(p);
+      o.scale.multiplyScalar(sc);
+      o.position.multiplyScalar(sc).add(p);
       o.traverse((m) => {
         if (m instanceof THREE.Mesh) {
           m.castShadow = true;
@@ -112,7 +132,7 @@ export class WorldLightPuzzle implements PuzzleView {
         g.add(lens);
         g.rotation.y = [Math.PI / 2, 0, -Math.PI / 2, Math.PI][def.dir]!;
         add(g);
-        colliders.addCircle(p.x, p.z, 1.5);
+        addCircle(p.x, p.z, 1.5);
         break;
       }
       case 'mirror':
@@ -142,11 +162,11 @@ export class WorldLightPuzzle implements PuzzleView {
         head.rotation.y = angle(def.fixed ? def.orient : this.state[k]!);
         g.add(head);
         add(g);
-        colliders.addCircle(p.x, p.z, 0.9);
+        addCircle(p.x, p.z, 0.9);
         if (!def.fixed) {
-          const pick = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, Y + 1.6, 8), new THREE.MeshBasicMaterial({ visible: false }));
+          const pick = new THREE.Mesh(new THREE.CylinderGeometry(1.6 * sc, 1.6 * sc, (Y + 1.6) * sc, 8), new THREE.MeshBasicMaterial({ visible: false }));
           pick.position.copy(p);
-          pick.position.y += (Y + 1.6) / 2;
+          pick.position.y += ((Y + 1.6) * sc) / 2;
           pick.userData = { panel: this, k };
           this.group.add(pick);
           this.pickables.push(pick);
@@ -173,7 +193,7 @@ export class WorldLightPuzzle implements PuzzleView {
         g.add(cap);
         add(g);
         body.castShadow = false;
-        colliders.addCircle(p.x, p.z, 1.6);
+        addCircle(p.x, p.z, 1.6);
         break;
       }
       case 'dark': {
@@ -188,7 +208,7 @@ export class WorldLightPuzzle implements PuzzleView {
         mesh.position.y = Y + 0.3;
         g.add(mesh);
         add(g);
-        colliders.addCircle(p.x, p.z, 1.4);
+        addCircle(p.x, p.z, 1.4);
         this.darks.push({ index: i, mat });
         break;
       }
@@ -208,7 +228,7 @@ export class WorldLightPuzzle implements PuzzleView {
         glow.position.y = Y + 0.3;
         g.add(glow);
         add(g);
-        colliders.addCircle(p.x, p.z, 1.4);
+        addCircle(p.x, p.z, 1.4);
         this.target = { index: i, mesh, mat, glow, wanted: def.color };
         break;
       }
@@ -273,7 +293,8 @@ export class WorldLightPuzzle implements PuzzleView {
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const col = new THREE.Color();
-    const Y = TOWERS.beamY;
+    const Y = this.place.beamY;
+    const sc = this.place.scale ?? 1;
     let n = 0;
     for (let i = 0; i < this.puzzle.cells.length; i++) {
       const a = this.pos(i);
@@ -281,7 +302,7 @@ export class WorldLightPuzzle implements PuzzleView {
         const v = sim.halfEdges[i * 4 + d]!;
         if (!v) continue;
         const horizontal = d === 1 || d === 3;
-        const half = (horizontal ? TOWERS.dx : TOWERS.dz) / 2;
+        const half = (horizontal ? this.place.dx : this.place.dz) / 2;
         const dx = [0, 1, 0, -1][d]!;
         const dz = [-1, 0, 1, 0][d]!;
         // le rayon suit le sol entre deux cases : on prend l'altitude du milieu
@@ -289,10 +310,10 @@ export class WorldLightPuzzle implements PuzzleView {
         const mz = a.z + dz * half * 0.5;
         const y = Math.max(a.y, heightAt(a.x + dx * half, a.z + dz * half)) + Y;
         q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), horizontal ? 0 : Math.PI / 2);
-        m.compose(new THREE.Vector3(mx, y, mz), q, new THREE.Vector3(half + 0.1, 0.14, 0.14));
+        m.compose(new THREE.Vector3(mx, y, mz), q, new THREE.Vector3(half + 0.1, 0.14 * sc, 0.14 * sc));
         this.beams.setMatrixAt(n, m);
         this.beams.setColorAt(n, col.copy(displayColor(v)).lerp(WHITE_HOT, 0.25));
-        m.compose(new THREE.Vector3(mx, y, mz), q, new THREE.Vector3(half, 0.45, 0.45));
+        m.compose(new THREE.Vector3(mx, y, mz), q, new THREE.Vector3(half, 0.45 * sc, 0.45 * sc));
         this.halos.setMatrixAt(n, m);
         this.halos.setColorAt(n, col.copy(displayColor(v)));
         n++;
