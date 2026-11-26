@@ -19,6 +19,7 @@ for (const v of views) {
     if (v.solveAll) g.solveAll();
     if (v.advance) g.advance(v.advance);
     if (v.view) g.view(v.view);
+    if (v.hint) g.hint(v.hint);
     if (v.tp) g.teleport(...v.tp);
     if (v.cam) g.camera(...v.cam); else g.freeCamera();
   }, v);

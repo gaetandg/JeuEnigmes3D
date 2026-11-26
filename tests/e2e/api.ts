@@ -17,6 +17,7 @@ export type Api = {
   hovered: () => { id: string; k: number } | null;
   drawCalls: () => number;
   ended: () => boolean;
+  hint: (id: string) => number | null;
 };
 declare global {
   interface Window {

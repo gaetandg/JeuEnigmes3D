@@ -7,6 +7,7 @@ import { stoneMaterial } from '../world/props.ts';
 import type { Colliders } from '../game/colliders.ts';
 import { displayColor } from './panelView.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
+import { nearestDiff, pulse } from './hints.ts';
 
 const WHITE_HOT = new THREE.Color('#ffffff');
 
@@ -45,6 +46,7 @@ export class WorldLightPuzzle implements PuzzleView {
   private target: { index: number; mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; glow: THREE.PointLight; wanted: Color } | null = null;
   private lens: THREE.MeshBasicMaterial | null = null;
   private hovered: number | null = null;
+  private hintK: number | null = null;
   private solvedAt = -1;
   private time = 0;
 
@@ -214,8 +216,15 @@ export class WorldLightPuzzle implements PuzzleView {
     /* toujours visible : c'est un élément du paysage */
   }
 
+  hint(): number | null {
+    if (!this.powered || this.solved) return null;
+    this.hintK = nearestDiff(this.state, solve(this.puzzle, { keep: 300 }).solutions);
+    return this.hintK;
+  }
+
   interact(k: number, reverse = false): InteractResult {
     if (!this.powered || this.solved) return 'locked';
+    this.hintK = null;
     const next = interact(this.puzzle, this.state, k, reverse);
     if (!next) return 'denied';
     this.applyState(next);
@@ -293,6 +302,7 @@ export class WorldLightPuzzle implements PuzzleView {
       t.head.rotation.y += Math.abs(d) < 0.001 ? d : d * Math.min(1, dt * 6);
       const hot = this.hovered === t.k;
       t.ring.color.set(hot ? '#fff0b8' : this.powered && !this.solved ? '#e0b45a' : '#9c8a6a');
+      if (this.hintK === t.k && !hot && !this.solved) t.ring.color.set('#e0b45a').lerp(new THREE.Color('#9fe8ff'), pulse(time));
     }
     if (this.target) {
       const got = this.sim?.received[this.target.index] ?? 0;

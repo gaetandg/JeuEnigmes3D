@@ -9,6 +9,7 @@ import type { PanelSpot } from '../world/layout.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { objectEuler } from './shadowMath.ts';
+import { nearestDiff, pulse as hintPulse } from './hints.ts';
 
 /** Couleur d'affichage d'une couleur logique. */
 export function displayColor(c: Color): THREE.Color {
@@ -143,6 +144,10 @@ export class LightPanel implements PuzzleView {
   private beams: THREE.InstancedMesh;
   private halos: THREE.InstancedMesh;
   private hover: THREE.Mesh;
+  private hintRing: THREE.Mesh;
+  private hintMat = new THREE.MeshBasicMaterial({ color: '#9fe8ff', toneMapped: false, transparent: true });
+  private hintK: number | null = null;
+  private hoverK: number | null = null;
   private tokens: THREE.Mesh[] = [];
   private boardMesh: THREE.Mesh;
   private boardMat: THREE.MeshStandardMaterial;
@@ -240,6 +245,10 @@ export class LightPanel implements PuzzleView {
     this.board.add(this.halos);
 
     // survol
+    this.hintRing = new THREE.Mesh(new THREE.TorusGeometry(c * 0.48, c * 0.05, 4, 32), this.hintMat);
+    this.hintRing.rotation.x = Math.PI / 2;
+    this.hintRing.visible = false;
+    this.board.add(this.hintRing);
     this.hover = new THREE.Mesh(new THREE.TorusGeometry(c * 0.44, c * 0.035, 4, 24), MAT.hover);
     this.hover.rotation.x = Math.PI / 2;
     this.hover.visible = false;
@@ -472,6 +481,7 @@ export class LightPanel implements PuzzleView {
   }
 
   setHover(k: number | null): void {
+    this.hoverK = k;
     for (const o of this.objs) o.base.emissive.set(o.k === k && this.powered && !this.solved ? '#6b5320' : '#000000');
     if (k === null || !this.powered || this.solved) {
       this.hover.visible = false;
@@ -488,9 +498,24 @@ export class LightPanel implements PuzzleView {
     this.hover.position.y = this.cell * 0.08;
   }
 
+  hint(): number | null {
+    if (!this.powered || this.solved) return null;
+    const k = nearestDiff(this.state, solve(this.puzzle, { keep: 300 }).solutions);
+    this.hintK = k;
+    const piece = k === null ? undefined : this.pieces.find((p) => p.k === k);
+    this.hintRing.visible = !!piece;
+    if (piece) {
+      this.hintRing.position.copy(this.cellPos(piece.cellIndex));
+      this.hintRing.position.y = this.cell * 0.1;
+    }
+    return k;
+  }
+
   /** Action du joueur. */
   interact(k: number, reverse = false): InteractResult {
     if (!this.powered || this.solved) return 'locked';
+    this.hintK = null;
+    this.hintRing.visible = false;
     const next = interact(this.puzzle, this.state, k, reverse);
     if (!next) return 'denied';
     this.applyState(next);
@@ -589,6 +614,12 @@ export class LightPanel implements PuzzleView {
   /** Animation (appelée à chaque image). */
   update(dt: number, time: number): void {
     this.time = time;
+    if (this.hintK !== null && !this.solved) {
+      const p = hintPulse(time);
+      this.hintMat.opacity = 0.35 + 0.65 * p;
+      this.hintRing.scale.setScalar(1 + 0.12 * p);
+      for (const o of this.objs) if (o.k === this.hintK && o.k !== this.hoverK) o.base.emissive.set('#2a8fb0').multiplyScalar(p);
+    } else if (this.hintRing.visible) this.hintRing.visible = false;
     for (const o of this.objs) {
       if (o.current === o.target) continue;
       const d = o.target - o.current;

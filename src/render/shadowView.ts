@@ -5,6 +5,7 @@ import { heightAt } from '../world/terrain.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { objectEuler } from './shadowMath.ts';
+import { nearestDiff, pulse } from './hints.ts';
 
 export interface ShadowPlacement {
   x: number;
@@ -54,6 +55,7 @@ export class ShadowView implements PuzzleView {
   private wallGlow = new Map<Wall, THREE.MeshStandardMaterial>();
   private lamps: { mat: THREE.MeshBasicMaterial; cone: THREE.MeshBasicMaterial }[] = [];
   private hovered: number | null = null;
+  private hintK: number | null = null;
   private time = 0;
   private solvedAt = -1;
   private stage: THREE.Group;
@@ -294,8 +296,16 @@ export class ShadowView implements PuzzleView {
     this.hovered = this.powered && !this.solved ? k : null;
   }
 
+  hint(): number | null {
+    if (!this.powered || this.solved) return null;
+    const turns = (a: number, b: number) => Math.min((a - b + 4) % 4, (b - a + 4) % 4);
+    this.hintK = nearestDiff(this.state, solveShadow(this.puzzle).solutions, turns);
+    return this.hintK;
+  }
+
   interact(k: number, reverse = false): InteractResult {
     if (!this.powered || this.solved) return 'locked';
+    this.hintK = null;
     const o = this.objs[k];
     if (!o) return 'locked';
     if (o.current !== o.target) return 'denied';
@@ -358,7 +368,10 @@ export class ShadowView implements PuzzleView {
     // survol : le support s'éclaire
     this.objs.forEach((o, i) => {
       for (const b of o.base) {
-        (b.material as THREE.MeshStandardMaterial).emissive.set(this.hovered === i ? '#6b5320' : '#000000');
+        const m = (b.material as THREE.MeshStandardMaterial).emissive;
+        if (this.hovered === i) m.set('#6b5320');
+        else if (this.hintK === i && !this.solved) m.set('#2a8fb0').multiplyScalar(pulse(time));
+        else m.set('#000000');
       }
     });
     if (this.solved) {

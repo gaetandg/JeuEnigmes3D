@@ -45,23 +45,26 @@ export const PANELS: PanelSpot[] = [
   { id: 'b3', x: -30, z: 37, yaw: W, requires: ['b2'] },
   { id: 'b4', x: -37, z: 44, yaw: W, requires: ['b3'] },
   { id: 'b5', x: -43, z: 35, yaw: W, requires: ['b4'] },
+  { id: 'b6', x: -45, z: 45, yaw: W, requires: ['b5'] },
   // Allée C (est) : le verre
   { id: 'c1', x: 14, z: 39, yaw: E, requires: ['a5'] },
   { id: 'c2', x: 22, z: 44, yaw: E, requires: ['c1'] },
   { id: 'c3', x: 30, z: 37, yaw: E, requires: ['c2'] },
   { id: 'c4', x: 38, z: 43, yaw: E, requires: ['c3'] },
+  { id: 'c5', x: 44, z: 35, yaw: E, requires: ['c4'] },
   // Allée D (nord) : socles et prisme
-  { id: 'd1', x: 0, z: 19, yaw: N, requires: ['b5', 'c4'] },
+  { id: 'd1', x: 0, z: 19, yaw: N, requires: ['b6', 'c5'] },
   { id: 'd2', x: -9, z: 13, yaw: N, requires: ['d1'] },
   { id: 'd3', x: 9, z: 9, yaw: N, requires: ['d2'] },
   { id: 'd4', x: -8, z: 3, yaw: N, requires: ['d3'] },
   { id: 'd5', x: 4, z: -4, yaw: N, requires: ['d4'] },
+  { id: 'd6', x: -12, z: -2, yaw: N, requires: ['d5'] },
 ];
 
 export const GATES: GateSpot[] = [
   { id: 'porte-plage', x: 0, z: 86, rot: 0, width: 4, requires: ['a1'] },
   { id: 'porte-place', x: 0, z: 50, rot: 0, width: 4, requires: ['a5'] },
-  { id: 'porte-nord', x: 0, z: 26, rot: 0, width: 4, requires: ['b5', 'c4'] },
+  { id: 'porte-nord', x: 0, z: 26, rot: 0, width: 4, requires: ['b6', 'c5'] },
   { id: 'porte-sortie', x: 0, z: -24, rot: 0, width: 4, requires: ['tours'] },
 ];
 
@@ -69,7 +72,7 @@ export const GATES: GateSpot[] = [
  * Tours-Miroirs : la grille de l'énigme d'environnement posée sur le jardin.
  * Case (c, r) → x = x0 + c * dx, z = z0 + r * dz.
  */
-export const TOWERS = { id: 'tours', requires: ['d5'], x0: -24, dx: 8, z0: -19, dz: 6, beamY: 3.2 };
+export const TOWERS = { id: 'tours', requires: ['d6'], x0: -24, dx: 8, z0: -19, dz: 6, beamY: 3.2 };
 
 export function towerCell(c: number, r: number): { x: number; z: number } {
   return { x: TOWERS.x0 + c * TOWERS.dx, z: TOWERS.z0 + r * TOWERS.dz };
@@ -94,9 +97,9 @@ export const WALLS: [number, number, number, number][] = (() => {
 // ── zone 2 : l'Atelier de Papier (plateau à l'ouest, au-delà de la porte nord) ──
 export const ATELIER = { x: -50, z: -56, r: 21 };
 
-/** Douze pupitres en cercle autour de l'atelier, le joueur regarde vers le centre. */
-export const FOLD_PANELS: PanelSpot[] = Array.from({ length: 12 }, (_, i) => {
-  const a = 0.35 + (i / 12) * Math.PI * 2; // départ côté est (vers la porte nord)
+/** Treize pupitres en cercle autour de l'atelier, le joueur regarde vers le centre. */
+export const FOLD_PANELS: PanelSpot[] = Array.from({ length: 13 }, (_, i) => {
+  const a = 0.35 + (i / 13) * Math.PI * 2; // départ côté est (vers la porte nord)
   const r = 15;
   return {
     id: `p${i + 1}`,
@@ -108,7 +111,7 @@ export const FOLD_PANELS: PanelSpot[] = Array.from({ length: 12 }, (_, i) => {
 });
 
 /** Le Grand Pli, sur l'estrade au centre de l'atelier. */
-export const GRAND_PLI = { id: 'grand-pli', x: ATELIER.x, z: ATELIER.z, yaw: 0, requires: ['p12'], cell: 2.6 };
+export const GRAND_PLI = { id: 'grand-pli', x: ATELIER.x, z: ATELIER.z, yaw: 0, requires: ['p13'], cell: 2.6 };
 
 // ── zone 3 : le Cloître des Ombres (plateau à l'est) ──
 export const CLOITRE = { x: 50, z: -56, r: 23, half: 18 };
@@ -152,8 +155,8 @@ export const PLATEAUS: { x: number; z: number; r: number }[] = [ATELIER, CLOITRE
 /** Chemins : suites de points (x, z). */
 export const PATHS: [number, number][][] = [
   [[0, 108], [0, 98], [0, 86], [-4, 80], [2, 73], [-2, 65], [2, 58], [0, 50], [0, 38]],
-  [[0, 38], [-10, 39], [-18, 42], [-26, 40], [-33, 41], [-40, 38], [-45, 35]],
-  [[0, 38], [10, 39], [18, 42], [26, 40], [34, 41], [41, 42]],
+  [[0, 38], [-10, 39], [-18, 42], [-26, 40], [-33, 41], [-40, 38], [-42, 42], [-43, 45]],
+  [[0, 38], [10, 39], [18, 42], [26, 40], [34, 41], [41, 41], [42, 35]],
   [[0, 38], [0, 26], [0, 22], [-5, 16], [4, 12], [-3, 6], [2, 0], [0, -8], [0, -24], [0, -34]],
   [[0, -34], [-14, -40], [-26, -46], [-34, -50]],
   [[0, -34], [12, -40], [22, -48], [CLOITRE.x - CLOITRE.half - 3, CLOITRE.z]],

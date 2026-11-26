@@ -10,6 +10,7 @@ export interface HudCallbacks {
   onSensitivity: (v: number) => void;
   onQuality: (q: Quality) => void;
   onSymbols: (on: boolean) => void;
+  onHints: (on: boolean) => void;
   onPause: () => void;
   onReset: () => void;
 }
@@ -46,6 +47,7 @@ export class Hud {
               </select>
             </label>
             <label>Symboles des couleurs (daltonisme) <input type="checkbox" data-setting="symbols" /></label>
+            <label>Aides discrètes si l'on bloque longtemps <input type="checkbox" data-setting="hints" /></label>
             <button class="ghost" data-action="reset">Recommencer depuis le début</button>
           </details>
           <p class="help">${touch
@@ -66,6 +68,9 @@ export class Hud {
     symbols.checked = !!settings.symbols;
     quality.addEventListener('change', () => cb.onQuality(quality.value as Quality));
     symbols.addEventListener('change', () => cb.onSymbols(symbols.checked));
+    const hints = this.root.querySelector<HTMLInputElement>('[data-setting="hints"]')!;
+    hints.checked = settings.hints !== false;
+    hints.addEventListener('change', () => cb.onHints(hints.checked));
     this.pauseBtn = this.root.querySelector<HTMLButtonElement>('[data-action="pause"]')!;
     this.pauseBtn.addEventListener('click', () => cb.onPause());
     this.touch = touch;
