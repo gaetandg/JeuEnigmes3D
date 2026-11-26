@@ -1,11 +1,15 @@
 import * as THREE from 'three';
 import { parsePuzzle } from '../core/light/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
-import { FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell } from '../world/layout.ts';
+import { CADRAN, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell } from '../world/layout.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../puzzles/zone2.ts';
 import { parseFold } from '../core/fold/index.ts';
 import { FoldView } from '../render/foldView.ts';
 import { buildAtelier } from '../world/atelier.ts';
+import { buildCloitre } from '../world/cloitre.ts';
+import { ZONE3, ZONE3_CADRAN } from '../puzzles/zone3.ts';
+import { parseShadow, startState } from '../core/shadow/index.ts';
+import { ShadowView } from '../render/shadowView.ts';
 import { buildTerrain, heightAt } from '../world/terrain.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../world/props.ts';
 import type { GateView } from '../world/props.ts';
@@ -25,7 +29,7 @@ import { Hud } from '../ui/hud.ts';
 const REACH = 5;
 
 /** Qui alimente quoi : panneaux + énigmes d'environnement. */
-const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI];
+const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN];
 
 /** Liens dessinés au sol (câbles lumineux). */
 function cableLinks(): { from: string; ax: number; az: number; bx: number; bz: number }[] {
@@ -34,8 +38,10 @@ function cableLinks(): { from: string; ax: number; az: number; bx: number; bz: n
   const outPos = new Map<string, { x: number; z: number }>([
     ...PANELS.map((p) => [p.id, p] as const),
     ...FOLD_PANELS.map((p) => [p.id, p] as const),
+    ...SHADOW_PANELS.map((p) => [p.id, p] as const),
     [TOWERS.id, towerCrystal],
     [GRAND_PLI.id, GRAND_PLI],
+    [CADRAN.id, CADRAN],
   ]);
   const inPos = new Map<string, { x: number; z: number }>([
     ...outPos,
@@ -176,9 +182,29 @@ export class Game {
       }
     }
 
+    // zone 3 : le Cloître des Ombres
+    this.scene.add(buildCloitre(this.colliders));
+    for (const spot of SHADOW_PANELS) {
+      const def = ZONE3.find((d) => d.id === spot.id)!;
+      const view = new ShadowView(parseShadow(def), { x: spot.x, z: spot.z, yaw: spot.yaw, voxel: 0.2, stageY: 0.8 }, startState(def));
+      this.addShadowView(view);
+      this.colliders.addCircle(spot.x, spot.z, 0.75);
+    }
+    {
+      const cad = new ShadowView(parseShadow(ZONE3_CADRAN), { x: CADRAN.x, z: CADRAN.z, yaw: CADRAN.yaw, voxel: CADRAN.voxel, stageY: 0.5 }, startState(ZONE3_CADRAN));
+      this.addShadowView(cad);
+      const hw = (cad.puzzle.width * CADRAN.voxel) / 2 + 1;
+      const hd = (cad.puzzle.depth * CADRAN.voxel) / 2 + 1;
+      const { x, z } = CADRAN;
+      for (const [ax, az, bx, bz] of [[x - hw, z - hd, x + hw, z - hd], [x + hw, z - hd, x + hw, z + hd], [x + hw, z + hd, x - hw, z + hd], [x - hw, z + hd, x - hw, z - hd]] as const) {
+        this.colliders.addSegment({ ax, az, bx, bz, r: 0.3 });
+      }
+    }
+
     // rais de lumière jusqu'au phare (visibles une fois chaque zone finie)
     const crystal = towerCell(3, 0);
     this.addShaft(TOWERS.id, new THREE.Vector3(crystal.x, heightAt(crystal.x, crystal.z) + TOWERS.beamY + 0.3, crystal.z), '#ff8de6');
+    this.addShaft(CADRAN.id, new THREE.Vector3(CADRAN.x, heightAt(CADRAN.x, CADRAN.z) + 4.5, CADRAN.z), '#8ad7ff');
     this.addShaft(GRAND_PLI.id, new THREE.Vector3(GRAND_PLI.x, heightAt(GRAND_PLI.x, GRAND_PLI.z) + 8.5, GRAND_PLI.z - 2), '#ffd98a');
 
     this.player = new Player(this.camera, this.colliders);
@@ -202,6 +228,13 @@ export class Game {
     mesh.visible = false;
     this.scene.add(mesh);
     this.shafts.push({ id, mesh, on: 0 });
+  }
+
+  private addShadowView(view: ShadowView): void {
+    view.onSolved = () => this.onPanelSolved(view);
+    view.onTurn = () => this.audio.click();
+    this.panels.set(view.id, view);
+    this.scene.add(view.group);
   }
 
   private addFoldView(view: FoldView): void {
@@ -287,7 +320,7 @@ export class Game {
     const m = this.plazaCrystal.material as THREE.MeshStandardMaterial;
     m.emissive.set('#ffd98a').multiplyScalar(allees * 0.25);
     // chaque zone terminée donne un tiers de lumière au phare
-    const zones = ['tours', 'grand-pli'].filter((id) => this.isSolved(id)).length;
+    const zones = ['tours', 'grand-pli', 'cadran'].filter((id) => this.isSolved(id)).length;
     const lamp = this.lighthouseLamp.material as THREE.MeshStandardMaterial;
     lamp.emissive.set('#ffe9b0').multiplyScalar(zones / 3);
     for (const s of this.shafts) {
@@ -395,7 +428,8 @@ export class Game {
     this.water.update(this.time);
     this.cables.update(dt);
     for (const p of this.panels.values()) {
-      if (!(p instanceof LightPanel) && !(p instanceof FoldView && p.place.kind === 'desk')) {
+      const small = p instanceof LightPanel || (p instanceof FoldView && p.place.kind === 'desk') || (p instanceof ShadowView && p.place.voxel < 0.5);
+      if (!small) {
         p.update(dt, this.time);
         continue;
       }
@@ -435,6 +469,17 @@ export class Game {
   view(id: string): void {
     if (id === GRAND_PLI.id) {
       this.player.place(GRAND_PLI.x, GRAND_PLI.z + 10.5, 0, 0.12);
+      return;
+    }
+    if (id === CADRAN.id) {
+      this.player.place(CADRAN.x - 7, CADRAN.z + 10, -0.6, -0.1);
+      return;
+    }
+    const shadow = SHADOW_PANELS.find((p) => p.id === id);
+    if (shadow) {
+      // de trois quarts : on voit l'objet et les deux murs
+      const yaw = shadow.yaw - 0.4;
+      this.player.place(shadow.x + Math.sin(yaw) * 2.3, shadow.z + Math.cos(yaw) * 2.3, yaw, -0.22);
       return;
     }
     const fold = FOLD_PANELS.find((p) => p.id === id);

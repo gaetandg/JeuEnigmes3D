@@ -99,11 +99,22 @@ se déplie. Progression : p1–p4 (points), p5–p6 (taches, recto/verso), p7–
 trous), p9–p12 (combinaisons générées, solution unique), puis **le Grand Pli** : une feuille
 de 13 m sur un chevalet au centre de l'atelier.
 
-## 5. Zone 3 — Ombres *(conception détaillée à venir)*
+## 5. Zone 3 — Ombres (le Cloître des Ombres)
 
-Objets en voxels sur plateaux tournants, éclairés selon plusieurs axes ; chaque mur reçoit
-une projection. Il faut que toutes les ombres correspondent à des silhouettes gravées.
-Lumières colorées : une ombre bloquée par une seule lumière prend la couleur de l'autre.
+Chaque panneau est un petit théâtre d'ombres : des objets faits de cubes (boîte 3×3×3)
+posés sur un **plateau tournant** (axe vertical) ou dans un **berceau** (axe est-ouest),
+tournés par quarts de tour (clic gauche / droit). Une lampe de face projette les ombres sur
+le **mur du fond**, une lampe de gauche sur le **mur de droite**. Les ombres de plusieurs
+objets s'additionnent. Il faut que chaque ombre coïncide exactement avec la silhouette
+gravée en or sur son mur.
+
+- Lisibilité : les ombres sont agrandies (lampe proche) et colorées — ambre dans la
+  silhouette, gris en dehors, dorées une fois résolu ; on regarde la scène de trois quarts.
+- Les silhouettes sont **calculées** à partir d'une orientation-solution choisie, puis le
+  solveur vérifie qu'aucune autre orientation (ou au plus une, symétrique) ne convient.
+- Progression : o1–o2 (rotation, retournement), o3 (deux objets), o4–o6 (mur de droite,
+  deux murs à la fois), o7–o9 (berceau, ombre trouée), o10 (synthèse), puis **le Cadran** :
+  le même théâtre, avec des cubes d'un mètre, au centre du cloître.
 
 ## 6. Zone 4 — Le Phare *(conception à venir)*
 

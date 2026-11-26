@@ -50,7 +50,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(33);
+  expect(panels).toHaveLength(44);
   expect(panels.filter((p) => p.powered).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -89,16 +89,16 @@ test('une porte fermée bloque le joueur, ouverte elle le laisse passer', async 
   expect((await page.evaluate(() => window.__game.player())).z).toBeLessThan(84);
 });
 
-test('toutes les énigmes (zones 1 et 2) se résolvent dans l\'ordre et ouvrent les portes', async ({ page }) => {
+test('toutes les énigmes (zones 1 à 3) se résolvent dans l\'ordre et ouvrent les portes', async ({ page }) => {
   test.setTimeout(360_000);
   await boot(page);
   const solved = await page.evaluate(() => window.__game.solveAll());
-  expect(solved).toHaveLength(33);
+  expect(solved).toHaveLength(44);
   await page.evaluate(() => window.__game.advance(4));
   for (const gate of ['porte-plage', 'porte-place', 'porte-nord', 'porte-sortie']) {
     expect(await page.evaluate((g) => window.__game.gateOpen(g), gate)).toBe(1);
   }
-  for (const id of ['d5', 'tours', 'grand-pli']) {
+  for (const id of ['tours', 'grand-pli', 'cadran']) {
     await page.evaluate((i) => window.__game.view(i), id);
     await waitFrames(page, 3);
     await page.screenshot({ path: `test-results/panneau-${id}.png` });
@@ -153,6 +153,26 @@ test('un mauvais pliage se déplie tout seul quand la réserve est vide', async 
   await page.evaluate(() => window.__game.advance(2));
   expect(await page.evaluate(() => window.__game.state('p2'))).toEqual([]);
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'p2')!.solved).toBe(false);
+});
+
+const ZONE2 = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11', 'p12', 'grand-pli'];
+
+test("un objet tourne sur son plateau et son ombre épouse la silhouette", async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('o1');
+    window.__game.aim('o1', 0);
+  }, [...ZONE1, ...ZONE2]);
+  await waitFrames(page, 3);
+  expect(await page.evaluate(() => window.__game.hovered())).toEqual({ id: 'o1', k: 0 });
+  // o1 commence à un quart de tour de la solution : clic droit
+  expect(await page.evaluate(() => window.__game.interact('o1', 0, true))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(1));
+  expect(await page.evaluate(() => window.__game.state('o1'))).toEqual([0]);
+  expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'o1')!.solved).toBe(true);
+  await page.screenshot({ path: 'test-results/o1-resolu.png' });
+  expect(errors).toEqual([]);
 });
 
 test('la progression est sauvegardée et restaurée', async ({ page }) => {
