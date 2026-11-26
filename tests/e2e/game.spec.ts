@@ -139,6 +139,25 @@ test('un mauvais pliage se déplie tout seul quand la réserve est vide', async 
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'p2')!.solved).toBe(false);
 });
 
+test("p8 : la ligne du milieu plie dans les deux sens ; seul le clic droit fait voir l'étoile par le trou", async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('p8');
+  }, [...ZONE1, 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7']);
+  // l'aide désigne la ligne du milieu
+  expect(await page.evaluate(() => window.__game.hint('p8'))).toBe(2);
+  // clic gauche : la moitié gauche se rabat, l'étoile se cache, la feuille se déplie
+  expect(await page.evaluate(() => window.__game.interact('p8', 2))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(3));
+  expect(await page.evaluate(() => window.__game.state('p8'))).toEqual([]);
+  // clic droit : la moitié droite se rabat, le trou tombe sur l'étoile
+  expect(await page.evaluate(() => window.__game.interact('p8', 2, true))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(1));
+  expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'p8')!.solved).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 const ZONE2 = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11', 'p12', 'p13', 'grand-pli'];
 
 test("un objet tourne sur son plateau et son ombre épouse la silhouette", async ({ page }) => {
