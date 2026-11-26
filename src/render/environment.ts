@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { SHORE_MIN, SHORE_RANGE } from '../world/terrain.ts';
+import type { ShoreMap } from '../world/terrain.ts';
 
 export const SUN_DIR = new THREE.Vector3(-0.62, 0.5, 0.6).normalize();
 export const HORIZON = new THREE.Color('#f6d7b0');
@@ -51,11 +53,18 @@ export function buildSky(): THREE.Mesh {
   return sky;
 }
 
-/** Mer low-poly animée. */
-export function buildWater(): { mesh: THREE.Mesh; update: (t: number) => void } {
+/**
+ * Mer low-poly animée. Avec la carte des hauts-fonds : eau plus claire là où c'est peu profond,
+ * et lignes d'écume qui avancent vers le rivage.
+ */
+export function buildWater(shore?: ShoreMap): { mesh: THREE.Mesh; update: (t: number) => void } {
   const geo = new THREE.PlaneGeometry(1400, 1400, 140, 140).toNonIndexed();
   geo.rotateX(-Math.PI / 2);
-  const uniforms = { uTime: { value: 0 } };
+  const uniforms = {
+    uTime: { value: 0 },
+    uShore: { value: shore?.texture ?? null },
+    uShoreRect: { value: new THREE.Vector4(shore?.x0 ?? 0, shore?.z0 ?? 0, shore?.size ?? 1, shore ? 1 : 0) },
+  };
   const mat = new THREE.MeshStandardMaterial({
     color: '#3db5c2',
     roughness: 0.55,
@@ -66,13 +75,44 @@ export function buildWater(): { mesh: THREE.Mesh; update: (t: number) => void } 
   });
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = uniforms.uTime;
+    shader.uniforms.uShore = uniforms.uShore;
+    shader.uniforms.uShoreRect = uniforms.uShoreRect;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTime;')
+      .replace('#include <common>', '#include <common>\nuniform float uTime;\nvarying vec2 vWaterXZ;')
       .replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
          vec4 wp = modelMatrix * vec4(position, 1.0);
+         vWaterXZ = wp.xz;
          transformed.y += sin(wp.x * 0.11 + uTime * 0.9) * 0.18 + cos(wp.z * 0.13 + uTime * 0.7) * 0.18;`,
+      );
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        `#include <common>
+         uniform float uTime;
+         uniform sampler2D uShore;
+         uniform vec4 uShoreRect;
+         varying vec2 vWaterXZ;`,
+      )
+      .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+         if (uShoreRect.w > 0.5) {
+           vec2 suv = (vWaterXZ - uShoreRect.xy) / uShoreRect.z;
+           float ground = texture2D(uShore, suv).r * ${SHORE_RANGE.toFixed(1)} + (${SHORE_MIN.toFixed(1)});
+           float depth = -ground; // profondeur sous le niveau moyen de la mer
+           // eau claire sur les hauts-fonds
+           float shallow = 1.0 - smoothstep(0.0, 2.6, depth);
+           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.50, 0.86, 0.82), shallow * 0.75);
+           // écume : une frange au bord et des lignes qui avancent vers le rivage
+           float wob = sin(vWaterXZ.x * 0.21 + vWaterXZ.y * 0.17) * 0.35 + sin(vWaterXZ.x * 0.05 - vWaterXZ.y * 0.07 + uTime * 0.3) * 0.5;
+           float lines = smoothstep(0.82, 0.97, sin(depth * 5.5 + uTime * 1.7 + wob) * 0.5 + 0.5);
+           float near = 1.0 - smoothstep(0.0, 1.5, depth);
+           float edge = 1.0 - smoothstep(0.05, 0.4, depth + sin(uTime * 1.2 + wob * 2.0) * 0.08);
+           float foam = clamp(edge + lines * near * 0.85, 0.0, 1.0);
+           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.97, 0.99, 1.0), foam * 0.85);
+         }`,
       );
   };
   const mesh = new THREE.Mesh(geo, mat);

@@ -145,7 +145,22 @@ function colorAt(x: number, z: number, h: number, slope: number, out: THREE.Colo
 }
 
 /** Maillage low-poly à facettes (une couleur par triangle). */
-export function buildTerrain(size = 320, segments = 160): THREE.Mesh {
+/**
+ * Carte des hauts-fonds pour la mer : l'altitude du sol près du niveau de l'eau, en niveaux de
+ * gris (0 = 3 m sous l'eau ou plus, 1 = 1 m au-dessus ou plus). Réutilise les altitudes déjà
+ * calculées pour le maillage du terrain : aucun coût au démarrage.
+ */
+export interface ShoreMap {
+  texture: THREE.DataTexture;
+  /** coin (x, z) et côté (m) de la zone couverte */
+  x0: number;
+  z0: number;
+  size: number;
+}
+export const SHORE_MIN = -3;
+export const SHORE_RANGE = 4;
+
+export function buildTerrain(size = 320, segments = 160): { mesh: THREE.Mesh; shore: ShoreMap } {
   const step = size / segments;
   const half = size / 2;
   const cz = ISLAND_CENTER.z;
@@ -211,5 +226,13 @@ export function buildTerrain(size = 320, segments = 160): THREE.Mesh {
   const mesh = new THREE.Mesh(geo, mat);
   mesh.receiveShadow = true;
   mesh.name = 'terrain';
-  return mesh;
+  // carte des hauts-fonds (même grille que le maillage)
+  const n = segments + 1;
+  const data = new Uint8Array(n * n);
+  for (let k = 0; k < n * n; k++) data[k] = Math.round(THREE.MathUtils.clamp((hs[k]! - SHORE_MIN) / SHORE_RANGE, 0, 1) * 255);
+  const texture = new THREE.DataTexture(data, n, n, THREE.RedFormat, THREE.UnsignedByteType);
+  texture.magFilter = THREE.LinearFilter;
+  texture.minFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return { mesh, shore: { texture, x0: -half, z0: cz - half, size } };
 }
