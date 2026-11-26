@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test --trace off",
-    "puzzles": "vitest run tests/unit/puzzles.report.test.ts --reporter=verbose"
+    "puzzles": "node scripts/light-report.ts",
+    "puzzles:gen": "node scripts/light-gen.ts"
   },
   "dependencies": {
     "three": "^0.187.0"
