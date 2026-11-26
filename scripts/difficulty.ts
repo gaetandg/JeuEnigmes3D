@@ -8,7 +8,7 @@
  *   node scripts/difficulty.ts            → tableau
  *   node scripts/difficulty.ts --md       → tableau Markdown (docs/DIFFICULTE.md)
  */
-import { initialState, interact, parsePuzzle, pieceCount, simulate, solve } from '../src/core/light/index.ts';
+import { initialState, interact, leverCount, parsePuzzle, simulate, solve } from '../src/core/light/index.ts';
 import type { LightPuzzleDef } from '../src/core/light/index.ts';
 import { applyFold, checkFold, initialFoldState, legalFolds, parseFold, solveFold } from '../src/core/fold/index.ts';
 import type { FoldPuzzleDef } from '../src/core/fold/index.ts';
@@ -51,7 +51,7 @@ function lightRow(zone: string, def: LightPuzzleDef): Row {
   const p = parsePuzzle(def);
   const init = initialState(p);
   const r = solve(p, { keep: 1, initial: init });
-  const n = pieceCount(p);
+  const n = leverCount(p);
   const runs: number[] = [];
   for (let run = 0; run < RUNS; run++) {
     let s = init.slice();
@@ -68,7 +68,7 @@ function lightRow(zone: string, def: LightPuzzleDef): Row {
     runs.push(steps);
   }
   const blind = median(runs);
-  return { zone, id: def.id, kind: p.objects.length ? 'lumière+objets' : 'lumière', pieces: n, minActions: r.minClicks, space: r.space, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyLight(p, init)) * 100) };
+  return { zone, id: def.id, kind: p.cranks ? 'lumière+objets+manivelles' : p.objects.length ? 'lumière+objets' : 'lumière', pieces: n, minActions: r.minClicks, space: r.space, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyLight(p, init)) * 100) };
 }
 
 function foldRow(zone: string, def: FoldPuzzleDef): Row {
@@ -120,7 +120,7 @@ export function allRows(): Row[] {
     ...[...ZONE1, ZONE1_TOWERS].map((d) => lightRow('1 Lumière', d)),
     ...[...ZONE2, ZONE2_GRAND_PLI].map((d) => foldRow('2 Pliage', d)),
     ...[...ZONE3, ZONE3_CADRAN].map((d) => shadowRow('3 Ombres', d)),
-    ...['f1', 'f2', 'f3', 'f4', 'f5'].map((id) => {
+    ...['f1', 'f2', 'f3', 'f4', 'f5', 'f6'].map((id) => {
       const l = ZONE4_LIGHT.find((d) => d.id === id);
       return l ? lightRow('4 Phare', l) : foldRow('4 Phare', ZONE4_FOLD.find((d) => d.id === id)!);
     }),

@@ -147,8 +147,8 @@ export const CADRAN = { id: 'cadran', x: CLOITRE.x, z: CLOITRE.z - 1, yaw: 0, re
 export const PHARE = { x: LIGHTHOUSE.x, z: LIGHTHOUSE.z + 6, r: 17 };
 
 /** Cinq panneaux en arc au pied du phare ; le joueur regarde vers le phare. */
-export const FINAL_PANELS: (PanelSpot & { kind: 'light' | 'fold' })[] = ['f1', 'f2', 'f3', 'f4', 'f5'].map((id, i) => {
-  const a = Math.PI / 2 + (i - 2) * 0.42;
+export const FINAL_PANELS: (PanelSpot & { kind: 'light' | 'fold' })[] = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6'].map((id, i) => {
+  const a = Math.PI / 2 + (i - 2.5) * 0.42;
   const r = 13;
   return {
     id,
@@ -156,7 +156,7 @@ export const FINAL_PANELS: (PanelSpot & { kind: 'light' | 'fold' })[] = ['f1', '
     x: LIGHTHOUSE.x + Math.cos(a) * r,
     z: LIGHTHOUSE.z + Math.sin(a) * r,
     yaw: Math.atan2(Math.cos(a), Math.sin(a)),
-    requires: i === 0 ? ['cadran'] : [['f1', 'f2', 'f3', 'f4'][i - 1]!],
+    requires: i === 0 ? ['cadran'] : [['f1', 'f2', 'f3', 'f4', 'f5'][i - 1]!],
   };
 });
 

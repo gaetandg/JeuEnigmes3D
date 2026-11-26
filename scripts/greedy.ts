@@ -7,7 +7,7 @@
  * améliorations successives : il faut une IDÉE (passer par un état moins bon, anticiper).
  * C'est notre mesure du « déclic ».
  */
-import { interact, pieceCount, simulate } from '../src/core/light/index.ts';
+import { interact, leverCount, simulate } from '../src/core/light/index.ts';
 import type { LightPuzzle, LightState } from '../src/core/light/index.ts';
 import { applyFold, checkFold, initialFoldState, legalFolds, litCells } from '../src/core/fold/index.ts';
 import type { FoldPuzzle, FoldState } from '../src/core/fold/index.ts';
@@ -58,7 +58,7 @@ function lightValue(p: LightPuzzle, s: LightState): number {
 }
 
 export function greedyLight(p: LightPuzzle, init: LightState): number {
-  const n = pieceCount(p);
+  const n = leverCount(p);
   return greedy(
     init,
     (s) => {

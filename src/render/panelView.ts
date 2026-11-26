@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
   BLUE, GREEN, RED,
-  initialState, interact, isValidState, piecesUsed, simulate, solve,
+  initialState, interact, isValidState, leverHint, objectLevers, piecesUsed, simulate, solve,
 } from '../core/light/index.ts';
 import type { Cell, Color, LightPuzzle, LightState, SimResult } from '../core/light/index.ts';
 import { heightAt } from '../world/terrain.ts';
@@ -9,8 +9,11 @@ import type { PanelSpot } from '../world/layout.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { objectEuler } from './shadowMath.ts';
-import { nearestDiff, pulse as hintPulse } from './hints.ts';
+import { pulse as hintPulse } from './hints.ts';
 import { mergeMeshes, mergeStatic } from './merge.ts';
+
+/** Teintes des manivelles (les mêmes métaux qu'au cloître des ombres). */
+const CRANK_METALS = ['#e4e4ee', '#cf8a4a', '#86a37a', '#b9a0d8'];
 
 /** Couleur d'affichage d'une couleur logique. */
 export function displayColor(c: Color): THREE.Color {
@@ -144,7 +147,9 @@ export class LightPanel implements PuzzleView {
   private cell: number;
   private pieces: Piece[] = [];
   /** objets en cubes (zone finale) : rotation affichée animée */
-  private objs: { k: number; pivot: THREE.Group; axis: 'x' | 'y'; current: number; target: number; base: THREE.MeshStandardMaterial }[] = [];
+  private objs: { k: number; pivot: THREE.Group; axis: 'x' | 'y'; current: number; target: number; base: THREE.MeshStandardMaterial; paint: THREE.MeshStandardMaterial }[] = [];
+  /** manivelles couplées (zone finale) : roues posées sur le rebord proche */
+  private cranks: { wheel: THREE.Group; mat: THREE.MeshStandardMaterial; current: number; target: number }[] = [];
   private crystals: Crystal[] = [];
   private beams: THREE.InstancedMesh;
   private halos: THREE.InstancedMesh;
@@ -284,7 +289,7 @@ export class LightPanel implements PuzzleView {
       }
       const pivot = new THREE.Group();
       pivot.position.set(center.x, c * 1.5 + 0.004, center.z);
-      const mat = new THREE.MeshStandardMaterial({ color: ['#c96f5a', '#7fa36a', '#6b86b5'][j % 3]!, roughness: 0.6, flatShading: true });
+      const mat = new THREE.MeshStandardMaterial({ color: ['#c96f5a', '#7fa36a', '#6b86b5'][j % 3]!, roughness: 0.6, flatShading: true, emissive: '#000000' });
       const cube = new THREE.BoxGeometry(c * 0.94, c * 0.94, c * 0.94);
       const cubes = o.shape.map(([x, y, z]) => {
         const m = new THREE.Mesh(cube, mat);
@@ -294,15 +299,20 @@ export class LightPanel implements PuzzleView {
       });
       mergeMeshes(cubes, pivot, mat).castShadow = true;
       this.board.add(pivot);
-      const pick = new THREE.Mesh(new THREE.BoxGeometry(c * 3, c * 3, c * 3), MAT.pick);
-      pick.position.copy(pivot.position);
-      pick.userData = { panel: this, k };
-      this.board.add(pick);
-      this.pickables.push(pick);
+      // avec des manivelles, on agit sur les roues, pas sur les objets
+      if (!puzzle.cranks) {
+        const pick = new THREE.Mesh(new THREE.BoxGeometry(c * 3, c * 3, c * 3), MAT.pick);
+        pick.position.copy(pivot.position);
+        pick.userData = { panel: this, k };
+        this.board.add(pick);
+        this.pickables.push(pick);
+      }
       const t = this.state[k]!;
       pivot.rotation.copy(objectEuler(o.axis, t));
-      this.objs.push({ k, pivot, axis: o.axis, current: t, target: t, base: baseMat });
+      this.objs.push({ k, pivot, axis: o.axis, current: t, target: t, base: baseMat, paint: mat });
     });
+
+    if (puzzle.cranks) this.buildCranks(puzzle.cranks, bw, bh, fw);
 
     // fusion des éléments fixes (un appel de dessin par matériau)
     mergeStatic(this.board);
@@ -316,6 +326,69 @@ export class LightPanel implements PuzzleView {
     }
 
     this.setPowered(false);
+  }
+
+  /**
+   * Manivelles couplées : des roues à plat sur un rebord, au bord proche du panneau. Chaque roue a
+   * son métal ; des pastilles du même métal sont incrustées dans les supports qu'elle entraîne.
+   */
+  private buildCranks(cranks: number[][], bw: number, bh: number, fw: number): void {
+    const c = this.cell;
+    const R = c * 0.42;
+    const z = bh / 2 + fw + R * 1.35;
+    const ledge = new THREE.Mesh(new THREE.BoxGeometry(bw + fw * 2, 0.08, R * 2.7), MAT.frame);
+    ledge.position.set(0, -0.01, z);
+    ledge.castShadow = true;
+    ledge.userData = { static: true, keep: true };
+    this.board.add(ledge);
+    const inlays = new Map<number, number>(); // objet → pastilles déjà posées
+    const n = this.puzzle.interactive.length;
+    cranks.forEach((objs, ci) => {
+      const mat = new THREE.MeshStandardMaterial({ color: CRANK_METALS[ci % CRANK_METALS.length]!, roughness: 0.3, metalness: 0.75, emissive: '#000000' });
+      const x = ((ci + 0.5) / cranks.length - 0.5) * bw;
+      const wheel = new THREE.Group();
+      wheel.position.set(x, 0.05, z);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(R, R * 0.13, 6, 20), mat);
+      rim.rotation.x = Math.PI / 2;
+      wheel.add(rim);
+      for (const a of [0, Math.PI / 2]) {
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(R * 2, R * 0.12, R * 0.15), mat);
+        spoke.rotation.y = a;
+        wheel.add(spoke);
+      }
+      const knob = new THREE.Mesh(new THREE.CylinderGeometry(R * 0.16, R * 0.16, R * 0.7, 8), mat);
+      knob.position.set(R, R * 0.35, 0);
+      wheel.add(knob);
+      this.board.add(wheel);
+      const pick = new THREE.Mesh(new THREE.BoxGeometry(R * 2.5, R * 1.6, R * 2.5), MAT.pick);
+      pick.position.copy(wheel.position);
+      pick.userData = { panel: this, k: n + ci };
+      this.board.add(pick);
+      this.pickables.push(pick);
+      this.cranks.push({ wheel, mat, current: 0, target: 0 });
+      for (const j of objs) {
+        const o = this.puzzle.objects[j]!;
+        const m = inlays.get(j) ?? 0;
+        inlays.set(j, m + 1);
+        const center = this.cellPos((o.ay + 1) * this.puzzle.width + o.ax + 1);
+        const inlay = new THREE.Mesh(new THREE.CylinderGeometry(c * 0.17, c * 0.17, c * 0.03, 12), mat);
+        if (o.axis === 'y') {
+          const a = Math.PI / 2 + (m - 0.5) * 0.5; // sur le bord proche du plateau
+          inlay.position.set(center.x + Math.cos(a) * c * 1.3, c * 0.05, center.z + Math.sin(a) * c * 1.3);
+        } else {
+          inlay.position.set(center.x + c * 1.55, c * 0.03, center.z + c * 0.9 + m * c * 0.4);
+        }
+        inlay.userData.static = true;
+        this.board.add(inlay);
+      }
+    });
+  }
+
+  /** Objets entraînés par un levier (aucun pour une case). */
+  private leverObjects(k: number | null): number[] {
+    const n = this.puzzle.interactive.length;
+    if (k === null || k < n) return [];
+    return objectLevers(this.puzzle)[k - n] ?? [];
   }
 
   private cellPos(i: number): THREE.Vector3 {
@@ -520,7 +593,15 @@ export class LightPanel implements PuzzleView {
 
   setHover(k: number | null): void {
     this.hoverK = k;
-    for (const o of this.objs) o.base.emissive.set(o.k === k && this.powered && !this.solved ? '#6b5320' : '#000000');
+    const on = this.powered && !this.solved;
+    const driven = this.leverObjects(k);
+    this.objs.forEach((o, j) => {
+      o.base.emissive.set(on && driven.includes(j) ? '#6b5320' : '#000000');
+      // l'objet lui-même s'éclaire : on voit d'un coup d'œil ce que la roue entraîne
+      o.paint.emissive.set(on && driven.includes(j) ? '#4a3a18' : '#000000');
+    });
+    const n = this.puzzle.interactive.length;
+    this.cranks.forEach((cr, ci) => cr.mat.emissive.set(on && k === n + ci ? '#6b5320' : '#000000'));
     if (k === null || !this.powered || this.solved) {
       this.hover.visible = false;
       return;
@@ -538,7 +619,7 @@ export class LightPanel implements PuzzleView {
 
   hint(): number | null {
     if (!this.powered || this.solved) return null;
-    const k = nearestDiff(this.state, solve(this.puzzle, { keep: 300 }).solutions);
+    const k = leverHint(this.puzzle, this.state, solve(this.puzzle, { keep: 300 }).solutions);
     this.hintK = k;
     const piece = k === null ? undefined : this.pieces.find((p) => p.k === k);
     this.hintRing.visible = !!piece;
@@ -554,8 +635,11 @@ export class LightPanel implements PuzzleView {
     if (!this.powered || this.solved) return 'locked';
     this.hintK = null;
     this.hintRing.visible = false;
+    this.setHover(this.hoverK); // efface la lueur d'aide des supports et des roues
     const next = interact(this.puzzle, this.state, k, reverse);
     if (!next) return 'denied';
+    const crank = this.cranks[k - this.puzzle.interactive.length];
+    if (crank) crank.target += reverse ? -1 : 1;
     this.applyState(next);
     return 'ok';
   }
@@ -661,8 +745,22 @@ export class LightPanel implements PuzzleView {
       const p = hintPulse(time);
       this.hintMat.opacity = 0.35 + 0.65 * p;
       this.hintRing.scale.setScalar(1 + 0.12 * p);
-      for (const o of this.objs) if (o.k === this.hintK && o.k !== this.hoverK) o.base.emissive.set('#2a8fb0').multiplyScalar(p);
+      if (this.hintK !== this.hoverK) {
+        const driven = this.leverObjects(this.hintK);
+        this.objs.forEach((o, j) => {
+          if (!driven.includes(j)) return;
+          o.base.emissive.set('#2a8fb0').multiplyScalar(p);
+          o.paint.emissive.set('#2a8fb0').multiplyScalar(0.35 * p);
+        });
+        this.cranks[this.hintK - this.puzzle.interactive.length]?.mat.emissive.set('#2a8fb0').multiplyScalar(p);
+      }
     } else if (this.hintRing.visible) this.hintRing.visible = false;
+    for (const cr of this.cranks) {
+      if (cr.current === cr.target) continue;
+      const d = cr.target - cr.current;
+      cr.current += Math.sign(d) * Math.min(Math.abs(d), dt * 5);
+      cr.wheel.rotation.y = -cr.current * (Math.PI / 2);
+    }
     for (const o of this.objs) {
       if (o.current === o.target) continue;
       const d = o.target - o.current;

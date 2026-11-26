@@ -1,6 +1,7 @@
 import type { LightPuzzle, LightState } from './types.ts';
 import { simulate } from './simulate.ts';
 import { rotated } from '../shadow/engine.ts';
+import { movesBetween } from './levers.ts';
 
 export interface SolveReport {
   /** Nombre total de configurations explorées. */
@@ -69,7 +70,7 @@ export function solve(
     if (!r.solved) return;
     report.count++;
     if (report.solutions.length < keep) report.solutions.push(state.slice());
-    if (opts.initial) report.minClicks = Math.min(report.minClicks, clicksBetween(opts.initial, state));
+    if (opts.initial) report.minClicks = Math.min(report.minClicks, p.cranks ? movesBetween(p, opts.initial, state) : clicksBetween(opts.initial, state));
     // deux orientations d'un objet qui laissent la même empreinte au sol sont équivalentes
     keys.add(state.map((v, j) => {
       if (j < nCells) return r.received[p.interactive[j]!] ? v : '*';

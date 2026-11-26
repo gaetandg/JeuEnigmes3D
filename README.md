@@ -3,14 +3,14 @@
 Une île silencieuse, des ruines de pierre blanche, un phare éteint. Trois langages
 d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombres.
 
-**Le jeu est complet** : 4 zones, 55 énigmes, une fin.
+**Le jeu est complet** : 4 zones, 56 énigmes, une fin.
 
 | Zone | Langage | Contenu |
 |---|---|---|
 | Le Jardin des Prismes | Lumière | 22 panneaux + les Tours-Miroirs |
 | L'Atelier de Papier | Pliage | 13 pupitres + le Grand Pli |
 | Le Cloître des Ombres | Ombres | 12 théâtres d'ombres (dont 2 à manivelles couplées) + le Cadran |
-| Le Phare | Combinaisons | 5 panneaux, puis le phare se rallume |
+| Le Phare | Combinaisons | 6 panneaux (dont la finale à manivelles), puis le phare se rallume |
 
 Et **sept éclats** à trouver : des énigmes secrètes cachées hors des chemins, sans câble ni
 guide (un scintillement furtif trahit leur présence). Chaque éclat rejoint le phare ; les sept

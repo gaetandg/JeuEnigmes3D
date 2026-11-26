@@ -74,7 +74,27 @@ describe('zone 3 — validation des énigmes d\'ombres par le solveur', () => {
 });
 
 describe('zone 4 — énigmes combinées', () => {
-  for (const def of ZONE4_LIGHT) {
+  for (const def of ZONE4_LIGHT.filter((d) => d.cranks)) {
+    it(`${def.id} (lumière + objets + manivelles) : solution unique, chemin long, chaque objet compte`, () => {
+      const p = parsePuzzle(def);
+      const init = initialState(p);
+      expect(simulate(p, init).solved).toBe(false);
+      const a = analyze(p, init, 100);
+      expect(a.distinct).toBe(1);
+      expect(a.dead).toEqual([]);
+      // toutes les positions des objets sont atteignables avec les manivelles
+      expect(a.minClicks).toBe(6);
+      // chaque objet compte : le tourner seul défait la solution
+      for (const sol of a.solutions) {
+        for (let j = 0; j < p.objects.length; j++) {
+          const t = sol.slice();
+          t[p.interactive.length + j] = (t[p.interactive.length + j]! + 1) % 4;
+          expect(simulate(p, t).solved).toBe(false);
+        }
+      }
+    });
+  }
+  for (const def of ZONE4_LIGHT.filter((d) => !d.cranks)) {
     it(`${def.id} (lumière + objets) : solution unique, aucun objet inutile`, () => {
       const p = parsePuzzle(def);
       const init = initialState(p);
