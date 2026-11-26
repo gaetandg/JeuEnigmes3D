@@ -127,9 +127,9 @@ export const GRAND_PLI = { id: 'grand-pli', x: ATELIER.x, z: ATELIER.z, yaw: 0, 
 // ── zone 3 : le Cloître des Ombres (plateau à l'est) ──
 export const CLOITRE = { x: 50, z: -56, r: 23, half: 18 };
 
-/** Dix théâtres d'ombres en cercle, le joueur regarde vers le centre. */
-export const SHADOW_PANELS: PanelSpot[] = Array.from({ length: 10 }, (_, i) => {
-  const a = Math.PI + 0.3 + (i / 10) * Math.PI * 2; // départ côté ouest (entrée)
+/** Douze théâtres d'ombres en cercle, le joueur regarde vers le centre. */
+export const SHADOW_PANELS: PanelSpot[] = Array.from({ length: 12 }, (_, i) => {
+  const a = Math.PI + 0.3 + (i / 12) * Math.PI * 2; // départ côté ouest (entrée)
   const r = 12.5;
   return {
     id: `o${i + 1}`,
@@ -141,7 +141,7 @@ export const SHADOW_PANELS: PanelSpot[] = Array.from({ length: 10 }, (_, i) => {
 });
 
 /** Le Cadran : théâtre d'ombres monumental au centre du cloître. */
-export const CADRAN = { id: 'cadran', x: CLOITRE.x, z: CLOITRE.z - 1, yaw: 0, requires: ['o10'], voxel: 1 };
+export const CADRAN = { id: 'cadran', x: CLOITRE.x, z: CLOITRE.z - 1, yaw: 0, requires: ['o12'], voxel: 1 };
 
 // ── zone 4 : le Phare (sommet de l'île) ──
 export const PHARE = { x: LIGHTHOUSE.x, z: LIGHTHOUSE.z + 6, r: 17 };

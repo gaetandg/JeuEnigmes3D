@@ -11,7 +11,7 @@ import { interact, pieceCount, simulate } from '../src/core/light/index.ts';
 import type { LightPuzzle, LightState } from '../src/core/light/index.ts';
 import { applyFold, checkFold, initialFoldState, legalFolds, litCells } from '../src/core/fold/index.ts';
 import type { FoldPuzzle, FoldState } from '../src/core/fold/index.ts';
-import { checkShadow, shadowOn } from '../src/core/shadow/index.ts';
+import { checkShadow, shadowLevers, shadowOn, turnShadow } from '../src/core/shadow/index.ts';
 import type { ShadowPuzzle } from '../src/core/shadow/index.ts';
 
 let seed = 777;
@@ -114,7 +114,8 @@ function shadowValue(p: ShadowPuzzle, s: number[]): number {
 export function greedyShadow(p: ShadowPuzzle, start: number[]): number {
   return greedy(
     start,
-    (s) => s.flatMap((_, i) => [1, 3].map((d) => s.map((t, j) => (j === i ? (t + d) % 4 : t)))),
+    // un geste = un levier (objet seul ou manivelle couplée), dans un sens ou dans l'autre
+    (s) => shadowLevers(p).flatMap((_, k) => [false, true].map((rev) => turnShadow(p, s, k, rev))),
     (s) => shadowValue(p, s),
     (s) => checkShadow(p, s).solved,
     30,

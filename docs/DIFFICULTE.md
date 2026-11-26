@@ -10,6 +10,10 @@ choisit toujours l'action qui améliore le plus la situation visible. Une énigm
 ne se résout pas par petites améliorations : il faut une **idée**. Les énigmes d'apprentissage sont
 volontairement à 0 % ; les énigmes de fin d'allée et de zone devraient en demander une.
 
+Les **manivelles couplées** (o11, o12, Cadran) sont à 100 % : chaque roue entraîne deux objets,
+donc régler l'un dérègle l'autre, et aucune action ne fait progresser la situation visible.
+Sans le couplage, les mêmes scènes sont à 0 %.
+
 | Zone | Énigme | Type | Pièces | Actions min. | Actions à l'aveugle (médiane) | Difficulté | Déclic |
 |---|---|---|---|---|---|---|---|
 | 1 Lumière | a1 | lumière | 1 | 1 | 1 | 1.0 █ | 0 % |
@@ -59,9 +63,11 @@ volontairement à 0 % ; les énigmes de fin d'allée et de zone devraient en dem
 | 3 Ombres | o8 | ombres | 2 | 3 | 15 | 4.0 ████ | 0 % |
 | 3 Ombres | o9 | ombres | 2 | 2 | 12 | 3.7 ████ | 48 % |
 | 3 Ombres | o10 | ombres | 3 | 3 | 59 | 5.9 ██████ | 57 % |
-| 3 Ombres | cadran | ombres | 3 | 3 | 53 | 5.8 ██████ | 54 % |
+| 3 Ombres | o11 | ombres+manivelles | 2 | 2 | 12 | 3.7 ████ | 100 % |
+| 3 Ombres | o12 | ombres+manivelles | 3 | 4 | 50 | 5.7 ██████ | 100 % |
+| 3 Ombres | cadran | ombres+manivelles | 3 | 5 | 57 | 5.9 ██████ | 100 % |
 | 4 Phare | f1 | lumière+objets | 1 | 1 | 4 | 2.3 ██ | 0 % |
 | 4 Phare | f2 | lumière+objets | 1 | 1 | 3 | 2.0 ██ | 0 % |
 | 4 Phare | f3 | pliage+lumière | 8 | 1 | 7 | 3.0 ███ | 0 % |
-| 4 Phare | f4 | pliage+lumière | 16 | 2 | 53 | 5.8 ██████ | 0 % |
-| 4 Phare | f5 | lumière+objets | 3 | 3 | 25 | 4.7 █████ | 57 % |
+| 4 Phare | f4 | pliage+lumière | 16 | 2 | 50 | 5.7 ██████ | 0 % |
+| 4 Phare | f5 | lumière+objets | 3 | 3 | 25 | 4.7 █████ | 51 % |

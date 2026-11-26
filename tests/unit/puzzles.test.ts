@@ -6,7 +6,7 @@ import { checkFold, initialFoldState, parseFold, solveFold } from '../../src/cor
 import { ZONE3, ZONE3_CADRAN } from '../../src/puzzles/zone3.ts';
 import { ZONE4_FOLD, ZONE4_LIGHT } from '../../src/puzzles/zone4.ts';
 import { SECRET_FOLD, SECRET_IDS, SECRET_LIGHT, SECRET_SHADOW } from '../../src/puzzles/secrets.ts';
-import { checkShadow, parseShadow, solveShadow, startState } from '../../src/core/shadow/index.ts';
+import { checkShadow, parseShadow, shadowSearch, solveShadow, startState } from '../../src/core/shadow/index.ts';
 
 describe('zone 1 — validation de toutes les énigmes par le solveur', () => {
   it('les identifiants sont uniques', () => {
@@ -56,6 +56,19 @@ describe('zone 3 — validation des énigmes d\'ombres par le solveur', () => {
       const r = solveShadow(p);
       expect(r.count).toBeGreaterThan(0);
       expect(r.count).toBeLessThanOrEqual(2);
+      // la solution doit être atteignable avec les leviers donnés (manivelles couplées comprises)
+      expect(shadowSearch(p, startState(def)).path, 'inatteignable').not.toBeNull();
+    });
+  }
+  for (const def of all.filter((d) => d.cranks)) {
+    it(`${def.id} (manivelles) : une seule solution, toutes les positions atteignables`, () => {
+      const p = parseShadow(def);
+      expect(solveShadow(p).count).toBe(1);
+      const r = shadowSearch(p, startState(def));
+      expect(r.reachable).toBe(4 ** p.objects.length);
+      // les manivelles entraînent chacune au moins un objet, et chaque objet est entraîné
+      const driven = new Set(def.cranks!.flat());
+      expect(driven.size).toBe(p.objects.length);
     });
   }
 });

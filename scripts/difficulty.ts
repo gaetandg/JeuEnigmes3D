@@ -12,7 +12,7 @@ import { initialState, interact, parsePuzzle, pieceCount, simulate, solve } from
 import type { LightPuzzleDef } from '../src/core/light/index.ts';
 import { applyFold, checkFold, initialFoldState, legalFolds, parseFold, solveFold } from '../src/core/fold/index.ts';
 import type { FoldPuzzleDef } from '../src/core/fold/index.ts';
-import { checkShadow, parseShadow, solveShadow, startState } from '../src/core/shadow/index.ts';
+import { checkShadow, parseShadow, shadowLevers, shadowSearch, startState, turnShadow } from '../src/core/shadow/index.ts';
 import type { ShadowPuzzleDef } from '../src/core/shadow/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../src/puzzles/zone1.ts';
 import { greedyFold, greedyLight, greedyShadow } from './greedy.ts';
@@ -96,23 +96,23 @@ function foldRow(zone: string, def: FoldPuzzleDef): Row {
 
 function shadowRow(zone: string, def: ShadowPuzzleDef): Row {
   const p = parseShadow(def);
-  const r = solveShadow(p);
   const start = startState(def);
-  const n = p.objects.length;
+  const levers = shadowLevers(p).length;
+  const search = shadowSearch(p, start);
   const runs: number[] = [];
   for (let run = 0; run < RUNS; run++) {
-    const s = start.slice();
+    let s = start.slice();
     let steps = 0;
     while (!checkShadow(p, s).solved && steps < CAP) {
-      const k = Math.floor(rnd() * n);
-      s[k] = (s[k]! + (rnd() < 0.5 ? 1 : 3)) % 4;
+      s = turnShadow(p, s, Math.floor(rnd() * levers), rnd() >= 0.5);
       steps++;
     }
     runs.push(steps);
   }
   const blind = median(runs);
-  const minActions = Math.min(...r.solutions.map((sol) => sol.reduce((a, t, i) => a + Math.min((t - start[i]! + 4) % 4, (start[i]! - t + 4) % 4), 0)));
-  return { zone, id: def.id, kind: 'ombres', pieces: n, minActions, space: r.space, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyShadow(p, start)) * 100) };
+  const minActions = search.path?.length ?? Infinity;
+  const kind = p.cranks ? 'ombres+manivelles' : 'ombres';
+  return { zone, id: def.id, kind, pieces: levers, minActions, space: search.reachable, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyShadow(p, start)) * 100) };
 }
 
 export function allRows(): Row[] {

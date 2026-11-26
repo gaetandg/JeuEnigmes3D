@@ -59,14 +59,33 @@ export const ZONE3: ShadowPuzzleDef[] = [
       { shape: 'T', slot: [1, 0], start: 1, solution: 0 },
     ],
   },
+  // ── les manivelles : un levier entraîne plusieurs objets ──
+  {
+    id: 'o11', note: "La manivelle de gauche entraîne aussi le voisin : il faut le rattraper.", walls: ['back'],
+    cranks: [[0, 1], [1]],
+    objects: [
+      { shape: 'zigzag', slot: [0, 0], start: 0, solution: 1 },
+      { shape: 'zigzag', slot: [1, 0], start: 0, solution: 0 },
+    ],
+  },
+  {
+    id: 'o12', note: "Trois manivelles en chaîne : l'ordre et le sens comptent.", walls: ['back', 'right'],
+    cranks: [[0, 1], [1, 2], [2]],
+    objects: [
+      { shape: 'T', slot: [0, 0], start: 2, solution: 0 },
+      { shape: 'L', slot: [1, 0], start: 1, solution: 2 },
+      { shape: 'croix', slot: [2, 0], axis: 'x', start: 1, solution: 3 },
+    ],
+  },
 ];
 
-/** Énigme d'environnement de la zone 3 : le Cadran, une scène d'ombres monumentale. */
+/** Énigme d'environnement de la zone 3 : le Cadran, une scène d'ombres monumentale à manivelles. */
 export const ZONE3_CADRAN: ShadowPuzzleDef = {
-  id: 'cadran', note: 'Le même théâtre d\'ombres, à la taille du cloître.', walls: ['back', 'right'],
+  id: 'cadran', note: "Le même théâtre d'ombres, à la taille du cloître, mené par trois manivelles en chaîne.", walls: ['back', 'right'],
+  cranks: [[0, 1], [1, 2], [2]],
   objects: [
-    { shape: 'bras', slot: [0, 0], start: 1, solution: 0 },
-    { shape: 'anneau', slot: [1, 1], start: 2, solution: 3 },
+    { shape: 'bras', slot: [0, 0], start: 2, solution: 0 },
+    { shape: 'anneau', slot: [1, 1], start: 0, solution: 3 },
     { shape: 'pont', slot: [1, 0], axis: 'x', start: 0, solution: 3 },
   ],
 };

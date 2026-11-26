@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(60);
+  expect(panels).toHaveLength(62);
   expect(panels.filter((p) => p.powered && !p.id.startsWith('eclat-')).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -75,7 +75,7 @@ test('toutes les énigmes (zones 1 à 4) se résolvent dans l\'ordre et ouvrent 
   test.setTimeout(360_000);
   await boot(page);
   const solved = await page.evaluate(() => window.__game.solveAll());
-  expect(solved).toHaveLength(53);
+  expect(solved).toHaveLength(55);
   await page.evaluate(() => window.__game.advance(4));
   for (const gate of ['porte-plage', 'porte-place', 'porte-nord', 'porte-sortie']) {
     expect(await page.evaluate((g) => window.__game.gateOpen(g), gate)).toBe(1);
@@ -159,7 +159,31 @@ test("un objet tourne sur son plateau et son ombre épouse la silhouette", async
   expect(errors).toEqual([]);
 });
 
-const ZONE3 = ['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9', 'o10', 'cadran'];
+test('une manivelle entraîne deux objets ; on rattrape le voisin avec la seconde', async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('o11');
+    window.__game.aim('o11', 0);
+  }, [...ZONE1, ...ZONE2, 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9', 'o10']);
+  await waitFrames(page, 3);
+  // on vise la manivelle, pas l'objet
+  expect(await page.evaluate(() => window.__game.hovered())).toEqual({ id: 'o11', k: 0 });
+  expect(await page.evaluate(() => window.__game.interact('o11', 0))).toBe('ok');
+  // les deux zigzags tournent ensemble
+  expect(await page.evaluate(() => window.__game.state('o11'))).toEqual([1, 1]);
+  // pendant qu'ils tournent, la seconde manivelle attend
+  expect(await page.evaluate(() => window.__game.interact('o11', 1, true))).toBe('denied');
+  await page.evaluate(() => window.__game.advance(1));
+  expect(await page.evaluate(() => window.__game.interact('o11', 1, true))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(1));
+  expect(await page.evaluate(() => window.__game.state('o11'))).toEqual([1, 0]);
+  expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'o11')!.solved).toBe(true);
+  await page.screenshot({ path: 'test-results/o11-manivelles.png' });
+  expect(errors).toEqual([]);
+});
+
+const ZONE3 = ['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9', 'o10', 'o11', 'o12', 'cadran'];
 
 test("zone finale : tourner un objet sur un panneau de lumière change l'empreinte qui arrête les rayons", async ({ page }) => {
   await boot(page);
@@ -205,6 +229,11 @@ test('en suivant les aides discrètes, on résout une énigme de chaque langage'
     for (const id of ids) window.__game.solve(id);
   }, ['p9', ...ZONE2.slice(9), 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9']);
   expect(await follow('o10')).toBeGreaterThan(0);
+  // les manivelles : l'aide désigne la bonne roue, même quand il faut passer par un état moins bon
+  await page.evaluate(() => {
+    window.__game.solve('o11');
+  });
+  expect(await follow('o12')).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
 

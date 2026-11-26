@@ -33,6 +33,11 @@ export interface ShadowPuzzle {
   walls: Wall[];
   /** silhouettes cibles : clé `${wall}` → ensemble « u,v » */
   targets: Record<string, Set<string>>;
+  /**
+   * Manivelles couplées (facultatif) : chacune fait tourner d'un quart de tour, ensemble,
+   * tous les objets qu'elle liste. Sans manivelles, chaque objet se tourne seul.
+   */
+  cranks?: number[][];
 }
 
 /** État : nombre de quarts de tour (0..3) de chaque objet. */
@@ -111,4 +116,53 @@ export function solveShadow(p: ShadowPuzzle): ShadowSolveReport {
   };
   rec(0);
   return r;
+}
+
+/** Les leviers du joueur : les manivelles, ou un levier par objet. */
+export function shadowLevers(p: ShadowPuzzle): number[][] {
+  return p.cranks ?? p.objects.map((_, i) => [i]);
+}
+
+/** Geste du joueur : le levier n° k fait tourner ses objets d'un quart de tour (ou en arrière). */
+export function turnShadow(p: ShadowPuzzle, s: ShadowState, k: number, reverse = false): ShadowState {
+  const next = s.slice();
+  for (const i of shadowLevers(p)[k] ?? []) next[i] = (((next[i]! + (reverse ? -1 : 1)) % 4) + 4) % 4;
+  return next;
+}
+
+export interface ShadowMove {
+  lever: number;
+  reverse: boolean;
+}
+
+const encodeState = (s: ShadowState) => s.reduce((a, t) => a * 4 + t, 0);
+
+/**
+ * Parcours en largeur des états atteignables depuis `from` : nombre d'états atteignables et
+ * plus court chemin (en gestes) vers une solution, ou null si aucune n'est atteignable.
+ */
+export function shadowSearch(p: ShadowPuzzle, from: ShadowState): { reachable: number; path: ShadowMove[] | null } {
+  const levers = shadowLevers(p).length;
+  const start = from.map((t) => ((t % 4) + 4) % 4);
+  const prev = new Map<number, { parent: number; move: ShadowMove } | null>([[encodeState(start), null]]);
+  const queue: ShadowState[] = [start];
+  let found: number | null = checkShadow(p, start).solved ? encodeState(start) : null;
+  for (let qi = 0; qi < queue.length; qi++) {
+    const s = queue[qi]!;
+    const key = encodeState(s);
+    for (let k = 0; k < levers; k++) {
+      for (const reverse of [false, true]) {
+        const n = turnShadow(p, s, k, reverse);
+        const nk = encodeState(n);
+        if (prev.has(nk)) continue;
+        prev.set(nk, { parent: key, move: { lever: k, reverse } });
+        queue.push(n);
+        if (found === null && checkShadow(p, n).solved) found = nk;
+      }
+    }
+  }
+  if (found === null) return { reachable: queue.length, path: null };
+  const path: ShadowMove[] = [];
+  for (let k = found; prev.get(k); k = prev.get(k)!.parent) path.unshift(prev.get(k)!.move);
+  return { reachable: queue.length, path };
 }

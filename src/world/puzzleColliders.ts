@@ -2,7 +2,7 @@ import type { Colliders } from '../game/colliders.ts';
 import { CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, SECRETS, SECRET_VOILE_CELL, SHADOW_PANELS } from './layout.ts';
 import { SECRET_FOLD } from '../puzzles/secrets.ts';
 import { ZONE2_GRAND_PLI } from '../puzzles/zone2.ts';
-import { ZONE3_CADRAN } from '../puzzles/zone3.ts';
+import { ZONE3, ZONE3_CADRAN } from '../puzzles/zone3.ts';
 import { parseFold } from '../core/fold/index.ts';
 import { parseShadow } from '../core/shadow/index.ts';
 
@@ -24,7 +24,12 @@ function rect(c: Colliders, x: number, z: number, hw: number, hd: number): void 
  */
 export function addPuzzleColliders(c: Colliders): void {
   for (const s of [...PANELS, ...FOLD_PANELS, ...FINAL_PANELS]) c.addCircle(s.x, s.z, 0.45);
-  for (const s of SHADOW_PANELS) c.addCircle(s.x, s.z, 0.75);
+  for (const s of SHADOW_PANELS) {
+    // les scènes à trois colonnes sont plus larges
+    const def = ZONE3.find((d) => d.id === s.id);
+    const w = def ? parseShadow(def).width * 0.2 : 1.2;
+    c.addCircle(s.x, s.z, Math.max(0.75, w / 2));
+  }
   const pli = parseFold(ZONE2_GRAND_PLI);
   rect(c, GRAND_PLI.x, GRAND_PLI.z, (pli.width * GRAND_PLI.cell) / 2 + 1, (pli.height * GRAND_PLI.cell * Math.cos(EASEL_TILT)) / 2 + 0.8);
   for (const s of SECRETS) {
