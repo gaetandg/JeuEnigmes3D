@@ -3,6 +3,8 @@ import { analyze, initialState, parsePuzzle, simulate } from '../../src/core/lig
 import { ZONE1, ZONE1_TOWERS } from '../../src/puzzles/zone1.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../../src/puzzles/zone2.ts';
 import { checkFold, initialFoldState, parseFold, solveFold } from '../../src/core/fold/index.ts';
+import { ZONE3, ZONE3_CADRAN } from '../../src/puzzles/zone3.ts';
+import { checkShadow, parseShadow, solveShadow, startState } from '../../src/core/shadow/index.ts';
 
 describe('zone 1 — validation de toutes les énigmes par le solveur', () => {
   it('les identifiants sont uniques', () => {
@@ -36,6 +38,22 @@ describe('zone 2 — validation des énigmes de pliage par le solveur', () => {
       const r = solveFold(p);
       expect(r.solution, 'insoluble').not.toBeNull();
       expect(r.minFolds).toBe(def.folds);
+    });
+  }
+});
+
+describe('zone 3 — validation des énigmes d\'ombres par le solveur', () => {
+  const all = [...ZONE3, ZONE3_CADRAN];
+  it('les identifiants sont uniques', () => {
+    expect(new Set(all.map((p) => p.id)).size).toBe(all.length);
+  });
+  for (const def of all) {
+    it(`${def.id} : non résolue au départ, peu de solutions`, () => {
+      const p = parseShadow(def);
+      expect(checkShadow(p, startState(def)).solved).toBe(false);
+      const r = solveShadow(p);
+      expect(r.count).toBeGreaterThan(0);
+      expect(r.count).toBeLessThanOrEqual(2);
     });
   }
 });

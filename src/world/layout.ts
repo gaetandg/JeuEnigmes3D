@@ -110,8 +110,27 @@ export const FOLD_PANELS: PanelSpot[] = Array.from({ length: 12 }, (_, i) => {
 /** Le Grand Pli, sur l'estrade au centre de l'atelier. */
 export const GRAND_PLI = { id: 'grand-pli', x: ATELIER.x, z: ATELIER.z, yaw: 0, requires: ['p12'], cell: 2.6 };
 
+// ── zone 3 : le Cloître des Ombres (plateau à l'est) ──
+export const CLOITRE = { x: 50, z: -56, r: 23, half: 18 };
+
+/** Dix théâtres d'ombres en cercle, le joueur regarde vers le centre. */
+export const SHADOW_PANELS: PanelSpot[] = Array.from({ length: 10 }, (_, i) => {
+  const a = Math.PI + 0.3 + (i / 10) * Math.PI * 2; // départ côté ouest (entrée)
+  const r = 12.5;
+  return {
+    id: `o${i + 1}`,
+    x: CLOITRE.x + Math.cos(a) * r,
+    z: CLOITRE.z + Math.sin(a) * r,
+    yaw: Math.atan2(Math.cos(a), Math.sin(a)),
+    requires: i === 0 ? ['grand-pli'] : [`o${i}`],
+  };
+});
+
+/** Le Cadran : théâtre d'ombres monumental au centre du cloître. */
+export const CADRAN = { id: 'cadran', x: CLOITRE.x, z: CLOITRE.z - 1, yaw: 0, requires: ['o10'], voxel: 1 };
+
 /** Plateaux aplanis hors du jardin. */
-export const PLATEAUS: { x: number; z: number; r: number }[] = [ATELIER];
+export const PLATEAUS: { x: number; z: number; r: number }[] = [ATELIER, CLOITRE];
 
 /** Chemins : suites de points (x, z). */
 export const PATHS: [number, number][][] = [
@@ -120,6 +139,7 @@ export const PATHS: [number, number][][] = [
   [[0, 38], [10, 39], [18, 42], [26, 40], [34, 41], [41, 42]],
   [[0, 38], [0, 26], [0, 22], [-5, 16], [4, 12], [-3, 6], [2, 0], [0, -8], [0, -24], [0, -34]],
   [[0, -34], [-14, -40], [-26, -46], [-34, -50]],
+  [[0, -34], [12, -40], [22, -48], [CLOITRE.x - CLOITRE.half - 3, CLOITRE.z]],
 ];
 
 /** Place centrale du jardin. */
@@ -129,6 +149,7 @@ export const PLAZA = { x: 0, z: 38, r: 9 };
 export const FLATS: { x: number; z: number; r: number }[] = [
   ...PANELS.map((p) => ({ x: p.x, z: p.z, r: 3.5 })),
   ...FOLD_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
+  ...SHADOW_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...GATES.map((g) => ({ x: g.x, z: g.z, r: 4 })),
   PLAZA,
   // dalles des tours
