@@ -14,6 +14,12 @@ export interface Settings {
   hints?: boolean;
   /** volume de la musique (0..1) */
   music?: number;
+  /** champ de vision (degrés) */
+  fov?: number;
+  invertY?: boolean;
+  bob?: boolean;
+  /** colonnes de lumière au-dessus des énigmes en attente */
+  guides?: boolean;
 }
 
 export interface SaveData {

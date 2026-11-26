@@ -12,6 +12,7 @@ export interface HudCallbacks {
   onSymbols: (on: boolean) => void;
   onHints: (on: boolean) => void;
   onMusic: (v: number) => void;
+  onComfort: (patch: Partial<Settings>) => void;
   onPause: () => void;
   onReset: () => void;
 }
@@ -50,6 +51,10 @@ export class Hud {
             </label>
             <label>Symboles des couleurs (daltonisme) <input type="checkbox" data-setting="symbols" /></label>
             <label>Aides discrètes si l'on bloque longtemps <input type="checkbox" data-setting="hints" /></label>
+            <label>Guide lumineux vers les énigmes en attente <input type="checkbox" data-setting="guides" /></label>
+            <label>Champ de vision <input type="range" min="55" max="100" step="1" data-setting="fov" /></label>
+            <label>Inverser l'axe vertical <input type="checkbox" data-setting="invertY" /></label>
+            <label>Balancement de la marche <input type="checkbox" data-setting="bob" /></label>
             <button class="ghost" data-action="reset">Recommencer depuis le début</button>
           </details>
           <p class="help">${touch
@@ -73,6 +78,19 @@ export class Hud {
     const music = this.root.querySelector<HTMLInputElement>('[data-setting="music"]')!;
     music.value = String(settings.music ?? 0.5);
     music.addEventListener('input', () => cb.onMusic(Number(music.value)));
+    const q = (k: string) => this.root.querySelector<HTMLInputElement>(`[data-setting="${k}"]`)!;
+    const guides = q('guides');
+    guides.checked = settings.guides !== false;
+    guides.addEventListener('change', () => cb.onComfort({ guides: guides.checked }));
+    const fov = q('fov');
+    fov.value = String(settings.fov ?? 70);
+    fov.addEventListener('input', () => cb.onComfort({ fov: Number(fov.value) }));
+    const inv = q('invertY');
+    inv.checked = !!settings.invertY;
+    inv.addEventListener('change', () => cb.onComfort({ invertY: inv.checked }));
+    const bob = q('bob');
+    bob.checked = settings.bob !== false;
+    bob.addEventListener('change', () => cb.onComfort({ bob: bob.checked }));
     const hints = this.root.querySelector<HTMLInputElement>('[data-setting="hints"]')!;
     hints.checked = settings.hints !== false;
     hints.addEventListener('change', () => cb.onHints(hints.checked));

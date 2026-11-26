@@ -18,6 +18,7 @@ export type Api = {
   drawCalls: () => number;
   ended: () => boolean;
   hint: (id: string) => number | null;
+  guides: () => number;
 };
 declare global {
   interface Window {
