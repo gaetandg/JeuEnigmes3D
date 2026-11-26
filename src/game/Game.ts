@@ -187,6 +187,8 @@ export class Game {
     window.addEventListener('resize', () => this.resize());
 
     if (!opts.test) this.setupInput();
+    // en test (rendu logiciel lent) : ombres plus légères
+    if (opts.test) this.lights.sun.shadow.mapSize.set(1024, 1024);
   }
 
   private addShaft(id: string, a: THREE.Vector3, color: string): void {

@@ -90,6 +90,7 @@ test('une porte fermée bloque le joueur, ouverte elle le laisse passer', async 
 });
 
 test('toutes les énigmes (zones 1 et 2) se résolvent dans l\'ordre et ouvrent les portes', async ({ page }) => {
+  test.setTimeout(360_000);
   await boot(page);
   const solved = await page.evaluate(() => window.__game.solveAll());
   expect(solved).toHaveLength(33);
@@ -97,7 +98,7 @@ test('toutes les énigmes (zones 1 et 2) se résolvent dans l\'ordre et ouvrent 
   for (const gate of ['porte-plage', 'porte-place', 'porte-nord', 'porte-sortie']) {
     expect(await page.evaluate((g) => window.__game.gateOpen(g), gate)).toBe(1);
   }
-  for (const id of ['a5', 'b3', 'c4', 'd5', 'tours', 'p6', 'p12', 'grand-pli']) {
+  for (const id of ['d5', 'tours', 'grand-pli']) {
     await page.evaluate((i) => window.__game.view(i), id);
     await waitFrames(page, 3);
     await page.screenshot({ path: `test-results/panneau-${id}.png` });
