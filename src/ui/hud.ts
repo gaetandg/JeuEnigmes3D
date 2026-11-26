@@ -30,6 +30,16 @@ export class Hud {
     this.root = parent;
     this.root.innerHTML = `
       <div class="crosshair" hidden></div>
+      <div class="mouse-hint" hidden aria-live="polite">
+        <svg viewBox="0 0 40 56" width="30" height="42" aria-hidden="true">
+          <rect x="2" y="2" width="36" height="52" rx="18" class="body"/>
+          <path d="M20 2 V22" class="seam"/>
+          <path d="M2 22 H38" class="seam"/>
+          <path d="M20 2 A18 18 0 0 0 2 20 V22 H20 Z" class="btn btn-left"/>
+          <path d="M20 2 A18 18 0 0 1 38 20 V22 H20 Z" class="btn btn-right"/>
+        </svg>
+        <span class="label"></span>
+      </div>
       <div class="toast" hidden></div>
       <button class="pause" data-action="pause" hidden aria-label="Pause">❚❚</button>
       <div class="overlay" data-screen="title">
@@ -108,6 +118,7 @@ export class Hud {
   showTitle(paused: boolean): void {
     this.title.hidden = false;
     this.crosshair.hidden = true;
+    this.setMouseHint(null);
     this.pauseBtn.hidden = true;
     const btn = this.root.querySelector<HTMLButtonElement>('[data-action="start"]')!;
     if (paused) btn.textContent = 'Reprendre';
@@ -116,12 +127,33 @@ export class Hud {
   hideTitle(): void {
     this.title.hidden = true;
     this.crosshair.hidden = false;
+    this.mouseHintShown = null; // recalculée à la prochaine image
     this.pauseBtn.hidden = !this.touch;
   }
 
   setCrosshairActive(active: boolean): void {
     this.crosshair.classList.toggle('active', active);
   }
+
+  /**
+   * Quand l'aide désigne la pièce visée : la souris avec le bon bouton allumé (ou, au tactile,
+   * « toucher » / « appui long »). null : rien à montrer.
+   */
+  setMouseHint(button: 'left' | 'right' | null): void {
+    const show = button !== null && this.title.hidden ? button : null;
+    if (show === this.mouseHintShown) return;
+    this.mouseHintShown = show;
+    const el = this.root.querySelector<HTMLElement>('.mouse-hint')!;
+    el.hidden = show === null;
+    if (!show) return;
+    el.classList.toggle('left', show === 'left');
+    el.classList.toggle('right', show === 'right');
+    el.classList.toggle('touch', this.touch);
+    el.querySelector('.label')!.textContent = this.touch
+      ? (show === 'right' ? 'appui long' : 'toucher')
+      : (show === 'right' ? 'clic droit' : 'clic gauche');
+  }
+  private mouseHintShown: 'left' | 'right' | null = null;
 
   /** Écran de fin. */
   showEnding(stats: { solved: number; total: number; minutes: number; shards: number; shardsTotal: number }): void {

@@ -58,5 +58,18 @@ test('sur téléphone : joystick pour marcher, toucher pour agir', async ({ page
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: W * 0.2, y: H * 0.75 - 40, id: 4 }] });
   await expect(page.locator('.stick')).toBeVisible();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+
+  // l'aide montre le geste à faire : sur la ligne du milieu de p6, « appui long »
+  await page.evaluate(() => {
+    const ids = ['a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'c1', 'c2', 'c3', 'c4', 'c5', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'tours', 'p1', 'p2', 'p3', 'p4', 'p5'];
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('p6');
+    window.__game.hint('p6');
+    window.__game.aim('p6', 2);
+  });
+  await expect(page.locator('.mouse-hint')).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('.mouse-hint')).toContainText('appui long');
+  expect(await page.evaluate(() => window.__game.interact('p6', 2, true))).toBe('ok');
+  await expect(page.locator('.mouse-hint')).toBeHidden({ timeout: 15_000 });
   expect(errors).toEqual([]);
 });

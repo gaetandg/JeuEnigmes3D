@@ -251,6 +251,11 @@ export class WorldLightPuzzle implements PuzzleView {
     /* toujours visible : c'est un élément du paysage */
   }
 
+  /** miroirs des tours : un clic suffit, dans un sens ou l'autre */
+  activeHint(): { k: number; reverse: boolean } | null {
+    return this.hintK !== null && this.powered && !this.solved ? { k: this.hintK, reverse: false } : null;
+  }
+
   hint(): number | null {
     if (!this.powered || this.solved) return null;
     this.hintK = nearestDiff(this.state, solve(this.puzzle, { keep: 300 }).solutions);

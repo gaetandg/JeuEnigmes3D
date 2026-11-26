@@ -754,17 +754,24 @@ export class Game {
     this.player.place(this.player.position.x, this.player.position.z, yaw, pitch);
   }
 
+  /** portée de la plus grande énigme (calculée une fois) */
+  private maxReach = 0;
+
   private updateHover(): void {
     this.raycaster.setFromCamera(new THREE.Vector2(0, 0), this.camera);
-    this.raycaster.far = REACH;
+    // chaque énigme a sa portée (les grandes, Grand Pli et Cadran, se manipulent de loin)
+    this.maxReach ||= Math.max(REACH, ...[...this.panels.values()].map((p) => p.reach));
+    this.raycaster.far = this.maxReach;
     const candidates: THREE.Object3D[] = [];
     for (const p of this.panels.values()) {
       if (!p.powered || p.solved) continue;
       if (p instanceof LightPanel && p.group.position.distanceToSquared(this.camera.position) > 25) continue;
       candidates.push(...p.pickables);
     }
-    let hit = candidates.length ? this.raycaster.intersectObjects(candidates, false)[0] : undefined;
-    if (hit && hit.distance > (hit.object.userData.panel as PuzzleView).reach) hit = undefined;
+    // la première pièce touchée qui est à portée de son énigme
+    const hit = candidates.length
+      ? this.raycaster.intersectObjects(candidates, false).find((h) => h.distance <= (h.object.userData.panel as PuzzleView).reach)
+      : undefined;
     const next = hit ? { panel: hit.object.userData.panel as PuzzleView, k: hit.object.userData.k as number } : null;
     if (this.hovered && (!next || next.panel !== this.hovered.panel || next.k !== this.hovered.k)) {
       this.hovered.panel.setHover(null);
@@ -772,6 +779,9 @@ export class Game {
     this.hovered = next;
     if (next) next.panel.setHover(next.k);
     this.hud?.setCrosshairActive(!!next);
+    // l'aide désigne la pièce visée : montrer le bon bouton
+    const help = next?.panel.activeHint();
+    this.hud?.setMouseHint(help && help.k === next!.k ? (help.reverse ? 'right' : 'left') : null);
   }
 
   private resize(): void {

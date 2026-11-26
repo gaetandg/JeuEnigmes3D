@@ -18,6 +18,7 @@ export type Api = {
   drawCalls: () => number;
   ended: () => boolean;
   hint: (id: string) => number | null;
+  hintMove: (id: string) => { k: number; reverse: boolean } | null;
   guides: () => number;
   shards: () => number;
   memory: () => { geometries: number; textures: number };

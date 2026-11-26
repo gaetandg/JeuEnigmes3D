@@ -380,8 +380,16 @@ export class ShadowView implements PuzzleView {
   /** Aide : le premier levier du plus court chemin vers la solution. */
   hint(): number | null {
     if (!this.powered || this.solved) return null;
-    this.hintK = shadowSearch(this.puzzle, this.state).path?.[0]?.lever ?? null;
+    const first = shadowSearch(this.puzzle, this.state).path?.[0];
+    this.hintK = first?.lever ?? null;
+    this.hintRev = first?.reverse ?? false;
     return this.hintK;
+  }
+
+  private hintRev = false;
+
+  activeHint(): { k: number; reverse: boolean } | null {
+    return this.hintK !== null && this.powered && !this.solved ? { k: this.hintK, reverse: this.hintRev } : null;
   }
 
   interact(k: number, reverse = false): InteractResult {
