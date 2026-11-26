@@ -184,9 +184,10 @@ export class Game {
     this.scene.environmentIntensity = 0.6;
 
     this.lights = buildLights(this.scene);
-    this.water = buildWater();
+    const terrain = buildTerrain();
+    this.water = buildWater(terrain.shore);
     this.scene.add(this.water.mesh);
-    this.scene.add(buildTerrain());
+    this.scene.add(terrain.mesh);
     this.scene.add(buildVegetation(this.colliders));
     const decor = buildGardenDecor(this.colliders);
     this.decorUpdate = decor.update;
