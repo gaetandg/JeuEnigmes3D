@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { N, parseShadow, parseShape, rotateOnce, rotated, shadowOn } from '../../src/core/shadow/index.ts';
+import { N, parseShadow, parseShape, rotateOnce, rotated, shadowLevers, shadowOn, shadowSearch, turnShadow } from '../../src/core/shadow/index.ts';
 
 describe('ombres — formes et rotations', () => {
   it('lit une forme étage par étage', () => {
@@ -48,5 +48,34 @@ describe('ombres — projections', () => {
     const back = shadowOn(p, [0, 0], 'back');
     expect(back.has('3,0')).toBe(true);
     expect(back.has('0,0')).toBe(true);
+  });
+});
+
+describe('manivelles couplées', () => {
+  const def = {
+    id: 'm', note: '', walls: ['back' as const], cranks: [[0, 1], [1]],
+    objects: [
+      { shape: 'zigzag', slot: [0, 0] as [number, number], start: 0, solution: 1 },
+      { shape: 'zigzag', slot: [1, 0] as [number, number], start: 0, solution: 0 },
+    ],
+  };
+  it('une manivelle tourne ensemble tous ses objets, dans les deux sens', () => {
+    const p = parseShadow(def);
+    expect(shadowLevers(p)).toEqual([[0, 1], [1]]);
+    expect(turnShadow(p, [0, 0], 0)).toEqual([1, 1]);
+    expect(turnShadow(p, [0, 0], 0, true)).toEqual([3, 3]);
+    expect(turnShadow(p, [1, 1], 1, true)).toEqual([1, 0]);
+  });
+  it('sans manivelles, chaque objet est son propre levier', () => {
+    const p = parseShadow({ ...def, cranks: undefined });
+    expect(shadowLevers(p)).toEqual([[0], [1]]);
+    expect(turnShadow(p, [0, 0], 1)).toEqual([0, 1]);
+  });
+  it('le plus court chemin passe par un état moins bon (le voisin entraîné se rattrape)', () => {
+    const p = parseShadow(def);
+    const r = shadowSearch(p, [0, 0]);
+    expect(r.reachable).toBe(16);
+    expect(r.path).toEqual([{ lever: 0, reverse: false }, { lever: 1, reverse: true }]);
+    expect(shadowSearch(p, [1, 0]).path).toEqual([]);
   });
 });

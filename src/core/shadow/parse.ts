@@ -60,6 +60,8 @@ export interface ShadowPuzzleDef {
   note: string;
   objects: ShadowObjectDef[];
   walls: Wall[];
+  /** manivelles couplées : index des objets que chacune fait tourner */
+  cranks?: number[][];
 }
 
 export function parseShadow(def: ShadowPuzzleDef): ShadowPuzzle {
@@ -77,6 +79,7 @@ export function parseShadow(def: ShadowPuzzleDef): ShadowPuzzle {
     }),
     walls: def.walls,
     targets: {},
+    ...(def.cranks ? { cranks: def.cranks.map((c) => c.slice()) } : {}),
   };
   const sol = def.objects.map((o) => o.solution);
   for (const w of def.walls) p.targets[w] = shadowOn(p, sol, w);

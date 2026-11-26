@@ -112,9 +112,22 @@ gravée en or sur son mur.
   silhouette, gris en dehors, dorées une fois résolu ; on regarde la scène de trois quarts.
 - Les silhouettes sont **calculées** à partir d'une orientation-solution choisie, puis le
   solveur vérifie qu'aucune autre orientation (ou au plus une, symétrique) ne convient.
+- **Manivelles couplées** (o11, o12, Cadran) : on n'agit plus sur les objets mais sur des
+  roues placées devant la scène. Chaque roue fait tourner d'un quart de tour, ensemble, tous
+  les objets qu'elle entraîne. La règle est toujours la même, *chaque manivelle entraîne son
+  objet et son voisin de droite ; la dernière est seule*, ce qui en fait un petit système
+  à résoudre. Pour régler un objet, il faut souvent en dérégler un autre puis le rattraper,
+  c'est-à-dire passer par un état moins bon. L'agent glouton échoue alors à 100 %, contre
+  0 % sur les mêmes scènes sans couplage. Lisibilité :
+  - chaque roue a son métal (argent, cuivre, vert-de-gris), avec des tétons du même métal
+    devant les supports qu'elle entraîne ;
+  - au survol d'une roue, ces supports s'éclairent ;
+  - l'aide désigne la roue du plus court chemin, calculé par un parcours en largeur des
+    positions atteignables.
 - Progression : o1–o2 (rotation, retournement), o3 (deux objets), o4–o6 (mur de droite,
-  deux murs à la fois), o7–o9 (berceau, ombre trouée), o10 (synthèse), puis **le Cadran** :
-  le même théâtre, avec des cubes d'un mètre, au centre du cloître.
+  deux murs à la fois), o7–o9 (berceau, ombre trouée), o10 (synthèse), o11–o12 (manivelles),
+  puis **le Cadran** : le même théâtre à manivelles, avec des cubes d'un mètre, au centre
+  du cloître (5 gestes au minimum).
 
 ## 6. Zone 4 — Le Phare (combinaison)
 
@@ -193,6 +206,6 @@ tests/
 | 5 | Zone Ombres | idem |
 | 6 | Le Phare | zone finale combinée, fin du jeu |
 
-**Bilan** : 53 énigmes (22 + 1 en zone 1, 13 + 1 en zone 2, 10 + 1 en zone 3, 5 en zone 4),
+**Bilan** : 55 énigmes (22 + 1 en zone 1, 13 + 1 en zone 2, 12 + 1 en zone 3, 5 en zone 4),
 toutes vérifiées par les solveurs à chaque modification.
 | 7 | Mobile | contrôles tactiles, performances |
