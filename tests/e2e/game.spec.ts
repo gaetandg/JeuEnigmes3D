@@ -224,6 +224,33 @@ test('les sept énigmes secrètes donnent sept éclats', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('pas de fuite de mémoire : survoler et plier ne crée pas de géométries', async ({ page }) => {
+  test.setTimeout(240_000);
+  await boot(page);
+  await page.evaluate(() => {
+    window.__game.solveAll();
+    window.__game.view('eclat-voile');
+  });
+  await waitFrames(page, 2);
+  const before = await page.evaluate(() => window.__game.memory().geometries);
+  for (let i = 0; i < 12; i++) {
+    await page.evaluate((k) => window.__game.hover('eclat-voile', k), i % 2 ? 1 : 101);
+    await waitFrames(page, 1);
+  }
+  // plier puis remettre à plat (pierre dorée), plusieurs fois
+  for (let i = 0; i < 4; i++) {
+    await page.evaluate(() => {
+      window.__game.interact('eclat-voile', 1);
+      window.__game.advance(1);
+      window.__game.interact('eclat-voile', 1000);
+      window.__game.advance(0.2);
+    });
+    await waitFrames(page, 1);
+  }
+  const after = await page.evaluate(() => window.__game.memory().geometries);
+  expect(after - before).toBeLessThanOrEqual(2);
+});
+
 test('la progression est sauvegardée et restaurée', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => {

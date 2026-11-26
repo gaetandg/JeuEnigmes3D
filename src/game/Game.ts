@@ -166,10 +166,14 @@ export class Game {
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     const envScene = new THREE.Scene();
     envScene.add(buildSky());
-    this.scene.environment = pmrem.fromScene(envScene, 0.02).texture;
+    let envRT = pmrem.fromScene(envScene, 0.02);
+    this.scene.environment = envRT.texture;
     this.refreshEnv = () => {
-      this.scene.environment?.dispose();
-      this.scene.environment = pmrem.fromScene(envScene, 0.02).texture;
+      // libérer l'ancienne cible de rendu (sinon chaque crépuscule en laisse une)
+      const next = pmrem.fromScene(envScene, 0.02);
+      this.scene.environment = next.texture;
+      envRT.dispose();
+      envRT = next;
     };
     this.stars = buildStars();
     this.scene.add(this.stars);

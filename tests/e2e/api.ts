@@ -20,6 +20,8 @@ export type Api = {
   hint: (id: string) => number | null;
   guides: () => number;
   shards: () => number;
+  memory: () => { geometries: number; textures: number };
+  hover: (id: string, k: number | null) => void;
 };
 declare global {
   interface Window {

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  applyFold, checkFold, initialFoldState, legalFolds, solveFold,
+  applyFold, checkFold, initialFoldState, isLegal, legalFolds, solveFold,
 } from '../core/fold/index.ts';
 import type { Fold, FoldCellDef, FoldPuzzle, FoldState, Mark } from '../core/fold/index.ts';
 import { heightAt } from '../world/terrain.ts';
@@ -171,6 +171,9 @@ interface Anim {
 }
 
 const RESET_K = 1000;
+/** géométrie et matériau partagés par toutes les lignes de pli (mises à l'échelle) : rien à libérer */
+const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
+const PICK_MAT = new THREE.MeshBasicMaterial({ visible: false });
 
 /**
  * Feuille de papier pliable. Les « pièces » manipulables sont les lignes de pli
@@ -356,10 +359,20 @@ export class FoldView implements PuzzleView {
     this.rebuildLines();
   }
 
+  /** traits visibles des lignes de pli, par clé (pour changer leur couleur au survol) */
+  private lines = new Map<number, THREE.Mesh>();
+
+  /** Couleur des traits selon le survol et l'aide, sans rien reconstruire. */
+  private paintLines(): void {
+    for (const [k, line] of this.lines) {
+      line.material = this.hovered === k ? this.lineHot : this.hintK === k ? this.lineHint : this.lineMat;
+    }
+  }
+
   /** Lignes de pli cliquables pour l'état courant. */
   private rebuildLines(): void {
-    for (const p of this.pickables) if (p !== this.resetPick) this.lineGroup.remove(p);
     this.lineGroup.clear();
+    this.lines.clear();
     this.pickables.length = 0;
     this.pickables.push(this.resetPick);
     if (!this.powered || this.solved) return;
@@ -375,23 +388,23 @@ export class FoldView implements PuzzleView {
       seen.add(k);
       const len = (f.axis === 'x' ? b.y1 - b.y0 : b.x1 - b.x0) * this.cell;
       const th = Math.max(0.012, this.cell * 0.045);
-      const line = new THREE.Mesh(
-        f.axis === 'x' ? new THREE.BoxGeometry(th, th * 0.5, len) : new THREE.BoxGeometry(len, th * 0.5, th),
-        this.hovered === k ? this.lineHot : this.hintK === k ? this.lineHint : this.lineMat,
-      );
+      const line = new THREE.Mesh(UNIT_BOX, this.lineMat);
+      if (f.axis === 'x') line.scale.set(th, th * 0.5, len);
+      else line.scale.set(len, th * 0.5, th);
+      this.lines.set(k, line);
       if (f.axis === 'x') line.position.set((f.at - w / 2) * this.cell, y, ((b.y0 + b.y1) / 2 - h / 2) * this.cell);
       else line.position.set(((b.x0 + b.x1) / 2 - w / 2) * this.cell, y, (f.at - h / 2) * this.cell);
       this.lineGroup.add(line);
       // zone de clic plus large que le trait
-      const pick = new THREE.Mesh(
-        f.axis === 'x' ? new THREE.BoxGeometry(this.cell * 0.45, this.cell * 0.3, len) : new THREE.BoxGeometry(len, this.cell * 0.3, this.cell * 0.45),
-        new THREE.MeshBasicMaterial({ visible: false }),
-      );
+      const pick = new THREE.Mesh(UNIT_BOX, PICK_MAT);
+      if (f.axis === 'x') pick.scale.set(this.cell * 0.45, this.cell * 0.3, len);
+      else pick.scale.set(len, this.cell * 0.3, this.cell * 0.45);
       pick.position.copy(line.position);
       pick.userData = { panel: this, k };
       this.lineGroup.add(pick);
       this.pickables.push(pick);
     }
+    this.paintLines();
   }
 
   // ── interface PuzzleView ──────────────────────────────────────────────
@@ -413,10 +426,7 @@ export class FoldView implements PuzzleView {
   setHover(k: number | null): void {
     if (k === this.hovered) return;
     this.hovered = k;
-    this.lineGroup.children.forEach((o) => {
-      if (o instanceof THREE.Mesh && o.material !== this.lineHot && o.material !== this.lineMat) return;
-    });
-    this.rebuildLines();
+    this.paintLines();
     this.resetMat.emissive.set(k === RESET_K ? '#6b5320' : '#000000');
   }
 
@@ -435,7 +445,7 @@ export class FoldView implements PuzzleView {
     const onTrack = done.length < sol.length && done.every((f, i) => f.axis === sol[i]!.axis && f.at === sol[i]!.at && f.side === sol[i]!.side);
     const next = sol[done.length];
     this.hintK = onTrack && next ? (next.axis === 'x' ? 0 : 100) + next.at : RESET_K;
-    this.rebuildLines();
+    this.paintLines();
     return this.hintK;
   }
 
@@ -470,8 +480,11 @@ export class FoldView implements PuzzleView {
     for (const sh of this.sheets) sh.quat.identity();
     for (let i = 0; i + 2 < s.length; i += 3) {
       const f: Fold = { axis: s[i] === 1 ? 'y' : 'x', at: s[i + 1]!, side: s[i + 2]! < 0 ? -1 : 1 };
-      if (instant) this.commitFold(f);
-      else this.queue.push(f);
+      // une sauvegarde abîmée ou ancienne ne doit jamais produire une feuille impossible
+      if (instant) {
+        if (!isLegal(this.fs, f, this.puzzle.maxFolds)) break;
+        this.commitFold(f);
+      } else this.queue.push(f);
     }
     if (instant) this.layout(false);
     else this.layout(true);
@@ -536,6 +549,7 @@ export class FoldView implements PuzzleView {
     });
     this.anim = { t: 0, fold: f, moving, pivot, axis, sign };
     this.lineGroup.clear();
+    this.lines.clear();
     this.pickables.length = 0;
     this.pickables.push(this.resetPick);
     this.state = this.encode();
