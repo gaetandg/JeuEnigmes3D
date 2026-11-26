@@ -14,6 +14,12 @@ Les **manivelles couplées** (o11, o12, Cadran, et la finale f6) sont à 100 % :
 donc régler l'un dérègle l'autre, et aucune action ne fait progresser la situation visible.
 Sans le couplage, les mêmes scènes sont à 0 %.
 
+Au Phare, f1 à f3 sont volontairement des **leçons** (empreinte au sol, berceau, pochoir à un pli),
+à 0 %. f4 (pochoir à trois plis où la lumière doit traverser des trous superposés), f5 et f6
+demandent une idée. Les pochoirs à deux plis sont tous à 0 % (`scripts/stencil-search.ts`) :
+c'est à trois plis que l'intuition « plier pour découvrir » ne suffit plus. La difficulté « à
+l'aveugle » de f4 (7,6) surestime le pliage, comme en zone 2.
+
 | Zone | Énigme | Type | Pièces | Actions min. | Actions à l'aveugle (médiane) | Difficulté | Déclic |
 |---|---|---|---|---|---|---|---|
 | 1 Lumière | a1 | lumière | 1 | 1 | 1 | 1.0 █ | 0 % |
@@ -69,6 +75,6 @@ Sans le couplage, les mêmes scènes sont à 0 %.
 | 4 Phare | f1 | lumière+objets | 1 | 1 | 4 | 2.3 ██ | 0 % |
 | 4 Phare | f2 | lumière+objets | 1 | 1 | 3 | 2.0 ██ | 0 % |
 | 4 Phare | f3 | pliage+lumière | 8 | 1 | 7 | 3.0 ███ | 0 % |
-| 4 Phare | f4 | pliage+lumière | 16 | 2 | 50 | 5.7 ██████ | 0 % |
-| 4 Phare | f5 | lumière+objets | 3 | 3 | 25 | 4.7 █████ | 51 % |
-| 4 Phare | f6 | lumière+objets+manivelles | 3 | 6 | 48 | 5.6 ██████ | 100 % |
+| 4 Phare | f4 | pliage+lumière | 16 | 3 | 195 | 7.6 ████████ ⚠ saut | 100 % |
+| 4 Phare | f5 | lumière+objets | 3 | 3 | 27 | 4.8 █████ | 48 % |
+| 4 Phare | f6 | lumière+objets+manivelles | 3 | 6 | 46 | 5.6 ██████ | 100 % |
