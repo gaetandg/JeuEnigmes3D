@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
   BLUE, GREEN, RED,
-  initialState, interact, piecesUsed, simulate,
+  initialState, interact, piecesUsed, simulate, solve,
 } from '../core/light/index.ts';
 import type { Cell, Color, LightPuzzle, LightState, SimResult } from '../core/light/index.ts';
 import { heightAt } from '../world/terrain.ts';
@@ -124,6 +124,14 @@ export class LightPanel implements PuzzleView {
   solved = false;
   powered = false;
   onSolved: (() => void) | null = null;
+
+  get id(): string {
+    return this.puzzle.id;
+  }
+
+  solution(): number[] | null {
+    return solve(this.puzzle, { keep: 1 }).solutions[0] ?? null;
+  }
 
   private cell: number;
   private pieces: Piece[] = [];

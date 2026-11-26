@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { initialState, interact, simulate } from '../core/light/index.ts';
+import { initialState, interact, simulate, solve } from '../core/light/index.ts';
 import type { Cell, Color, LightPuzzle, LightState, SimResult } from '../core/light/index.ts';
 import { heightAt } from '../world/terrain.ts';
 import { TOWERS, towerCell } from '../world/layout.ts';
@@ -29,6 +29,14 @@ export class WorldLightPuzzle implements PuzzleView {
   solved = false;
   powered = false;
   onSolved: (() => void) | null = null;
+
+  get id(): string {
+    return this.puzzle.id;
+  }
+
+  solution(): number[] | null {
+    return solve(this.puzzle, { keep: 1 }).solutions[0] ?? null;
+  }
 
   private towers: Tower[] = [];
   private beams: THREE.InstancedMesh;

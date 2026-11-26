@@ -80,12 +80,24 @@ Le paysage **est** un panneau géant : même moteur, même règles. Un belvédè
 voir le jardin de haut et de comprendre le trajet. Le rayon final allume le grand cristal
 qui ouvre l'Atelier de Papier.
 
-## 4. Zone 2 — Pliage *(conception détaillée à venir)*
+## 4. Zone 2 — Pliage (l'Atelier de Papier)
 
-Feuilles quadrillées avec marques colorées et trous ; des lignes de pli cliquables.
-Règles envisagées : les marques de même couleur doivent se superposer, un trou laisse
-voir la case dessous, l'ordre des plis compte. Énigme d'environnement : le paysage se
-plie pour former un pont.
+Une feuille quadrillée porte des marques **sur ses deux faces** (recto crème, verso bleuté).
+On clique une ligne de pli : la plus petite moitié se rabat sur l'autre (à égalité,
+clic gauche = côté gauche/haut, clic droit = côté droit/bas). Le nombre de plis est limité
+(encoches sur le bord) ; une pierre dorée remet la feuille à plat.
+
+| Marque | Règle |
+|---|---|
+| Point de couleur | tous les points d'une couleur finissent dans la **même pile**, sans autre couleur |
+| Tache d'encre | ne doit **pas être visible** du dessus (couverte ou face contre la table) |
+| Étoile | doit **rester visible** du dessus |
+| Trou | laisse voir ce qu'il y a dessous |
+
+Quand la réserve est épuisée sans succès, les marques fautives clignotent puis la feuille
+se déplie. Progression : p1–p4 (points), p5–p6 (taches, recto/verso), p7–p8 (étoiles,
+trous), p9–p12 (combinaisons générées, solution unique), puis **le Grand Pli** : une feuille
+de 13 m sur un chevalet au centre de l'atelier.
 
 ## 5. Zone 3 — Ombres *(conception détaillée à venir)*
 

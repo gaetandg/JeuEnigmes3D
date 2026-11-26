@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Game } from '../game/Game.ts';
-import { PANELS, TOWERS } from '../world/layout.ts';
+import { FOLD_PANELS, GRAND_PLI, PANELS, TOWERS } from '../world/layout.ts';
 
 /** API exposée sur window.__game pour les tests de bout en bout (Playwright). */
 export function exposeDebugApi(game: Game): void {
@@ -8,7 +8,7 @@ export function exposeDebugApi(game: Game): void {
     ready: false,
     frames: () => game.frames,
     panels: () =>
-      [...game.panels.values()].map((p) => ({ id: p.puzzle.id, powered: p.powered, solved: p.solved })),
+      [...game.panels.values()].map((p) => ({ id: p.id, powered: p.powered, solved: p.solved })),
     view: (id: string) => game.view(id),
     teleport: (x: number, z: number, yaw: number, pitch = 0) => game.player.place(x, z, yaw, pitch),
     /** Résout un panneau puis applique immédiatement les conséquences (alimentation, portes). */
@@ -22,7 +22,7 @@ export function exposeDebugApi(game: Game): void {
       let progress = true;
       while (progress) {
         progress = false;
-        for (const spot of [...PANELS, TOWERS]) {
+        for (const spot of [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI]) {
           if (game.solvePanel(spot.id)) {
             game.forceUpdatePower();
             progress = true;

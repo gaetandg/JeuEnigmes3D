@@ -13,6 +13,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # image officielle : Chromium et ses dépendances déjà installés (gain de ~6 min)
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,8 +28,6 @@ jobs:
         run: npm run typecheck
       - name: Tests unitaires (moteurs, solveurs, validation des énigmes)
         run: npm test
-      - name: Installation de Chromium
-        run: npx playwright install --with-deps chromium
       - name: Tests de bout en bout
         run: npm run e2e
       - name: Captures d'écran
