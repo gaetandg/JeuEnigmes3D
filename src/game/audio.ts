@@ -2,12 +2,26 @@
  * Sons générés en Web Audio (aucun fichier) : vent, vagues, clics, carillons.
  * Le contexte audio ne démarre qu'après un geste du joueur (règle des navigateurs).
  */
+/** Zones de l'île : chacune a sa tonalité. */
+export type Zone = 'jardin' | 'atelier' | 'cloitre' | 'phare';
+
+const ZONE_SCALES: Record<Zone, { root: number; steps: number[] }> = {
+  jardin: { root: 261.63, steps: [0, 2, 4, 7, 9] }, // do, pentatonique majeure : lumineux
+  atelier: { root: 293.66, steps: [0, 2, 3, 7, 9] }, // ré, couleur dorienne : feutré
+  cloitre: { root: 220.0, steps: [0, 3, 5, 7, 10] }, // la, pentatonique mineure : grave
+  phare: { root: 349.23, steps: [0, 2, 4, 6, 9] }, // fa, lydien : ouvert
+};
+
 export class Audio {
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private reverb: ConvolverNode | null = null;
   private waves: GainNode | null = null;
   private wind: GainNode | null = null;
+  private music: GainNode | null = null;
+  private nextBar = 0;
+  private zone: Zone = 'jardin';
+  musicVolume = 0.5;
   volume = 0.7;
 
   start(): void {
@@ -30,6 +44,86 @@ export class Audio {
     wet.gain.value = 0.35;
     this.reverb.connect(wet).connect(this.master);
     this.ambient();
+    this.startMusic();
+  }
+
+  setMusicVolume(v: number): void {
+    this.musicVolume = v;
+    if (this.music) this.music.gain.value = v * 0.6;
+  }
+
+  setZone(z: Zone): void {
+    this.zone = z;
+  }
+
+  /**
+   * Musique générée : une nappe d'accords lente (une mesure toutes les 8 s) et quelques
+   * notes de carillon au hasard, dans la gamme de la zone où se trouve le joueur.
+   */
+  private startMusic(): void {
+    const ctx = this.ctx!;
+    this.music = ctx.createGain();
+    this.music.gain.value = this.musicVolume * 0.6;
+    this.music.connect(this.master!);
+    this.music.connect(this.reverb!);
+    this.nextBar = ctx.currentTime + 1;
+    window.setInterval(() => this.scheduleMusic(), 500);
+  }
+
+  private note(root: number, steps: number[], degree: number): number {
+    const oct = Math.floor(degree / steps.length);
+    const st = steps[((degree % steps.length) + steps.length) % steps.length]! + 12 * oct;
+    return root * Math.pow(2, st / 12);
+  }
+
+  private scheduleMusic(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.music) return;
+    while (this.nextBar < ctx.currentTime + 2) {
+      const { root, steps } = ZONE_SCALES[this.zone];
+      const t = this.nextBar;
+      // nappe : trois notes, attaque et extinction très lentes
+      const base = Math.floor(Math.random() * 3);
+      for (const d of [base, base + 2, base + 4]) this.pad(this.note(root / 2, steps, d), t, 9);
+      // carillon : quelques notes aiguës, parfois aucune
+      const n = Math.floor(Math.random() * 4);
+      for (let i = 0; i < n; i++) {
+        const when = t + 1 + Math.random() * 6;
+        this.chime(this.note(root * 2, steps, Math.floor(Math.random() * 7)), when);
+      }
+      this.nextBar += 8;
+    }
+  }
+
+  private pad(freq: number, at: number, dur: number): void {
+    const ctx = this.ctx!;
+    const o = ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = freq;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 900;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(0.035, at + 3);
+    g.gain.linearRampToValueAtTime(0, at + dur);
+    o.connect(f).connect(g).connect(this.music!);
+    o.start(at);
+    o.stop(at + dur + 0.1);
+  }
+
+  private chime(freq: number, at: number): void {
+    const ctx = this.ctx!;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.value = freq;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(0.04, at + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 3.5);
+    o.connect(g).connect(this.music!);
+    o.start(at);
+    o.stop(at + 3.6);
   }
 
   setVolume(v: number): void {

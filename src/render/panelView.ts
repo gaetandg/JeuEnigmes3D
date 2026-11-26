@@ -10,6 +10,7 @@ import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { objectEuler } from './shadowMath.ts';
 import { nearestDiff, pulse as hintPulse } from './hints.ts';
+import { mergeMeshes, mergeStatic } from './merge.ts';
 
 /** Couleur d'affichage d'une couleur logique. */
 export function displayColor(c: Color): THREE.Color {
@@ -201,9 +202,11 @@ export class LightPanel implements PuzzleView {
       const f = new THREE.Mesh(new THREE.BoxGeometry(lx, 0.12, lz), MAT.frame);
       f.position.set(sx, 0.02, sz);
       f.castShadow = true;
+      f.userData = { static: true, keep: true };
       this.board.add(f);
       const gl = new THREE.Mesh(new THREE.BoxGeometry(lx * 0.98, 0.012, lz * 0.3), this.frameGlowMat);
       gl.position.set(sx, 0.085, sz);
+      gl.userData = { static: true, keep: true };
       this.board.add(gl);
     }
 
@@ -263,6 +266,7 @@ export class LightPanel implements PuzzleView {
         const disc = new THREE.Mesh(new THREE.CylinderGeometry(c * 1.5, c * 1.52, c * 0.05, 32), baseMat);
         disc.position.copy(center);
         disc.position.y = c * 0.02;
+        disc.userData.static = true;
         this.board.add(disc);
       } else {
         for (const s of [-1, 1]) {
@@ -270,6 +274,7 @@ export class LightPanel implements PuzzleView {
           arc.rotation.y = Math.PI / 2;
           arc.position.set(center.x + s * c * 1.55, c * 1.5, center.z);
           arc.rotation.z = Math.PI;
+          arc.userData.static = true;
           this.board.add(arc);
         }
       }
@@ -277,12 +282,13 @@ export class LightPanel implements PuzzleView {
       pivot.position.set(center.x, c * 1.5 + 0.004, center.z);
       const mat = new THREE.MeshStandardMaterial({ color: ['#c96f5a', '#7fa36a', '#6b86b5'][j % 3]!, roughness: 0.6, flatShading: true });
       const cube = new THREE.BoxGeometry(c * 0.94, c * 0.94, c * 0.94);
-      for (const [x, y, z] of o.shape) {
+      const cubes = o.shape.map(([x, y, z]) => {
         const m = new THREE.Mesh(cube, mat);
         m.position.set((x - 1) * c, (y - 1) * c, (z - 1) * c);
-        m.castShadow = true;
         pivot.add(m);
-      }
+        return m;
+      });
+      mergeMeshes(cubes, pivot, mat).castShadow = true;
       this.board.add(pivot);
       const pick = new THREE.Mesh(new THREE.BoxGeometry(c * 3, c * 3, c * 3), MAT.pick);
       pick.position.copy(pivot.position);
@@ -293,6 +299,9 @@ export class LightPanel implements PuzzleView {
       pivot.rotation.copy(objectEuler(o.axis, t));
       this.objs.push({ k, pivot, axis: o.axis, current: t, target: t, base: baseMat });
     });
+
+    // fusion des éléments fixes (un appel de dessin par matériau)
+    mergeStatic(this.board);
 
     // réserve de miroirs (jetons sur le bord proche)
     for (let t = 0; t < puzzle.inventory; t++) {
@@ -316,10 +325,13 @@ export class LightPanel implements PuzzleView {
     const c = this.cell;
     const p = this.cellPos(i);
     const k = this.puzzle.interactive.indexOf(i);
-    const add = (o: THREE.Object3D) => {
+    const add = (o: THREE.Object3D, dynamic = false) => {
       o.position.add(p);
       o.traverse((m) => {
-        if (m instanceof THREE.Mesh) m.castShadow = def.kind === 'wall' || def.kind === 'source';
+        if (m instanceof THREE.Mesh) {
+          m.castShadow = def.kind === 'wall' || def.kind === 'source';
+          m.userData.static = !dynamic;
+        }
       });
       this.board.add(o);
       return o;
@@ -373,7 +385,7 @@ export class LightPanel implements PuzzleView {
         add(base);
         const holder = plateFor(glass);
         holder.rotation.y = angleFor(def.fixed ? def.orient : this.state[k]!);
-        add(holder);
+        add(holder, true);
         if (!def.fixed) this.addPiece(k, i, def, holder);
         break;
       }
@@ -387,7 +399,7 @@ export class LightPanel implements PuzzleView {
         add(disc);
         const holder = plateFor(false);
         holder.visible = false;
-        add(holder);
+        add(holder, true);
         this.addPiece(k, i, def, holder);
         break;
       }
@@ -409,7 +421,7 @@ export class LightPanel implements PuzzleView {
         const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(c * 0.24, 0), mat);
         mesh.scale.y = 1.45;
         mesh.position.y = c * 0.4;
-        add(mesh);
+        add(mesh, true);
         const glow = new THREE.Sprite(new THREE.SpriteMaterial({
           map: getGlowTexture(), color: displayColor(wanted || RED), blending: THREE.AdditiveBlending,
           depthWrite: false, transparent: true, opacity: 0, toneMapped: false,
@@ -464,13 +476,35 @@ export class LightPanel implements PuzzleView {
   }
 
   setSymbols(on: boolean): void {
-    this.symbols.visible = on;
+    this.symbolsOn = on;
+    this.symbols.visible = on && this.detailShown;
   }
 
   /** Masque les pièces des panneaux éloignés (performances). */
-  setDetail(visible: boolean): void {
-    if (this.board.visible !== visible) this.board.visible = visible;
+  /** Niveau de détail : 0 = plateau masqué (très loin), 1 = plateau, cadre et rayons, 2 = tout. */
+  setLevel(level: 0 | 1 | 2): void {
+    this.board.visible = level > 0;
+    if (level > 0) this.setDetail(level === 2);
   }
+
+  /** Masque les pièces au loin ; le plateau, le cadre et les rayons restent. */
+  setDetail(visible: boolean): void {
+    if (this.detailShown === visible) return;
+    this.detailShown = visible;
+    for (const o of this.board.children) {
+      if (o === this.boardMesh || o === this.beams || o === this.halos || o.userData.keep) continue;
+      o.visible = visible;
+    }
+    if (visible) {
+      // restaurer les visibilités qui dépendent de l'état
+      this.hover.visible = false;
+      this.hintRing.visible = this.hintK !== null;
+      this.symbols.visible = this.symbolsOn;
+      this.applyState(this.state, true);
+    }
+  }
+  private detailShown = true;
+  private symbolsOn = false;
 
   setPowered(on: boolean): void {
     this.powered = on;

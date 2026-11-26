@@ -12,6 +12,8 @@ export interface Settings {
   symbols?: boolean;
   /** aides discrètes quand on bloque longtemps */
   hints?: boolean;
+  /** volume de la musique (0..1) */
+  music?: number;
 }
 
 export interface SaveData {

@@ -6,6 +6,7 @@ import {
 } from '../../src/world/layout.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../../src/world/props.ts';
 import { buildAtelier } from '../../src/world/atelier.ts';
+import { buildGardenDecor } from '../../src/world/decor.ts';
 import { buildCloitre } from '../../src/world/cloitre.ts';
 import { addPuzzleColliders } from '../../src/world/puzzleColliders.ts';
 import { WorldLightPuzzle } from '../../src/render/worldPuzzle.ts';
@@ -25,6 +26,7 @@ const MAX_SLOPE = 1.6;
 function world(open: Set<string>) {
   const c = new Colliders();
   buildVegetation(c);
+  buildGardenDecor(c);
   buildWalls(c);
   buildGates(c, (id) => open.has(id));
   buildPlaza(c);

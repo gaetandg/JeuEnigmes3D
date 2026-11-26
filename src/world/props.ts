@@ -15,7 +15,7 @@ function nearWall(x: number, z: number, margin: number): boolean {
   return WALLS.some(([ax, az, bx, bz]) => distToSegment(x, z, ax, az, bx, bz) < margin);
 }
 
-function freeSpot(x: number, z: number, margin: number): boolean {
+export function freeSpot(x: number, z: number, margin: number): boolean {
   if (distToPath(x, z) < 2.5 + margin) return false;
   if (FLATS.some((f) => Math.hypot(x - f.x, z - f.z) < f.r + 1.5 + margin)) return false;
   if (nearWall(x, z, 1.5 + margin)) return false;

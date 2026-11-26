@@ -5,6 +5,7 @@ import { heightAt } from '../world/terrain.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { objectEuler } from './shadowMath.ts';
+import { mergeMeshes } from './merge.ts';
 import { nearestDiff, pulse } from './hints.ts';
 
 export interface ShadowPlacement {
@@ -99,12 +100,14 @@ export class ShadowView implements PuzzleView {
       const col = new THREE.Color(OBJECT_COLORS[i % OBJECT_COLORS.length]!);
       const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.6, flatShading: true });
       const cube = new THREE.BoxGeometry(v * 0.96, v * 0.96, v * 0.96);
-      for (const [x, y, z] of o.shape) {
+      const cubes = o.shape.map(([x, y, z]) => {
         const m = new THREE.Mesh(cube, mat);
         m.position.set((x - 1) * v, (y - 1) * v, (z - 1) * v);
-        m.castShadow = place.voxel > 0.5;
         pivot.add(m);
-      }
+        return m;
+      });
+      // un seul maillage par objet (il tourne d'un bloc)
+      mergeMeshes(cubes, pivot, mat).castShadow = place.voxel > 0.5;
       this.stage.add(pivot);
       // support : plateau tournant (axe vertical) ou berceau (axe est-ouest)
       const base: THREE.Mesh[] = [];
