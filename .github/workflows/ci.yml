@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Vérification des types
+        run: npm run typecheck
+      - name: Tests unitaires (moteurs, solveurs, validation des énigmes)
+        run: npm test
+      - name: Installation de Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Tests de bout en bout
+        run: npm run e2e
+      - name: Captures d'écran
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: captures
+          path: test-results/
+          retention-days: 14
