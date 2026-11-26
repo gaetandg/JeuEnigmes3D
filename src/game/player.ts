@@ -33,9 +33,19 @@ export class Player {
     this.apply();
   }
 
+  /** inverser l'axe vertical du regard */
+  invertY = false;
+  /** balancement de la tête en marchant */
+  bobOn = true;
+
   look(dx: number, dy: number): void {
-    this.yaw -= dx * this.sensitivity;
-    this.pitch -= dy * this.sensitivity;
+    this.lookRadians(-dx * this.sensitivity, -dy * this.sensitivity);
+  }
+
+  /** Tourne le regard (radians) : utilisé par la souris, le tactile et la manette. */
+  lookRadians(dYaw: number, dPitch: number): void {
+    this.yaw += dYaw;
+    this.pitch += this.invertY ? -dPitch : dPitch;
     this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch));
   }
 
@@ -77,7 +87,7 @@ export class Player {
     const before = Math.floor(this.bob / Math.PI);
     this.bob += dt * moving * 1.9;
     if (moving > 1 && Math.floor(this.bob / Math.PI) !== before) this.onStep?.();
-    const ground = heightAt(this.position.x, this.position.z) + EYE + Math.sin(this.bob) * 0.025 * Math.min(1, moving / WALK);
+    const ground = heightAt(this.position.x, this.position.z) + EYE + (this.bobOn ? Math.sin(this.bob) * 0.025 * Math.min(1, moving / WALK) : 0);
     this.position.y += (ground - this.position.y) * Math.min(1, dt * 14);
     this.apply();
   }

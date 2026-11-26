@@ -22,7 +22,7 @@ function cableSegments(): [number, number, number, number][] {
  * Décor du jardin : massifs de fleurs bordés de pierre, bassins, colonnes brisées,
  * vasques. Placement déterministe, à l'écart des chemins, des panneaux et des câbles.
  */
-export function buildGardenDecor(colliders: Colliders): { group: THREE.Group; update: (t: number) => void } {
+export function buildGardenDecor(colliders: Colliders): { group: THREE.Group; update: (t: number) => void; beds: THREE.Vector3[] } {
   const g = new THREE.Group();
   g.name = 'décor du jardin';
   const rnd = mulberry32(2024);
@@ -55,11 +55,13 @@ export function buildGardenDecor(colliders: Colliders): { group: THREE.Group; up
   // ── massifs de fleurs ───────────────────────────────────────────────────
   const borders: THREE.Matrix4[] = [];
   const flowers: { m: THREE.Matrix4; c: THREE.Color }[] = [];
+  const beds: THREE.Vector3[] = [];
   const palettes = [['#f2a7b8', '#ffffff', '#f4c06a'], ['#b9a2f0', '#ffffff', '#8fc0ff'], ['#ff8a5c', '#ffd45e', '#ffffff']];
   for (let i = 0; i < 40; i++) {
     const s = spot(1.8);
     if (!s) break;
     const y = heightAt(s.x, s.z);
+    beds.push(new THREE.Vector3(s.x, y, s.z));
     const rot = rnd() * Math.PI;
     q.setFromAxisAngle(up, rot);
     const L = 2.6 + rnd() * 1.6;
@@ -164,5 +166,5 @@ export function buildGardenDecor(colliders: Colliders): { group: THREE.Group; up
   const update = (t: number) => {
     pads.forEach((p, i) => (p.rotation.z += Math.sin(t * 0.3 + i) * 0.0006));
   };
-  return { group: g, update };
+  return { group: g, update, beds };
 }

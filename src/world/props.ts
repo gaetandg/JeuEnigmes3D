@@ -3,6 +3,7 @@ import { mulberry32, smoothstep } from './noise.ts';
 import { heightAt, distToPath, distToSegment } from './terrain.ts';
 import { ATELIER, CLOITRE, FLATS, GARDEN, GATES, LIGHTHOUSE, PLAZA, WALLS } from './layout.ts';
 import type { Colliders } from '../game/colliders.ts';
+import { addWind } from '../render/wind.ts';
 
 export const STONE = new THREE.Color('#efe7da');
 const STONE_DARK = new THREE.Color('#d8cdbb');
@@ -55,6 +56,7 @@ export function buildVegetation(colliders: Colliders): THREE.Group {
 
   const trunkMat = new THREE.MeshStandardMaterial({ color: '#8a6a4f', flatShading: true, roughness: 1 });
   const leafMat = new THREE.MeshStandardMaterial({ flatShading: true, roughness: 0.9 });
+  addWind(leafMat, 0.07, 1.0);
 
   const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, trees.length);
   const blobs = new THREE.InstancedMesh(blobGeo, leafMat, trees.length * 2);
@@ -139,6 +141,7 @@ export function buildVegetation(colliders: Colliders): THREE.Group {
   const tuftGeo = new THREE.ConeGeometry(0.12, 0.5, 3);
   tuftGeo.translate(0, 0.2, 0);
   const tuftMat = new THREE.MeshStandardMaterial({ flatShading: true, roughness: 1 });
+  addWind(tuftMat, 0.35, 0.0);
   const tufts = new THREE.InstancedMesh(tuftGeo, tuftMat, 2500);
   const flowerCols = ['#ffffff', '#ffd45e', '#f49ac1', '#b9a2f0'].map((c) => new THREE.Color(c));
   let nt = 0;

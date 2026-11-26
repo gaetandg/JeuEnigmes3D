@@ -54,6 +54,7 @@ export function exposeDebugApi(game: Game): void {
     drawCalls: () => game.lastDrawCalls,
     ended: () => game.ended,
     hint: (id: string) => game.panels.get(id)?.hint() ?? null,
+    guides: () => game.guides.mesh.count,
   };
   (window as unknown as { __game: typeof api }).__game = api;
   api.ready = true;

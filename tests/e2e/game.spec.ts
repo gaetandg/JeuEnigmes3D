@@ -52,6 +52,8 @@ test('viser une pièce puis cliquer résout le premier panneau et ouvre la porte
   await page.waitForFunction(() => window.__game.panels().find((p) => p.id === 'a2')!.powered, null, { timeout: 5000 });
   await page.evaluate(() => window.__game.advance(3));
   expect(await page.evaluate(() => window.__game.gateOpen('porte-plage'))).toBe(1);
+  // le guide lumineux désigne la prochaine énigme (a2, plus loin)
+  expect(await page.evaluate(() => window.__game.guides())).toBeGreaterThanOrEqual(1);
   await page.screenshot({ path: 'test-results/a1-resolu.png' });
   expect(errors).toEqual([]);
 });

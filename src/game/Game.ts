@@ -8,6 +8,8 @@ import { FoldView } from '../render/foldView.ts';
 import { buildAtelier } from '../world/atelier.ts';
 import { buildCloitre } from '../world/cloitre.ts';
 import { buildGardenDecor } from '../world/decor.ts';
+import { buildLife } from '../world/life.ts';
+import { WIND } from '../render/wind.ts';
 import { addPuzzleColliders } from '../world/puzzleColliders.ts';
 import { ZONE3, ZONE3_CADRAN } from '../puzzles/zone3.ts';
 import { parseShadow, startState } from '../core/shadow/index.ts';
@@ -19,6 +21,8 @@ import type { GateView } from '../world/props.ts';
 import { HORIZON, SUN_GLOW, buildLights, buildSky, buildWater } from '../render/environment.ts';
 import { applyDaylight, buildStars } from '../render/daylight.ts';
 import { Sparks } from '../render/sparks.ts';
+import { GuideBeams } from '../render/guides.ts';
+import { GamepadInput } from './gamepad.ts';
 import type { Lights } from '../render/environment.ts';
 import { LightPanel } from '../render/panelView.ts';
 import { WorldLightPuzzle } from '../render/worldPuzzle.ts';
@@ -115,11 +119,15 @@ export class Game {
   private shafts: { id: string; mesh: THREE.Mesh; on: number }[] = [];
   private atelierUpdate: (t: number) => void = () => undefined;
   private decorUpdate: (t: number) => void = () => undefined;
+  private lifeUpdate: (t: number, dt: number) => void = () => undefined;
   /** heure du jour : 0 (après-midi) → 4 (crépuscule), suit la progression */
   private day = 0;
   private dayTarget = 0;
   private stars: THREE.Points;
   readonly sparks = new Sparks();
+  readonly guides = new GuideBeams();
+  guidesOn = true;
+  private gamepad: GamepadInput | null = null;
   private refreshEnv: () => void;
   /** séquence de fin (caméra qui s'élève au-dessus de l'île) */
   private cinematic: { t: number; a0: number } | null = null;
@@ -162,6 +170,7 @@ export class Game {
     this.stars = buildStars();
     this.scene.add(this.stars);
     this.scene.add(this.sparks.points);
+    this.scene.add(this.guides.mesh);
     this.scene.environmentIntensity = 0.6;
 
     this.lights = buildLights(this.scene);
@@ -172,6 +181,9 @@ export class Game {
     const decor = buildGardenDecor(this.colliders);
     this.decorUpdate = decor.update;
     this.scene.add(decor.group);
+    const life = buildLife(decor.beds);
+    this.lifeUpdate = life.update;
+    this.scene.add(life.group);
     this.scene.add(buildWalls(this.colliders));
     const plaza = buildPlaza(this.colliders);
     this.plazaCrystal = plaza.crystal;
@@ -307,9 +319,22 @@ export class Game {
     return 'jardin';
   }
 
+  private updateGuides(): void {
+    const pos = this.player.position;
+    const pts: THREE.Vector3[] = [];
+    for (const p of this.panels.values()) {
+      if (!p.powered || p.solved) continue;
+      const a = this.anchorsOf(p)[0]!;
+      if (Math.hypot(a.x - pos.x, a.z - pos.z) < 9) continue;
+      pts.push(new THREE.Vector3(a.x, heightAt(a.x, a.z) + 2.2, a.z));
+    }
+    this.guides.set(pts);
+  }
+
   private updateStuck(dt: number): void {
     const pos = this.player.position;
     this.audio.setZone(this.zoneAt(pos.x, pos.z));
+    this.updateGuides();
     if (!this.hintsOn || !this.playing) return;
     for (const p of this.panels.values()) {
       if (!p.powered || p.solved) continue;
@@ -392,6 +417,7 @@ export class Game {
     this.applyQuality(settings.quality ?? 'haute');
     this.setSymbols(!!settings.symbols);
     this.hintsOn = settings.hints !== false;
+    this.applyComfort(settings);
     this.input = new DesktopInput(this.opts.canvas, this.player);
     // le joystick est ajouté à l'interface APRÈS sa construction (qui remplace son contenu)
     let touchInput: TouchInput | null = null;
@@ -427,6 +453,10 @@ export class Game {
         this.setSymbols(on);
         saveSettings({ symbols: on });
       },
+      onComfort: (patch) => {
+        this.applyComfort(patch);
+        saveSettings(patch);
+      },
       onMusic: (v) => {
         this.audio.setMusicVolume(v);
         saveSettings({ music: v });
@@ -459,6 +489,31 @@ export class Game {
       }
     };
     this.input.onClick = (button) => this.click(button === 2);
+    // manette : démarre sans verrouillage de la souris
+    this.gamepad = new GamepadInput(this.player);
+    this.gamepad.onAct = (reverse) => this.click(reverse);
+    this.gamepad.onStart = () => {
+      if (this.playing) {
+        this.playing = false;
+        this.hud!.showTitle(true);
+        this.persist();
+      } else {
+        this.audio.start();
+        this.playing = true;
+        this.hud!.hideTitle();
+      }
+    };
+  }
+
+  /** Réglages de confort (champ de vision, axe vertical, balancement, guide lumineux). */
+  applyComfort(s: Partial<Settings>): void {
+    if (s.fov !== undefined) {
+      this.camera.fov = s.fov;
+      this.camera.updateProjectionMatrix();
+    }
+    if (s.invertY !== undefined) this.player.invertY = s.invertY;
+    if (s.bob !== undefined) this.player.bobOn = s.bob;
+    if (s.guides !== undefined) this.guidesOn = s.guides;
   }
 
   /** Qualité graphique : finesse de l'image, des ombres et distance de vue. */
@@ -689,9 +744,13 @@ export class Game {
     if (this.beacon.visible) this.beacon.rotation.y += dt * 0.35;
     this.sparks.update(dt);
     this.updateDay(dt);
+    this.guides.update(this.time, this.guidesOn && !this.ended);
+    this.gamepad?.poll(dt, this.playing);
     if (this.playing) this.save.playTime = (this.save.playTime ?? 0) + dt;
     this.atelierUpdate(this.time);
     this.decorUpdate(this.time);
+    this.lifeUpdate(this.time, dt);
+    WIND.uWindTime.value = this.time;
     for (const s of this.shafts) {
       if (!s.mesh.visible) continue;
       s.on = Math.min(1, s.on + dt * 0.4);
@@ -783,6 +842,7 @@ export class Game {
         }
       }
     }
+    this.updateGuides();
   }
 
   hoveredPiece(): { id: string; k: number } | null {

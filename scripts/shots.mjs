@@ -28,5 +28,5 @@ for (const v of views) {
   await page.screenshot({ path: `${out}/${v.name}.png` });
   console.log("shot", v.name, "drawcalls", await page.evaluate(() => window.__game.drawCalls()), "hover", JSON.stringify(await page.evaluate(() => window.__game.hovered())));
 }
-console.log(logs.slice(0, 20).join('\n'));
+console.log(logs.filter((l) => !l.includes("GL Driver") && !l.includes("GPU stall")).slice(0, 20).join("\n"));
 await browser.close();
