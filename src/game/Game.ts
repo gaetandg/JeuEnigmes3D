@@ -16,7 +16,9 @@ import { ZONE4_FOLD, ZONE4_LIGHT } from '../puzzles/zone4.ts';
 import { buildTerrain, heightAt } from '../world/terrain.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../world/props.ts';
 import type { GateView } from '../world/props.ts';
-import { HORIZON, buildLights, buildSky, buildWater } from '../render/environment.ts';
+import { HORIZON, SUN_GLOW, buildLights, buildSky, buildWater } from '../render/environment.ts';
+import { applyDaylight, buildStars } from '../render/daylight.ts';
+import { Sparks } from '../render/sparks.ts';
 import type { Lights } from '../render/environment.ts';
 import { LightPanel } from '../render/panelView.ts';
 import { WorldLightPuzzle } from '../render/worldPuzzle.ts';
@@ -113,6 +115,14 @@ export class Game {
   private shafts: { id: string; mesh: THREE.Mesh; on: number }[] = [];
   private atelierUpdate: (t: number) => void = () => undefined;
   private decorUpdate: (t: number) => void = () => undefined;
+  /** heure du jour : 0 (après-midi) → 4 (crépuscule), suit la progression */
+  private day = 0;
+  private dayTarget = 0;
+  private stars: THREE.Points;
+  readonly sparks = new Sparks();
+  private refreshEnv: () => void;
+  /** séquence de fin (caméra qui s'élève au-dessus de l'île) */
+  private cinematic: { t: number; a0: number } | null = null;
   private beacon: THREE.Group;
   /** la partie est terminée (phare rallumé) */
   ended = false;
@@ -145,6 +155,13 @@ export class Game {
     const envScene = new THREE.Scene();
     envScene.add(buildSky());
     this.scene.environment = pmrem.fromScene(envScene, 0.02).texture;
+    this.refreshEnv = () => {
+      this.scene.environment?.dispose();
+      this.scene.environment = pmrem.fromScene(envScene, 0.02).texture;
+    };
+    this.stars = buildStars();
+    this.scene.add(this.stars);
+    this.scene.add(this.sparks.points);
     this.scene.environmentIntensity = 0.6;
 
     this.lights = buildLights(this.scene);
@@ -176,6 +193,7 @@ export class Game {
       if (!def) throw new Error(`énigme ${spot.id} introuvable`);
       const panel = new LightPanel(parsePuzzle(def), spot);
       panel.onSolved = () => this.onPanelSolved(panel);
+      panel.onCrystal = (c) => this.audio.crystal(c);
       this.panels.set(spot.id, panel);
       this.scene.add(panel.group);
     }
@@ -215,6 +233,7 @@ export class Game {
         const def = ZONE4_LIGHT.find((d) => d.id === spot.id)!;
         const panel = new LightPanel(parsePuzzle(def), spot);
         panel.onSolved = () => this.onPanelSolved(panel);
+        panel.onCrystal = (c) => this.audio.crystal(c);
         this.panels.set(spot.id, panel);
         this.scene.add(panel.group);
       } else {
@@ -304,6 +323,40 @@ export class Game {
     }
   }
 
+  private applyDay(): void {
+    applyDaylight(this.day, { scene: this.scene, lights: this.lights, renderer: this.renderer, sunGlow: SUN_GLOW, stars: this.stars });
+  }
+
+  /** Fait avancer l'heure et la séquence de fin. */
+  private updateDay(dt: number): void {
+    if (Math.abs(this.day - this.dayTarget) > 1e-3) {
+      // une étape prend une dizaine de secondes : on voit le soleil descendre
+      this.day += Math.sign(this.dayTarget - this.day) * Math.min(Math.abs(this.dayTarget - this.day), dt * 0.1);
+      this.applyDay();
+      if (Math.abs(this.day - this.dayTarget) <= 1e-3) this.refreshEnv();
+    }
+    if (this.cinematic) {
+      const c = this.cinematic;
+      c.t += dt;
+      const k = Math.min(1, c.t / 14);
+      const e = k * k * (3 - 2 * k);
+      const a = c.a0 + e * Math.PI * 0.9;
+      const R = 30 + e * 70;
+      const h = heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z) + 8 + e * 55;
+      this.cameraOverride = {
+        pos: new THREE.Vector3(LIGHTHOUSE.x + Math.cos(a) * R, h, LIGHTHOUSE.z + Math.sin(a) * R),
+        target: new THREE.Vector3(LIGHTHOUSE.x, heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z) + 22 - e * 18, LIGHTHOUSE.z + e * 40),
+      };
+      if (c.t >= 14 && !this.hudEndingShown) {
+        this.hudEndingShown = true;
+        this.playing = false;
+        this.hud?.showEnding(this.stats());
+      }
+    }
+  }
+
+  private hudEndingShown = false;
+
   /** Bilan affiché à la fin. */
   stats(): { solved: number; total: number; minutes: number } {
     return { solved: this.save.solved.length, total: this.panels.size, minutes: Math.round((this.save.playTime ?? 0) / 60) };
@@ -389,6 +442,9 @@ export class Game {
       touchInput.onTap = (reverse) => this.click(reverse);
     }
     this.hud.onContinue = () => {
+      // fin de la séquence : retour au joueur
+      this.cinematic = null;
+      this.cameraOverride = null;
       if (touchInput) {
         touchInput.enabled = true;
         this.playing = true;
@@ -397,7 +453,7 @@ export class Game {
     this.input.onLockChange = (locked) => {
       this.playing = locked;
       if (locked) this.hud!.hideTitle();
-      else {
+      else if (!this.cinematic) {
         this.hud!.showTitle(true);
         this.persist();
       }
@@ -464,12 +520,19 @@ export class Game {
         } else this.audio.rumble();
       }
     }
-    for (const id of this.save.solved) this.cables.light(id, instant);
+    let newCable = false;
+    for (const id of this.save.solved) newCable = this.cables.light(id, instant) || newCable;
+    if (newCable && !instant) this.audio.cable();
     const allees = ['a5', 'b6', 'c5', 'd6', 'tours'].filter((id) => this.isSolved(id)).length;
     const m = this.plazaCrystal.material as THREE.MeshStandardMaterial;
     m.emissive.set('#ffd98a').multiplyScalar(allees * 0.25);
     // chaque zone terminée donne un quart de lumière au phare ; le dernier panneau l'allume
     const steps = BEACON_STEPS.filter((id) => this.isSolved(id)).length;
+    this.dayTarget = steps;
+    if (instant) {
+      this.day = steps;
+      this.applyDay();
+    }
     const lamp = this.lighthouseLamp.material as THREE.MeshStandardMaterial;
     lamp.emissive.set('#ffe9b0').multiplyScalar((steps / 4) * (steps === 4 ? 2.5 : 1));
     if (this.isSolved('f5') && !this.ended) {
@@ -477,10 +540,12 @@ export class Game {
       this.beacon.visible = true;
       if (!instant) {
         this.audio.finale();
-        window.setTimeout(() => {
-          this.playing = false;
-          this.hud?.showEnding(this.stats());
-        }, 4500);
+        if (this.hud) {
+          // la caméra quitte le joueur et s'élève autour du phare pendant que la nuit tombe
+          const p = this.player.position;
+          this.cinematic = { t: 0, a0: Math.atan2(p.z - LIGHTHOUSE.z, p.x - LIGHTHOUSE.x) };
+          this.input?.release();
+        }
       }
     }
     for (const s of this.shafts) {
@@ -491,8 +556,23 @@ export class Game {
     }
   }
 
+  /** Où faire jaillir les étincelles d'une énigme résolue. */
+  private sparkAt(p: PuzzleView): { at: THREE.Vector3; big: boolean } {
+    if (p instanceof WorldLightPuzzle) {
+      const c = towerCell(3, 0);
+      return { at: new THREE.Vector3(c.x, heightAt(c.x, c.z) + TOWERS.beamY + 1, c.z), big: true };
+    }
+    const big = (p instanceof FoldView && p.place.kind === 'easel') || (p instanceof ShadowView && p.place.voxel > 0.5);
+    return { at: p.group.position.clone().add(new THREE.Vector3(0, big ? 5 : 1.4, 0)), big };
+  }
+
   private onPanelSolved(panel: PuzzleView): void {
     const id = panel.id;
+    if (this.save.solved.includes(id) === false) {
+      const s = this.sparkAt(panel);
+      this.sparks.burst(s.at, new THREE.Color('#ffaa2e'), s.big ? 220 : 70, s.big ? 3 : 0.7);
+      navigator.vibrate?.([30, 50, 70]);
+    }
     if (!this.save.solved.includes(id)) this.save.solved.push(id);
     this.audio.solved();
     // l'ouverture des portes et l'allumage suivent le câble
@@ -523,6 +603,7 @@ export class Game {
     const r = panel.interact(k, reverse);
     if (r === 'ok') {
       this.audio.click();
+      navigator.vibrate?.(8);
       this.save.states[id] = panel.state;
       writeSave(this.save);
     } else if (r === 'denied') this.audio.denied();
@@ -606,6 +687,8 @@ export class Game {
     }
     this.plazaCrystal.rotation.y += dt * 0.2;
     if (this.beacon.visible) this.beacon.rotation.y += dt * 0.35;
+    this.sparks.update(dt);
+    this.updateDay(dt);
     if (this.playing) this.save.playTime = (this.save.playTime ?? 0) + dt;
     this.atelierUpdate(this.time);
     this.decorUpdate(this.time);
@@ -691,6 +774,8 @@ export class Game {
       this.time += 0.05;
       this.cables.update(0.05);
       for (const p of this.panels.values()) p.update(0.05, this.time);
+      this.updateDay(0.05);
+      this.sparks.update(0.05);
       for (const g of this.gates.values()) {
         if (g.opening && g.open < 1) {
           g.open = Math.min(1, g.open + 0.05 / 2.5);

@@ -45,6 +45,7 @@ export class WorldLightPuzzle implements PuzzleView {
   private sim: SimResult | null = null;
   private target: { index: number; mesh: THREE.Mesh; mat: THREE.MeshStandardMaterial; glow: THREE.PointLight; wanted: Color } | null = null;
   private lens: THREE.MeshBasicMaterial | null = null;
+  private darks: { index: number; mat: THREE.MeshStandardMaterial }[] = [];
   private hovered: number | null = null;
   private hintK: number | null = null;
   private solvedAt = -1;
@@ -154,27 +155,41 @@ export class WorldLightPuzzle implements PuzzleView {
         break;
       }
       case 'filter': {
-        // arche avec un grand vitrail coloré
+        // colonne de verre coloré : la lumière la traverse dans tous les sens
         const g = new THREE.Group();
         const col = displayColor(def.color);
-        for (const s of [-1, 1]) {
-          const post = new THREE.Mesh(new THREE.BoxGeometry(0.8, Y + 2, 0.8), stone);
-          post.position.set(s * 2.2, (Y + 2) / 2, 0);
-          g.add(post);
-          colliders.addCircle(p.x + s * 2.2, p.z, 0.6);
-        }
-        const top = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.7, 1.0), stoneMaterial('#d8cdbb'));
-        top.position.y = Y + 2.2;
-        g.add(top);
+        const base = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.7, 2.8), stone);
+        base.position.y = 0.35;
+        g.add(base);
         const glassMat = new THREE.MeshStandardMaterial({
-          color: col, emissive: col.clone().multiplyScalar(0.35), transparent: true, opacity: 0.55, roughness: 0.1, side: THREE.DoubleSide,
+          color: col, emissive: col.clone().multiplyScalar(0.4), transparent: true, opacity: 0.6, roughness: 0.08, metalness: 0.1,
         });
-        const pane = new THREE.Mesh(new THREE.PlaneGeometry(3.6, Y + 1.6), glassMat);
-        pane.position.y = (Y + 1.6) / 2 + 0.2;
-        pane.castShadow = false;
-        g.add(pane);
+        const body = new THREE.Mesh(new THREE.BoxGeometry(2.2, Y + 1.0, 2.2), glassMat);
+        body.position.y = 0.7 + (Y + 1.0) / 2;
+        body.castShadow = false;
+        g.add(body);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.5, 2.8), stoneMaterial('#d8cdbb'));
+        cap.position.y = Y + 1.95;
+        g.add(cap);
         add(g);
-        pane.castShadow = false;
+        body.castShadow = false;
+        colliders.addCircle(p.x, p.z, 1.6);
+        break;
+      }
+      case 'dark': {
+        // monolithe d'obsidienne : il ne doit recevoir aucune lumière
+        const g = new THREE.Group();
+        const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.4, Y - 1.2, 6), stone);
+        ped.position.y = (Y - 1.2) / 2;
+        g.add(ped);
+        const mat = new THREE.MeshStandardMaterial({ color: '#15151c', roughness: 0.15, metalness: 0.4, flatShading: true, emissive: '#000000' });
+        const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(1.0, 0), mat);
+        mesh.scale.y = 1.6;
+        mesh.position.y = Y + 0.3;
+        g.add(mesh);
+        add(g);
+        colliders.addCircle(p.x, p.z, 1.4);
+        this.darks.push({ index: i, mat });
         break;
       }
       case 'target': {
@@ -303,6 +318,10 @@ export class WorldLightPuzzle implements PuzzleView {
       const hot = this.hovered === t.k;
       t.ring.color.set(hot ? '#fff0b8' : this.powered && !this.solved ? '#e0b45a' : '#9c8a6a');
       if (this.hintK === t.k && !hot && !this.solved) t.ring.color.set('#e0b45a').lerp(new THREE.Color('#9fe8ff'), pulse(time));
+    }
+    for (const d of this.darks) {
+      const got = this.sim?.received[d.index] ?? 0;
+      d.mat.emissive.set(got ? '#8a3cff' : '#000000').multiplyScalar(got ? 0.4 + 0.3 * Math.sin(time * 5) : 0);
     }
     if (this.target) {
       const got = this.sim?.received[this.target.index] ?? 0;

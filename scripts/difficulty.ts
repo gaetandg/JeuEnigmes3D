@@ -15,6 +15,7 @@ import type { FoldPuzzleDef } from '../src/core/fold/index.ts';
 import { checkShadow, parseShadow, solveShadow, startState } from '../src/core/shadow/index.ts';
 import type { ShadowPuzzleDef } from '../src/core/shadow/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../src/puzzles/zone1.ts';
+import { greedyFold, greedyLight, greedyShadow } from './greedy.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../src/puzzles/zone2.ts';
 import { ZONE3, ZONE3_CADRAN } from '../src/puzzles/zone3.ts';
 import { ZONE4_FOLD, ZONE4_LIGHT } from '../src/puzzles/zone4.ts';
@@ -42,6 +43,8 @@ export interface Row {
   blind: number;
   /** difficulté : log2 des actions à l'aveugle, arrondie au dixième */
   score: number;
+  /** % d'échecs de l'agent glouton : plus c'est haut, plus il faut une idée */
+  insight: number;
 }
 
 function lightRow(zone: string, def: LightPuzzleDef): Row {
@@ -65,7 +68,7 @@ function lightRow(zone: string, def: LightPuzzleDef): Row {
     runs.push(steps);
   }
   const blind = median(runs);
-  return { zone, id: def.id, kind: p.objects.length ? 'lumière+objets' : 'lumière', pieces: n, minActions: r.minClicks, space: r.space, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10 };
+  return { zone, id: def.id, kind: p.objects.length ? 'lumière+objets' : 'lumière', pieces: n, minActions: r.minClicks, space: r.space, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyLight(p, init)) * 100) };
 }
 
 function foldRow(zone: string, def: FoldPuzzleDef): Row {
@@ -88,7 +91,7 @@ function foldRow(zone: string, def: FoldPuzzleDef): Row {
     runs.push(steps);
   }
   const blind = median(runs);
-  return { zone, id: def.id, kind: p.light ? 'pliage+lumière' : 'pliage', pieces: p.cells.length, minActions: sol.minFolds, space: sol.explored, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10 };
+  return { zone, id: def.id, kind: p.light ? 'pliage+lumière' : 'pliage', pieces: p.cells.length, minActions: sol.minFolds, space: sol.explored, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyFold(p)) * 100) };
 }
 
 function shadowRow(zone: string, def: ShadowPuzzleDef): Row {
@@ -109,7 +112,7 @@ function shadowRow(zone: string, def: ShadowPuzzleDef): Row {
   }
   const blind = median(runs);
   const minActions = Math.min(...r.solutions.map((sol) => sol.reduce((a, t, i) => a + Math.min((t - start[i]! + 4) % 4, (start[i]! - t + 4) % 4), 0)));
-  return { zone, id: def.id, kind: 'ombres', pieces: n, minActions, space: r.space, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10 };
+  return { zone, id: def.id, kind: 'ombres', pieces: n, minActions, space: r.space, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyShadow(p, start)) * 100) };
 }
 
 export function allRows(): Row[] {
@@ -128,16 +131,16 @@ if (process.argv[1]?.endsWith('difficulty.ts')) {
   const rows = allRows();
   const md = process.argv.includes('--md');
   if (md) {
-    console.log('| Zone | Énigme | Type | Pièces | Actions min. | Actions à l\'aveugle (médiane) | Difficulté |');
-    console.log('|---|---|---|---|---|---|---|');
+    console.log('| Zone | Énigme | Type | Pièces | Actions min. | Actions à l\'aveugle (médiane) | Difficulté | Déclic |');
+    console.log('|---|---|---|---|---|---|---|---|');
   }
   let prev: Row | null = null;
   for (const r of rows) {
     const jump = prev && prev.zone === r.zone ? r.score - prev.score : 0;
     const flag = jump >= 3 ? ' ⚠ saut' : '';
     const bar = '█'.repeat(Math.round(r.score));
-    if (md) console.log(`| ${r.zone} | ${r.id} | ${r.kind} | ${r.pieces} | ${r.minActions} | ${r.blind} | ${r.score.toFixed(1)} ${bar}${flag} |`);
-    else console.log(`${r.zone.padEnd(10)} ${r.id.padEnd(10)} ${String(r.minActions).padStart(3)} min  ${String(r.blind).padStart(6)} aveugle  ${r.score.toFixed(1).padStart(5)} ${bar}${flag}`);
+    if (md) console.log(`| ${r.zone} | ${r.id} | ${r.kind} | ${r.pieces} | ${r.minActions} | ${r.blind} | ${r.score.toFixed(1)} ${bar}${flag} | ${r.insight} % |`);
+    else console.log(`${r.zone.padEnd(10)} ${r.id.padEnd(10)} ${String(r.minActions).padStart(3)} min  ${String(r.blind).padStart(6)} aveugle  ${r.score.toFixed(1).padStart(5)}  déclic ${String(r.insight).padStart(3)}%  ${bar}${flag}`);
     prev = r;
   }
 }

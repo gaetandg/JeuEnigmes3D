@@ -128,6 +128,10 @@ export class LightPanel implements PuzzleView {
   solved = false;
   powered = false;
   onSolved: (() => void) | null = null;
+  /** un cristal vient de s'allumer (son) */
+  onCrystal: ((color: number) => void) | null = null;
+  private litCrystals = new Set<number>();
+  private crystalsReady = false;
 
   get id(): string {
     return this.puzzle.id;
@@ -637,6 +641,11 @@ export class LightPanel implements PuzzleView {
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
     }
 
+    // cristaux qui viennent de s'allumer (pas au premier affichage)
+    const lit = new Set(sim.crystals.filter((cr) => cr.ok && cr.wanted).map((cr) => cr.index));
+    if (this.crystalsReady) for (const cr of sim.crystals) if (cr.wanted && cr.ok && !this.litCrystals.has(cr.index)) this.onCrystal?.(cr.wanted);
+    this.litCrystals = lit;
+    this.crystalsReady = true;
     if (sim.solved && !this.solved) {
       this.solved = true;
       this.solvedAt = this.time;

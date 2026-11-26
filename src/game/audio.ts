@@ -313,6 +313,37 @@ export class Audio {
     chords.forEach((ch, i) => ch.forEach((f) => this.tone(f, t + i * 0.9, 3.2, 0.06, 'sine')));
   }
 
+  /** Un cristal s'allume : une note de carillon propre à sa couleur. */
+  crystal(color: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    // rouge, vert, bleu, jaune, magenta, cyan, blanc : une gamme qui sonne ensemble
+    const notes: Record<number, number> = { 1: 659.25, 2: 783.99, 4: 987.77, 3: 880, 5: 1046.5, 6: 1174.66, 7: 1318.5 };
+    const f = notes[color] ?? 880;
+    const t = ctx.currentTime;
+    this.tone(f, t, 1.8, 0.07, 'sine');
+    this.tone(f * 2, t, 0.7, 0.02, 'sine');
+  }
+
+  /** La lumière court dans un câble : glissando doux et montant. */
+  cable(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(320, t);
+    o.frequency.exponentialRampToValueAtTime(960, t + 1.2);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.035, t + 0.15);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.4);
+    o.connect(g).connect(this.master);
+    if (this.reverb) g.connect(this.reverb);
+    o.start(t);
+    o.stop(t + 1.5);
+  }
+
   /** Un panneau s'allume. */
   power(): void {
     const ctx = this.ctx;

@@ -276,10 +276,11 @@ export const ZONE1: Zone1Puzzle[] = [
  */
 export const ZONE1_TOWERS: Zone1Puzzle = {
   id: 'tours',
-  note: 'Le jardin est un panneau géant : la lumière du soleil, divisée, doit revenir en magenta.',
+  note: "Le jardin est un panneau géant. Le réflexe appris (réunir rouge et bleu) mène au cristal noir : "
+    + "le déclic est de faire boucler la lumière à travers la colonne magenta.",
   grid: String.raw`
-    .  M\ .  oM .  M/ .
-    .  fR .  .  .  fB .
-    >W S\ .  .  .  M\ .
+    .  fR .  oM .  .  .
+    x  fB M\ M\ .  M\ M/
+    >W .  M\ S/ fM M/ .
   `,
 };
