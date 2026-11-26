@@ -65,6 +65,16 @@ export const GATES: GateSpot[] = [
   { id: 'porte-sortie', x: 0, z: -24, rot: 0, width: 4, requires: ['tours'] },
 ];
 
+/**
+ * Tours-Miroirs : la grille de l'énigme d'environnement posée sur le jardin.
+ * Case (c, r) → x = x0 + c * dx, z = z0 + r * dz.
+ */
+export const TOWERS = { id: 'tours', requires: ['d5'], x0: -24, dx: 8, z0: -19, dz: 6, beamY: 3.2 };
+
+export function towerCell(c: number, r: number): { x: number; z: number } {
+  return { x: TOWERS.x0 + c * TOWERS.dx, z: TOWERS.z0 + r * TOWERS.dz };
+}
+
 /** Murs du jardin (segments), percés aux portes. */
 export const WALLS: [number, number, number, number][] = (() => {
   const { x0, x1, z0, z1 } = GARDEN;
@@ -97,6 +107,8 @@ export const FLATS: { x: number; z: number; r: number }[] = [
   ...PANELS.map((p) => ({ x: p.x, z: p.z, r: 3.5 })),
   ...GATES.map((g) => ({ x: g.x, z: g.z, r: 4 })),
   PLAZA,
+  // dalles des tours
+  ...[[1, 0], [3, 0], [5, 0], [1, 1], [5, 1], [0, 2], [1, 2], [5, 2]].map(([c, r]) => ({ ...towerCell(c!, r!), r: 2.5 })),
 ];
 
 /** Position où se tient le joueur pour faire face à un panneau. */

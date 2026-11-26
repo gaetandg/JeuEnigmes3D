@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { Game } from '../game/Game.ts';
-import { PANELS } from '../world/layout.ts';
+import { PANELS, TOWERS } from '../world/layout.ts';
 
 /** API exposée sur window.__game pour les tests de bout en bout (Playwright). */
 export function exposeDebugApi(game: Game): void {
@@ -22,7 +22,7 @@ export function exposeDebugApi(game: Game): void {
       let progress = true;
       while (progress) {
         progress = false;
-        for (const spot of PANELS) {
+        for (const spot of [...PANELS, TOWERS]) {
           if (game.solvePanel(spot.id)) {
             game.forceUpdatePower();
             progress = true;

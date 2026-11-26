@@ -7,6 +7,7 @@ import type { Cell, Color, LightPuzzle, LightState, SimResult } from '../core/li
 import { heightAt } from '../world/terrain.ts';
 import type { PanelSpot } from '../world/layout.ts';
 import { stoneMaterial } from '../world/props.ts';
+import type { InteractResult, PuzzleView } from './puzzleView.ts';
 
 /** Couleur d'affichage d'une couleur logique. */
 export function displayColor(c: Color): THREE.Color {
@@ -114,9 +115,8 @@ interface Piece {
   pick: THREE.Mesh;
 }
 
-export type InteractResult = 'ok' | 'denied' | 'locked';
-
-export class LightPanel {
+export class LightPanel implements PuzzleView {
+  readonly reach = 3.4;
   readonly group = new THREE.Group();
   readonly board = new THREE.Group();
   readonly pickables: THREE.Mesh[] = [];

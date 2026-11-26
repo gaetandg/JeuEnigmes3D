@@ -50,7 +50,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(19);
+  expect(panels).toHaveLength(20);
   expect(panels.filter((p) => p.powered).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -89,21 +89,33 @@ test('une porte fermée bloque le joueur, ouverte elle le laisse passer', async 
   expect((await page.evaluate(() => window.__game.player())).z).toBeLessThan(84);
 });
 
-test('toutes les énigmes se résolvent dans l\'ordre et ouvrent les portes du jardin', async ({ page }) => {
+test('toutes les énigmes (panneaux + Tours-Miroirs) se résolvent dans l\'ordre et ouvrent les portes', async ({ page }) => {
   await boot(page);
   const solved = await page.evaluate(() => window.__game.solveAll());
-  expect(solved).toHaveLength(19);
+  expect(solved).toHaveLength(20);
   await page.evaluate(() => window.__game.advance(4));
-  for (const gate of ['porte-plage', 'porte-place', 'porte-nord']) {
+  for (const gate of ['porte-plage', 'porte-place', 'porte-nord', 'porte-sortie']) {
     expect(await page.evaluate((g) => window.__game.gateOpen(g), gate)).toBe(1);
   }
-  expect(await page.evaluate(() => window.__game.gateOpen('porte-sortie'))).toBe(0);
-  for (const id of ['a5', 'b3', 'c4', 'd5']) {
+  for (const id of ['a5', 'b3', 'c4', 'd5', 'tours']) {
     await page.evaluate((i) => window.__game.view(i), id);
     await waitFrames(page, 3);
     await page.screenshot({ path: `test-results/panneau-${id}.png` });
   }
   expect(errors).toEqual([]);
+});
+
+test('les Tours-Miroirs se tournent en visant la tour', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    for (const id of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'c1', 'c2', 'c3', 'c4', 'd1', 'd2', 'd3', 'd4', 'd5']) window.__game.solve(id);
+    window.__game.teleport(-19, -4, Math.PI / 2);
+    window.__game.aim('tours', 2);
+  });
+  await waitFrames(page, 3);
+  const h = await page.evaluate(() => window.__game.hovered());
+  expect(h?.id).toBe('tours');
+  expect(await page.evaluate((k) => window.__game.interact('tours', k), h!.k)).toBe('ok');
 });
 
 test('la progression est sauvegardée et restaurée', async ({ page }) => {

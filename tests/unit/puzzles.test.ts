@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { analyze, initialState, parsePuzzle, simulate } from '../../src/core/light/index.ts';
-import { ZONE1 } from '../../src/puzzles/zone1.ts';
+import { ZONE1, ZONE1_TOWERS } from '../../src/puzzles/zone1.ts';
 
 describe('zone 1 — validation de toutes les énigmes par le solveur', () => {
   it('les identifiants sont uniques', () => {
@@ -8,7 +8,7 @@ describe('zone 1 — validation de toutes les énigmes par le solveur', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  for (const def of ZONE1) {
+  for (const def of [...ZONE1, ZONE1_TOWERS]) {
     it(`${def.id} : solvable, solution unique, aucune pièce inutile, non résolue au départ`, () => {
       const p = parsePuzzle(def);
       const init = initialState(p);
