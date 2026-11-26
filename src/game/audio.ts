@@ -192,6 +192,24 @@ export class Audio {
     src.start();
   }
 
+  /** Un pas dans l'herbe ou sur la pierre : bruit bref et feutré. */
+  step(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer(0.12);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 500 + Math.random() * 250;
+    const g = ctx.createGain();
+    const t = ctx.currentTime;
+    g.gain.setValueAtTime(0.0, t);
+    g.gain.linearRampToValueAtTime(0.09, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+    src.connect(f).connect(g).connect(this.master);
+    src.start();
+  }
+
   /** Le phare se rallume : longue montée d'accords. */
   finale(): void {
     const ctx = this.ctx;

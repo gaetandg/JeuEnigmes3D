@@ -26,6 +26,7 @@ export function displayColor(c: Color): THREE.Color {
 
 const BOARD_SIZE = 1.45;
 const WHITE_HOT = new THREE.Color('#ffffff');
+const SYMBOL_MAT = new THREE.MeshBasicMaterial({ color: '#f4efe3' });
 const TILT = 0.62;
 const BOARD_HEIGHT = 1.0;
 
@@ -150,6 +151,8 @@ export class LightPanel implements PuzzleView {
   private solvedAt = -1;
   private time = 0;
   private sourceLenses: { mat: THREE.MeshBasicMaterial; color: THREE.Color }[] = [];
+  /** petits symboles des couleurs primaires (option daltonisme) */
+  private symbols = new THREE.Group();
 
   constructor(readonly puzzle: LightPuzzle, readonly spot: PanelSpot) {
     const { width: w, height: h } = puzzle;
@@ -201,6 +204,23 @@ export class LightPanel implements PuzzleView {
 
     // pièces
     puzzle.cells.forEach((cellDef, i) => this.buildCell(cellDef, i));
+
+    // symboles : ▲ rouge, ■ vert, ● bleu, posés près de chaque élément coloré
+    this.symbols.visible = false;
+    this.board.add(this.symbols);
+    puzzle.cells.forEach((cellDef, i) => {
+      const col = cellDef.kind === 'target' || cellDef.kind === 'source' || cellDef.kind === 'filter' ? cellDef.color : 0;
+      if (!col) return;
+      const p = this.cellPos(i);
+      const prims = [RED, GREEN, BLUE].filter((b) => col & b);
+      prims.forEach((b, n) => {
+        const segs = b === RED ? 3 : b === GREEN ? 4 : 16;
+        const m = new THREE.Mesh(new THREE.CircleGeometry(c * 0.11, segs, b === GREEN ? Math.PI / 4 : Math.PI / 2), SYMBOL_MAT);
+        m.rotation.x = -Math.PI / 2;
+        m.position.set(p.x - c * 0.3 + n * c * 0.22, 0.032, p.z + c * 0.36);
+        this.symbols.add(m);
+      });
+    });
 
     // rayons
     const beamGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -432,6 +452,10 @@ export class LightPanel implements PuzzleView {
     this.board.add(pick);
     this.pickables.push(pick);
     this.pieces.push({ k, cellIndex, cell, plate, targetAngle: plate.rotation.y, pick });
+  }
+
+  setSymbols(on: boolean): void {
+    this.symbols.visible = on;
   }
 
   /** Masque les pièces des panneaux éloignés (performances). */
