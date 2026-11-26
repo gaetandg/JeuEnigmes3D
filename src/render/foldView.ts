@@ -127,6 +127,31 @@ function sheetGeometry(size: number, thick: number): THREE.BufferGeometry {
   return g;
 }
 
+/** Table lumineuse du pochoir : cases à éclairer cerclées d'or. */
+function lightTableTexture(p: FoldPuzzle, bright: boolean): THREE.Texture {
+  const px = 64;
+  const c = document.createElement('canvas');
+  c.width = p.width * px;
+  c.height = p.height * px;
+  const g = c.getContext('2d')!;
+  g.fillStyle = bright ? '#fff3d1' : '#4d4637';
+  g.fillRect(0, 0, c.width, c.height);
+  for (let y = 0; y < p.height; y++)
+    for (let x = 0; x < p.width; x++) {
+      const on = p.light!.has(`${x},${y}`);
+      g.fillStyle = on ? (bright ? '#ffd776' : '#6b5a33') : bright ? '#f3e7c8' : '#433d31';
+      g.fillRect(x * px + 4, y * px + 4, px - 8, px - 8);
+      if (on) {
+        g.strokeStyle = '#c08a24';
+        g.lineWidth = 6;
+        g.strokeRect(x * px + 6, y * px + 6, px - 12, px - 12);
+      }
+    }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
 interface Sheet {
   def: FoldCellDef;
   mesh: THREE.Mesh;
@@ -241,6 +266,26 @@ export class FoldView implements PuzzleView {
       this.board.add(gl);
     }
 
+    // pochoir : table lumineuse sous la feuille et petit modèle au fond
+    if (puzzle.light) {
+      const on = lightTableTexture(puzzle, true);
+      const off = lightTableTexture(puzzle, false);
+      const mat = new THREE.MeshBasicMaterial({ map: off, toneMapped: false });
+      const table = new THREE.Mesh(new THREE.PlaneGeometry(W, H), mat);
+      table.rotation.x = -Math.PI / 2;
+      table.position.y = 0.001;
+      this.board.add(table);
+      this.lightTable = { mat, on, off };
+      const plaque = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.4, H * 0.4), new THREE.MeshBasicMaterial({ map: on, toneMapped: false }));
+      plaque.position.set(0, H * 0.22, -H / 2 - fw * 2);
+      plaque.rotation.x = -0.25;
+      this.board.add(plaque);
+      const plaqueFrame = new THREE.Mesh(new THREE.BoxGeometry(W * 0.44, H * 0.44, 0.02), stoneMaterial('#efe7da'));
+      plaqueFrame.position.copy(plaque.position).add(new THREE.Vector3(0, 0, -0.012));
+      plaqueFrame.rotation.x = -0.25;
+      this.board.add(plaqueFrame);
+    }
+
     // cases de papier
     const geo = sheetGeometry(this.cell * 0.97, this.thick);
     for (const def of puzzle.cells) {
@@ -283,6 +328,7 @@ export class FoldView implements PuzzleView {
   }
 
   private resetPick: THREE.Mesh;
+  private lightTable: { mat: THREE.MeshBasicMaterial; on: THREE.Texture; off: THREE.Texture } | null = null;
 
   get id(): string {
     return this.puzzle.id;
@@ -346,6 +392,10 @@ export class FoldView implements PuzzleView {
   // ── interface PuzzleView ──────────────────────────────────────────────
   setPowered(on: boolean): void {
     this.powered = on;
+    if (this.lightTable) {
+      this.lightTable.mat.map = on ? this.lightTable.on : this.lightTable.off;
+      this.lightTable.mat.needsUpdate = true;
+    }
     for (const sh of this.sheets) for (const m of sh.mats) m.color.set(on ? '#ffffff' : '#8a8478');
     this.rebuildLines();
     this.refreshTokens();

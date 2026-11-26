@@ -192,6 +192,15 @@ export class Audio {
     src.start();
   }
 
+  /** Le phare se rallume : longue montée d'accords. */
+  finale(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const chords = [[261.63, 329.63, 392], [293.66, 369.99, 440], [329.63, 415.3, 493.88], [392, 493.88, 587.33, 783.99]];
+    chords.forEach((ch, i) => ch.forEach((f) => this.tone(f, t + i * 0.9, 3.2, 0.06, 'sine')));
+  }
+
   /** Un panneau s'allume. */
   power(): void {
     const ctx = this.ctx;

@@ -31,6 +31,16 @@ export type Cell =
   /** Socle où le joueur peut poser un miroir (réserve limitée). */
   | { kind: 'socket' };
 
+/** Objet en cubes posé sur la grille (zone finale) : il bloque les rayons là où il touche le sol. */
+export interface LightObject {
+  /** cubes dans une boîte 3×3×3 : x (droite), y (haut), z (vers le joueur) */
+  shape: [number, number, number][];
+  /** case de la grille du coin arrière gauche de sa boîte */
+  ax: number;
+  ay: number;
+  axis: 'x' | 'y';
+}
+
 export interface LightPuzzle {
   id: string;
   width: number;
@@ -41,12 +51,17 @@ export interface LightPuzzle {
   inventory: number;
   /** Index des cases manipulables (miroirs/lames orientables, socles), dans l'ordre. */
   interactive: number[];
+  /** Objets tournants (leurs états suivent ceux des cases dans LightState). */
+  objects: LightObject[];
+  /** Quarts de tour de départ des objets. */
+  objectStart: number[];
 }
 
 /**
  * État modifiable d'une énigme : une valeur par case manipulable (même ordre que `interactive`).
  * - miroir / lame orientable : 0 ou 1 (orientation)
  * - socle : -1 (vide), 0 (« / ») ou 1 (« \ »)
+ * puis, pour chaque objet, son nombre de quarts de tour (0..3).
  */
 export type LightState = number[];
 

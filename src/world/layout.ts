@@ -129,8 +129,25 @@ export const SHADOW_PANELS: PanelSpot[] = Array.from({ length: 10 }, (_, i) => {
 /** Le Cadran : théâtre d'ombres monumental au centre du cloître. */
 export const CADRAN = { id: 'cadran', x: CLOITRE.x, z: CLOITRE.z - 1, yaw: 0, requires: ['o10'], voxel: 1 };
 
+// ── zone 4 : le Phare (sommet de l'île) ──
+export const PHARE = { x: LIGHTHOUSE.x, z: LIGHTHOUSE.z + 6, r: 17 };
+
+/** Cinq panneaux en arc au pied du phare ; le joueur regarde vers le phare. */
+export const FINAL_PANELS: (PanelSpot & { kind: 'light' | 'fold' })[] = ['f1', 'f2', 'f3', 'f4', 'f5'].map((id, i) => {
+  const a = Math.PI / 2 + (i - 2) * 0.42;
+  const r = 13;
+  return {
+    id,
+    kind: id === 'f3' || id === 'f4' ? 'fold' : 'light',
+    x: LIGHTHOUSE.x + Math.cos(a) * r,
+    z: LIGHTHOUSE.z + Math.sin(a) * r,
+    yaw: Math.atan2(Math.cos(a), Math.sin(a)),
+    requires: i === 0 ? ['cadran'] : [['f1', 'f2', 'f3', 'f4'][i - 1]!],
+  };
+});
+
 /** Plateaux aplanis hors du jardin. */
-export const PLATEAUS: { x: number; z: number; r: number }[] = [ATELIER, CLOITRE];
+export const PLATEAUS: { x: number; z: number; r: number }[] = [ATELIER, CLOITRE, PHARE];
 
 /** Chemins : suites de points (x, z). */
 export const PATHS: [number, number][][] = [
@@ -140,6 +157,7 @@ export const PATHS: [number, number][][] = [
   [[0, 38], [0, 26], [0, 22], [-5, 16], [4, 12], [-3, 6], [2, 0], [0, -8], [0, -24], [0, -34]],
   [[0, -34], [-14, -40], [-26, -46], [-34, -50]],
   [[0, -34], [12, -40], [22, -48], [CLOITRE.x - CLOITRE.half - 3, CLOITRE.z]],
+  [[0, -34], [3, -50], [-2, -64], [9, -72], [-3, -80], [4, -88], [0, -96]],
 ];
 
 /** Place centrale du jardin. */
@@ -150,6 +168,7 @@ export const FLATS: { x: number; z: number; r: number }[] = [
   ...PANELS.map((p) => ({ x: p.x, z: p.z, r: 3.5 })),
   ...FOLD_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...SHADOW_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
+  ...FINAL_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...GATES.map((g) => ({ x: g.x, z: g.z, r: 4 })),
   PLAZA,
   // dalles des tours

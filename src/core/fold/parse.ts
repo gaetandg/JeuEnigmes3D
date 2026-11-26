@@ -16,6 +16,8 @@ export interface FoldPuzzleDef {
   note: string;
   /** nombre de plis permis */
   folds: number;
+  /** pochoir : motif de lumière attendu (o = éclairé, . = sombre), mêmes dimensions que la feuille */
+  light?: string;
 }
 
 function mark(ch: string | undefined, token: string): Mark {
@@ -58,5 +60,14 @@ export function parseFold(def: FoldPuzzleDef): FoldPuzzle {
     });
   });
   if (!cells.length) throw new Error(`${def.id} : feuille vide`);
-  return { id: def.id, width, height, cells, maxFolds: def.folds };
+  let light: Set<string> | undefined;
+  if (def.light) {
+    light = new Set();
+    const lrows = def.light.split('\n').map((l) => l.trim()).filter(Boolean).map((l) => l.split(/\s+/));
+    if (lrows.length !== height || lrows.some((r) => r.length !== width)) throw new Error(`${def.id} : motif de lumière mal dimensionné`);
+    lrows.forEach((r, y) => r.forEach((t, x) => {
+      if (t === 'o') light!.add(`${x},${y}`);
+    }));
+  }
+  return { id: def.id, width, height, cells, maxFolds: def.folds, light };
 }

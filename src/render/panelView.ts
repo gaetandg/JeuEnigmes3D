@@ -8,6 +8,7 @@ import { heightAt } from '../world/terrain.ts';
 import type { PanelSpot } from '../world/layout.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
+import { objectEuler } from './shadowMath.ts';
 
 /** Couleur d'affichage d'une couleur logique. */
 export function displayColor(c: Color): THREE.Color {
@@ -135,6 +136,8 @@ export class LightPanel implements PuzzleView {
 
   private cell: number;
   private pieces: Piece[] = [];
+  /** objets en cubes (zone finale) : rotation affichée animée */
+  private objs: { k: number; pivot: THREE.Group; axis: 'x' | 'y'; current: number; target: number; base: THREE.MeshStandardMaterial }[] = [];
   private crystals: Crystal[] = [];
   private beams: THREE.InstancedMesh;
   private halos: THREE.InstancedMesh;
@@ -221,6 +224,46 @@ export class LightPanel implements PuzzleView {
     this.hover.rotation.x = Math.PI / 2;
     this.hover.visible = false;
     this.board.add(this.hover);
+
+    // objets en cubes (zone finale)
+    puzzle.objects.forEach((o, j) => {
+      const k = puzzle.interactive.length + j;
+      const center = this.cellPos((o.ay + 1) * w + o.ax + 1);
+      const baseMat = new THREE.MeshStandardMaterial({ color: '#c9a45c', roughness: 0.35, metalness: 0.7, emissive: '#000000' });
+      if (o.axis === 'y') {
+        const disc = new THREE.Mesh(new THREE.CylinderGeometry(c * 1.5, c * 1.52, c * 0.05, 32), baseMat);
+        disc.position.copy(center);
+        disc.position.y = c * 0.02;
+        this.board.add(disc);
+      } else {
+        for (const s of [-1, 1]) {
+          const arc = new THREE.Mesh(new THREE.TorusGeometry(c * 1.5, c * 0.05, 6, 24, Math.PI), baseMat);
+          arc.rotation.y = Math.PI / 2;
+          arc.position.set(center.x + s * c * 1.55, c * 1.5, center.z);
+          arc.rotation.z = Math.PI;
+          this.board.add(arc);
+        }
+      }
+      const pivot = new THREE.Group();
+      pivot.position.set(center.x, c * 1.5 + 0.004, center.z);
+      const mat = new THREE.MeshStandardMaterial({ color: ['#c96f5a', '#7fa36a', '#6b86b5'][j % 3]!, roughness: 0.6, flatShading: true });
+      const cube = new THREE.BoxGeometry(c * 0.94, c * 0.94, c * 0.94);
+      for (const [x, y, z] of o.shape) {
+        const m = new THREE.Mesh(cube, mat);
+        m.position.set((x - 1) * c, (y - 1) * c, (z - 1) * c);
+        m.castShadow = true;
+        pivot.add(m);
+      }
+      this.board.add(pivot);
+      const pick = new THREE.Mesh(new THREE.BoxGeometry(c * 3, c * 3, c * 3), MAT.pick);
+      pick.position.copy(pivot.position);
+      pick.userData = { panel: this, k };
+      this.board.add(pick);
+      this.pickables.push(pick);
+      const t = this.state[k]!;
+      pivot.rotation.copy(objectEuler(o.axis, t));
+      this.objs.push({ k, pivot, axis: o.axis, current: t, target: t, base: baseMat });
+    });
 
     // réserve de miroirs (jetons sur le bord proche)
     for (let t = 0; t < puzzle.inventory; t++) {
@@ -405,11 +448,16 @@ export class LightPanel implements PuzzleView {
   }
 
   setHover(k: number | null): void {
+    for (const o of this.objs) o.base.emissive.set(o.k === k && this.powered && !this.solved ? '#6b5320' : '#000000');
     if (k === null || !this.powered || this.solved) {
       this.hover.visible = false;
       return;
     }
     const piece = this.pieces.find((p) => p.k === k);
+    if (!piece) {
+      this.hover.visible = false;
+      return;
+    }
     if (!piece) return;
     this.hover.visible = true;
     this.hover.position.copy(this.cellPos(piece.cellIndex));
@@ -434,6 +482,15 @@ export class LightPanel implements PuzzleView {
       }
       if (v >= 0) piece.targetAngle = v === 0 ? Math.PI / 4 : -Math.PI / 4;
       if (instant && piece.plate) piece.plate.rotation.y = piece.targetAngle;
+    }
+    for (const o of this.objs) {
+      const v = this.state[o.k]!;
+      // tourner par le plus court chemin (cible continue, sans à-coup de 3 → 0)
+      let d = (v - (((o.target % 4) + 4) % 4) + 4) % 4;
+      if (d === 3) d = -1;
+      o.target += d;
+      if (instant) o.current = o.target;
+      o.pivot.rotation.copy(objectEuler(o.axis, o.current));
     }
     const used = piecesUsed(this.puzzle, this.state);
     this.tokens.forEach((t, i) => (t.visible = i < this.puzzle.inventory - used));
@@ -508,6 +565,12 @@ export class LightPanel implements PuzzleView {
   /** Animation (appelée à chaque image). */
   update(dt: number, time: number): void {
     this.time = time;
+    for (const o of this.objs) {
+      if (o.current === o.target) continue;
+      const d = o.target - o.current;
+      o.current += Math.sign(d) * Math.min(Math.abs(d), dt * 5);
+      o.pivot.rotation.copy(objectEuler(o.axis, o.current));
+    }
     for (const p of this.pieces) {
       if (!p.plate) continue;
       const d = p.targetAngle - p.plate.rotation.y;

@@ -67,6 +67,28 @@ export class Hud {
     this.crosshair.classList.toggle('active', active);
   }
 
+  /** Écran de fin. */
+  showEnding(stats: { solved: number; total: number; minutes: number }): void {
+    const el = document.createElement('div');
+    el.className = 'overlay ending';
+    el.innerHTML = `
+      <div class="panel">
+        <h1>Lueur</h1>
+        <p class="subtitle">Le phare brille à nouveau.</p>
+        <p>${stats.solved} énigmes sur ${stats.total} · ${stats.minutes} min de jeu</p>
+        <p class="help">Merci d'avoir joué.<br/>Un jeu imaginé avec gaetandg et entièrement conçu, codé et testé par Claude.</p>
+        <button class="primary" data-action="continue">Continuer à explorer</button>
+      </div>`;
+    this.root.appendChild(el);
+    document.exitPointerLock?.();
+    el.querySelector('[data-action="continue"]')!.addEventListener('click', () => {
+      el.remove();
+      this.onContinue?.();
+    });
+  }
+
+  onContinue: (() => void) | null = null;
+
   /** Message discret (uniquement pour les menus/erreurs, jamais pour les énigmes). */
   notify(msg: string): void {
     this.toast.textContent = msg;

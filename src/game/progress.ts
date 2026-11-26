@@ -6,6 +6,8 @@ export interface SaveData {
   solved: string[];
   states: Record<string, number[]>;
   player?: { x: number; z: number; yaw: number };
+  /** temps de jeu en secondes */
+  playTime?: number;
   settings?: { volume: number; sensitivity: number };
 }
 
@@ -14,7 +16,7 @@ export function loadSave(): SaveData {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const d = JSON.parse(raw) as Partial<SaveData>;
-      return { solved: d.solved ?? [], states: d.states ?? {}, player: d.player, settings: d.settings };
+      return { solved: d.solved ?? [], states: d.states ?? {}, player: d.player, settings: d.settings, playTime: d.playTime };
     }
   } catch {
     /* stockage indisponible */
