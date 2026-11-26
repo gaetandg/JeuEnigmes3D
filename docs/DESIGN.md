@@ -183,6 +183,6 @@ tests/
 | 5 | Zone Ombres | idem |
 | 6 | Le Phare | zone finale combinée, fin du jeu |
 
-**Bilan** : 49 énigmes (19 + 1 en zone 1, 12 + 1 en zone 2, 10 + 1 en zone 3, 5 en zone 4),
+**Bilan** : 53 énigmes (22 + 1 en zone 1, 13 + 1 en zone 2, 10 + 1 en zone 3, 5 en zone 4),
 toutes vérifiées par les solveurs à chaque modification.
 | 7 | Mobile | contrôles tactiles, performances |

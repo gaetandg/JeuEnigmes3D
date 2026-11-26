@@ -30,6 +30,8 @@ import type { Quality, SaveData, Settings } from './progress.ts';
 import { Hud } from '../ui/hud.ts';
 
 const REACH = 5;
+/** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
+const HINT_DELAY = 180;
 
 /** Qui alimente quoi : panneaux + énigmes d'environnement. */
 const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS];
@@ -96,6 +98,13 @@ export class Game {
   private timer = new THREE.Timer();
   private time = 0;
   private saveTimer = 0;
+  /** le joueur est en jeu (menus fermés) — vrai aussi sur mobile, sans verrouillage du pointeur */
+  private playing = false;
+  /** aides discrètes : temps passé (s) près de chaque énigme non résolue */
+  private stuck = new Map<string, number>();
+  private stuckClock = 0;
+  hintsOn = true;
+  private anchors = new Map<string, THREE.Vector3[]>();
   private plazaCrystal: THREE.Mesh;
   readonly lighthouseLamp: THREE.Mesh;
   /** rais de lumière vers le phare, un par zone terminée */
@@ -253,6 +262,33 @@ export class Game {
     this.shafts.push({ id, mesh, on: 0 });
   }
 
+  /** Positions de référence d'une énigme (pour savoir si le joueur est devant). */
+  private anchorsOf(p: PuzzleView): THREE.Vector3[] {
+    let a = this.anchors.get(p.id);
+    if (!a) {
+      p.group.updateMatrixWorld(true);
+      a = p instanceof WorldLightPuzzle ? p.pickables.map((m) => m.getWorldPosition(new THREE.Vector3())) : [p.group.position.clone()];
+      this.anchors.set(p.id, a);
+    }
+    return a;
+  }
+
+  /** Aides discrètes : après HINT_DELAY secondes près d'une énigme non résolue, une pièce luit. */
+  private updateStuck(dt: number): void {
+    if (!this.hintsOn || !this.playing) return;
+    const pos = this.player.position;
+    for (const p of this.panels.values()) {
+      if (!p.powered || p.solved) continue;
+      const near = this.anchorsOf(p).some((a) => Math.hypot(a.x - pos.x, a.z - pos.z) < p.reach + 2.5);
+      if (!near) continue;
+      const t = (this.stuck.get(p.id) ?? 0) + dt;
+      if (t >= HINT_DELAY) {
+        p.hint();
+        this.stuck.set(p.id, HINT_DELAY - 120); // l'aide suivante, deux minutes plus tard
+      } else this.stuck.set(p.id, t);
+    }
+  }
+
   /** Bilan affiché à la fin. */
   stats(): { solved: number; total: number; minutes: number } {
     return { solved: this.save.solved.length, total: this.panels.size, minutes: Math.round((this.save.playTime ?? 0) / 60) };
@@ -276,7 +312,7 @@ export class Game {
   private setupInput(): void {
     const touch = TouchInput.supported();
     const settings: Settings = {
-      volume: 0.7, sensitivity: 0.0022, quality: touch ? 'basse' : 'haute', symbols: false, ...this.save.settings,
+      volume: 0.7, sensitivity: 0.0022, quality: touch ? 'basse' : 'haute', symbols: false, hints: true, ...this.save.settings,
     };
     const saveSettings = (patch: Partial<Settings>) => {
       this.save.settings = { ...settings, ...this.save.settings, ...patch };
@@ -286,6 +322,7 @@ export class Game {
     this.player.sensitivity = settings.sensitivity;
     this.applyQuality(settings.quality ?? 'haute');
     this.setSymbols(!!settings.symbols);
+    this.hintsOn = settings.hints !== false;
     this.input = new DesktopInput(this.opts.canvas, this.player);
     // le joystick est ajouté à l'interface APRÈS sa construction (qui remplace son contenu)
     let touchInput: TouchInput | null = null;
@@ -294,12 +331,14 @@ export class Game {
         this.audio.start();
         if (touchInput) {
           touchInput.enabled = true;
+          this.playing = true;
           this.hud!.hideTitle();
           document.documentElement.requestFullscreen?.().catch(() => undefined);
         } else this.input!.requestLock();
       },
       onPause: () => {
         if (touchInput) touchInput.enabled = false;
+        this.playing = false;
         this.hud!.showTitle(true);
         this.persist();
       },
@@ -319,14 +358,24 @@ export class Game {
         this.setSymbols(on);
         saveSettings({ symbols: on });
       },
+      onHints: (on) => {
+        this.hintsOn = on;
+        saveSettings({ hints: on });
+      },
       onReset: () => this.reset(),
     }, settings, this.save.solved.length > 0, touch);
     if (touch) {
       touchInput = new TouchInput(this.opts.canvas, this.opts.ui, this.player);
       touchInput.onTap = (reverse) => this.click(reverse);
     }
-    this.hud.onContinue = () => (touchInput ? (touchInput.enabled = true) : this.input!.requestLock());
+    this.hud.onContinue = () => {
+      if (touchInput) {
+        touchInput.enabled = true;
+        this.playing = true;
+      } else this.input!.requestLock();
+    };
     this.input.onLockChange = (locked) => {
+      this.playing = locked;
       if (locked) this.hud!.hideTitle();
       else {
         this.hud!.showTitle(true);
@@ -396,7 +445,7 @@ export class Game {
       }
     }
     for (const id of this.save.solved) this.cables.light(id, instant);
-    const allees = ['a5', 'b5', 'c4', 'd5', 'tours'].filter((id) => this.isSolved(id)).length;
+    const allees = ['a5', 'b6', 'c5', 'd6', 'tours'].filter((id) => this.isSolved(id)).length;
     const m = this.plazaCrystal.material as THREE.MeshStandardMaterial;
     m.emissive.set('#ffd98a').multiplyScalar(allees * 0.25);
     // chaque zone terminée donne un quart de lumière au phare ; le dernier panneau l'allume
@@ -408,7 +457,10 @@ export class Game {
       this.beacon.visible = true;
       if (!instant) {
         this.audio.finale();
-        window.setTimeout(() => this.hud?.showEnding(this.stats()), 4500);
+        window.setTimeout(() => {
+          this.playing = false;
+          this.hud?.showEnding(this.stats());
+        }, 4500);
       }
     }
     for (const s of this.shafts) {
@@ -533,7 +585,7 @@ export class Game {
     }
     this.plazaCrystal.rotation.y += dt * 0.2;
     if (this.beacon.visible) this.beacon.rotation.y += dt * 0.35;
-    if (this.input?.locked) this.save.playTime = (this.save.playTime ?? 0) + dt;
+    if (this.playing) this.save.playTime = (this.save.playTime ?? 0) + dt;
     this.atelierUpdate(this.time);
     for (const s of this.shafts) {
       if (!s.mesh.visible) continue;
@@ -542,8 +594,13 @@ export class Game {
     }
     this.updateHover();
     this.audio.setSeaProximity(1 - Math.min(1, Math.max(0, (this.player.position.y - 2) / 6)));
+    this.stuckClock += dt;
+    if (this.stuckClock >= 1) {
+      this.updateStuck(this.stuckClock);
+      this.stuckClock = 0;
+    }
     this.saveTimer += dt;
-    if (this.saveTimer > 5 && this.input?.locked) {
+    if (this.saveTimer > 5 && this.playing) {
       this.saveTimer = 0;
       this.persist();
     }

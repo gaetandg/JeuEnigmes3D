@@ -113,6 +113,17 @@ export const ZONE1: Zone1Puzzle[] = [
 
   {
     id: 'b5',
+    note: 'Intermédiaire : deux couleurs, un cristal noir, quatre miroirs.',
+    grid: String.raw`
+      .  .  .  .  .
+      M\ .  .  M/ M/
+      .  oR M/ .  #
+      oB .  .  .  .
+      >R .  M\ ^B x
+    `,
+  },
+  {
+    id: 'b6',
     note: 'Synthèse des couleurs : trois rayons, deux cristaux noirs à éviter.',
     grid: String.raw`
       .  vR .  .  .  .
@@ -148,6 +159,17 @@ export const ZONE1: Zone1Puzzle[] = [
   },
   {
     id: 'c3',
+    note: 'Intermédiaire : lames et vitrail bleu.',
+    grid: String.raw`
+      .  .  vW .  oB .
+      .  M\ fB .  .  .
+      >B S/ .  #  .  .
+      .  .  S/ .  M\ x
+      .  M/ .  oB .  .
+    `,
+  },
+  {
+    id: 'c4',
     note: 'Deux lumières blanches, deux vitraux, une lame.',
     grid: String.raw`
       >W .  M/ M\ .  <W
@@ -159,7 +181,7 @@ export const ZONE1: Zone1Puzzle[] = [
     `,
   },
   {
-    id: 'c4',
+    id: 'c5',
     note: 'Le jaune contient du rouge : vitraux et lames combinés.',
     grid: String.raw`
       x  .  .  M/ S\ .  <Y
@@ -185,15 +207,14 @@ export const ZONE1: Zone1Puzzle[] = [
   },
   {
     id: 'd2',
-    note: 'Deux miroirs à poser, plusieurs socles : choisir les bons.',
-    inventory: 2,
+    note: 'Intermédiaire : un seul miroir à poser, deux socles.',
+    inventory: 1,
     grid: String.raw`
-      >R .  M/ vG M/ .
-      .  x  .  .  .  #
-      .  x  .  .  _  .
-      _  .  _  M/ M/ .
-      oR .  .  .  .  .
-      .  #  .  .  M/ oG
+      x  vY .  .  .
+      .  _  .  .  M/
+      .  M\ .  #  _
+      .  oY .  .  M\
+      .  .  .  .  .
     `,
   },
   {
@@ -221,6 +242,19 @@ export const ZONE1: Zone1Puzzle[] = [
   },
   {
     id: 'd5',
+    note: 'Avant le final : deux couleurs, un miroir à poser.',
+    inventory: 1,
+    grid: String.raw`
+      M\ x  .  #  #  vR
+      .  .  .  x  .  .
+      .  .  .  M\ .  _
+      .  .  M\ .  .  <G
+      .  .  .  oR oG .
+      _  .  M/ .  M\ .
+    `,
+  },
+  {
+    id: 'd6',
     note: 'Grand panneau final de la zone : tout ce qui a été appris.',
     inventory: 1,
     grid: String.raw`

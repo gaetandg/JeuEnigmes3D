@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(49);
+  expect(panels).toHaveLength(53);
   expect(panels.filter((p) => p.powered).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -73,7 +73,7 @@ test('toutes les énigmes (zones 1 à 4) se résolvent dans l\'ordre et ouvrent 
   test.setTimeout(360_000);
   await boot(page);
   const solved = await page.evaluate(() => window.__game.solveAll());
-  expect(solved).toHaveLength(49);
+  expect(solved).toHaveLength(53);
   await page.evaluate(() => window.__game.advance(4));
   for (const gate of ['porte-plage', 'porte-place', 'porte-nord', 'porte-sortie']) {
     expect(await page.evaluate((g) => window.__game.gateOpen(g), gate)).toBe(1);
@@ -90,7 +90,7 @@ test('toutes les énigmes (zones 1 à 4) se résolvent dans l\'ordre et ouvrent 
 test('les Tours-Miroirs se tournent en visant la tour', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => {
-    for (const id of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'c1', 'c2', 'c3', 'c4', 'd1', 'd2', 'd3', 'd4', 'd5']) window.__game.solve(id);
+    for (const id of ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'c1', 'c2', 'c3', 'c4', 'c5', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6']) window.__game.solve(id);
     window.__game.teleport(-19, -4, Math.PI / 2);
     window.__game.aim('tours', 2);
   });
@@ -100,7 +100,7 @@ test('les Tours-Miroirs se tournent en visant la tour', async ({ page }) => {
   expect(await page.evaluate((k) => window.__game.interact('tours', k), h!.k)).toBe('ok');
 });
 
-const ZONE1 = ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'c1', 'c2', 'c3', 'c4', 'd1', 'd2', 'd3', 'd4', 'd5', 'tours'];
+const ZONE1 = ['a1', 'a2', 'a3', 'a4', 'a5', 'b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'c1', 'c2', 'c3', 'c4', 'c5', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'tours'];
 
 test('une feuille de pliage se plie en visant une ligne de pli', async ({ page }) => {
   await boot(page);
@@ -136,7 +136,7 @@ test('un mauvais pliage se déplie tout seul quand la réserve est vide', async 
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'p2')!.solved).toBe(false);
 });
 
-const ZONE2 = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11', 'p12', 'grand-pli'];
+const ZONE2 = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8', 'p9', 'p10', 'p11', 'p12', 'p13', 'grand-pli'];
 
 test("un objet tourne sur son plateau et son ombre épouse la silhouette", async ({ page }) => {
   await boot(page);
@@ -171,6 +171,37 @@ test("zone finale : tourner un objet sur un panneau de lumière change l'emprein
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'f1')!.solved).toBe(true);
   expect(await page.evaluate(() => window.__game.ended())).toBe(false);
   await page.screenshot({ path: 'test-results/f1-resolu.png' });
+  expect(errors).toEqual([]);
+});
+
+test('en suivant les aides discrètes, on résout une énigme de chaque langage', async ({ page }) => {
+  test.setTimeout(240_000);
+  await boot(page);
+  const follow = async (id: string) =>
+    page.evaluate(async (pid) => {
+      const g = window.__game;
+      for (let i = 0; i < 40; i++) {
+        if (g.panels().find((p) => p.id === pid)!.solved) return i;
+        const k = g.hint(pid);
+        if (k === null) return -1;
+        g.interact(pid, k);
+        g.advance(1.2); // laisse finir les animations (plis, rotations)
+      }
+      return -2;
+    }, id);
+  await page.evaluate(() => {
+    for (const id of ['a1', 'a2', 'a3', 'a4']) window.__game.solve(id);
+  });
+  expect(await follow('a5')).toBeGreaterThan(0);
+  // (solve() remet aussi à jour l'alimentation, que le jeu fait sinon après un court délai)
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+  }, ['a5', ...ZONE1.slice(5), 'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8']);
+  expect(await follow('p9')).toBeGreaterThan(0);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+  }, ['p9', ...ZONE2.slice(9), 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9']);
+  expect(await follow('o10')).toBeGreaterThan(0);
   expect(errors).toEqual([]);
 });
 

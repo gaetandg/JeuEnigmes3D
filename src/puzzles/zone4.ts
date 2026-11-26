@@ -64,18 +64,18 @@ export const ZONE4_FOLD: FoldPuzzleDef[] = [
     `,
   },
   {
-    id: 'f4', folds: 3, note: 'Le pochoir en trois plis.',
+    id: 'f4', folds: 2, note: 'Le pochoir en deux plis : aligner trois trous.',
     grid: `
-      .  O  .  .
+      .  .  .  O
+      .  O  .  O
       .  .  .  .
-      .  O  .  .
-      .  .  O  .
+      .  .  .  .
     `,
     light: `
-      o  o  o  o
-      o  o  o  o
+      o  .  .  o
+      o  .  .  o
       o  .  .  .
-      o  .  o  .
+      o  o  o  o
     `,
   },
 ];

@@ -53,6 +53,7 @@ export function exposeDebugApi(game: Game): void {
     hovered: () => game.hoveredPiece(),
     drawCalls: () => game.lastDrawCalls,
     ended: () => game.ended,
+    hint: (id: string) => game.panels.get(id)?.hint() ?? null,
   };
   (window as unknown as { __game: typeof api }).__game = api;
   api.ready = true;

@@ -20,6 +20,11 @@ export interface PuzzleView {
   applyState(s: number[], instant?: boolean): void;
   /** une solution (état) trouvée par le solveur — pour les tests */
   solution(): number[] | null;
+  /**
+   * Aide discrète : fait luire une pièce à changer (ou la pierre de remise à zéro).
+   * Renvoie l'indice de la pièce désignée, ou null s'il n'y a rien à montrer.
+   */
+  hint(): number | null;
   markSolved(): void;
   setDetail(visible: boolean): void;
   update(dt: number, time: number): void;

@@ -36,6 +36,10 @@ const PROFILES: Record<string, Profile> = {
   // couleurs + cristaux noirs
   b5: { w: 6, h: 6, sources: ['R', 'B', 'G'], turnsMin: 1, turnsMax: 3, allow: ['mirror', 'dark'], decoys: 2, darks: 2, walls: 1, filters: 0, minSpace: 64 },
   // verre : filtres + lames
+  // énigmes intermédiaires (difficulté moyenne, pour lisser la courbe)
+  bm: { w: 5, h: 5, sources: ['R', 'B'], turnsMin: 1, turnsMax: 2, allow: ['mirror', 'dark'], decoys: 1, darks: 1, walls: 1, filters: 0, minSpace: 16 },
+  cm: { w: 6, h: 5, sources: ['W', 'B'], turnsMin: 1, turnsMax: 2, allow: ['mirror', 'splitter', 'filter', 'dark'], decoys: 1, darks: 1, walls: 1, filters: 1, minSpace: 16 },
+  dm: { w: 5, h: 5, sources: ['Y'], turnsMin: 1, turnsMax: 3, allow: ['mirror', 'socket', 'dark'], decoys: 1, darks: 1, walls: 1, filters: 0, sockets: 2, socketPath: 1, minSpace: 16 },
   c3: { w: 6, h: 6, sources: ['W', 'W'], turnsMin: 1, turnsMax: 3, allow: ['mirror', 'splitter', 'filter', 'dark'], decoys: 1, darks: 1, walls: 1, filters: 2, minSpace: 64 },
   c4: { w: 7, h: 6, sources: ['W', 'Y'], turnsMin: 2, turnsMax: 3, allow: ['mirror', 'splitter', 'filter', 'dark'], decoys: 2, darks: 2, walls: 2, filters: 2, minSpace: 128 },
   // socles
@@ -207,9 +211,11 @@ for (let attempt = 0; attempt < 40000 && found.length < 60; attempt++) {
   if (why) continue;
   // tous les éléments demandés doivent compter : chaque cristal noir doit être « menacé »
   const s = score(p, a);
-  found.push({ s, grid: stateToGrid(p, init) + (objects.length ? '\nobjets : ' + JSON.stringify(objects) : ''), inv, text: renderAscii(p, a.solutions[0]!) });
+  found.push({ s, grid: stateToGrid(p, init) + (objects.length ? '\nobjets : ' + JSON.stringify(objects) : ''), inv, text: renderAscii(p, a.solutions[0]!), raw: grid, objects } as never);
 }
 found.sort((a, b) => b.s - a.s);
+// export brut pour d'autres outils (ex. tri par difficulté) : OUT=fichier.json
+if (process.env.OUT) (await import('node:fs')).writeFileSync(process.env.OUT, JSON.stringify(found));
 for (const f of found.slice(0, Number(countArg))) {
   console.log(`\n── score ${f.s.toFixed(1)}  réserve ${f.inv}`);
   console.log(f.grid);

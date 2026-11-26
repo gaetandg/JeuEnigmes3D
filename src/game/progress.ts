@@ -1,6 +1,6 @@
 /** Sauvegarde locale de la partie (navigateur). Toute erreur de stockage est ignorée. */
 
-const KEY = 'lueur-sauvegarde-v1';
+const KEY = 'lueur-sauvegarde-v2';
 
 export type Quality = 'haute' | 'moyenne' | 'basse';
 
@@ -10,6 +10,8 @@ export interface Settings {
   quality?: Quality;
   /** symboles sur les couleurs (daltonisme) */
   symbols?: boolean;
+  /** aides discrètes quand on bloque longtemps */
+  hints?: boolean;
 }
 
 export interface SaveData {

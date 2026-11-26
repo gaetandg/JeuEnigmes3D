@@ -37,7 +37,15 @@ export const ZONE2: FoldPuzzleDef[] = [
   { id: 'p8', folds: 1, note: "Le trou : l'étoile se voit à travers.", grid: 'B * O B' },
   // ── combinaisons (générées puis choisies : solution unique) ─────────────
   {
-    id: 'p9', folds: 3, note: 'Trou, étoile, tache et points ensemble.',
+    id: 'p9', folds: 2, note: 'Première combinaison, en deux plis : trou, étoile, tache et points.',
+    grid: `
+      .  R  .  R
+      s  .  .* .
+      .  *  O  .
+    `,
+  },
+  {
+    id: 'p10', folds: 3, note: 'Trou, étoile, tache et points ensemble.',
     grid: `
       .  .s R  .
       O  R  .  *
@@ -45,7 +53,7 @@ export const ZONE2: FoldPuzzleDef[] = [
     `,
   },
   {
-    id: 'p10', folds: 3, note: 'Les marques du dos comptent aussi.',
+    id: 'p11', folds: 3, note: 'Les marques du dos comptent aussi.',
     grid: `
       B  .  .  B
       .  R  .  .s
@@ -53,7 +61,7 @@ export const ZONE2: FoldPuzzleDef[] = [
     `,
   },
   {
-    id: 'p11', folds: 3, note: 'Feuille découpée.',
+    id: 'p12', folds: 3, note: 'Feuille découpée.',
     grid: `
       s  .  .  .s
       .* .  B  .
@@ -62,7 +70,7 @@ export const ZONE2: FoldPuzzleDef[] = [
     `,
   },
   {
-    id: 'p12', folds: 4, note: "Grand pli final de l'atelier.",
+    id: 'p13', folds: 4, note: "Grand pli final de l'atelier.",
     grid: `
       .R .  O  .  s
       .  .  .  R  .*

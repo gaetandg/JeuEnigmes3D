@@ -6,6 +6,7 @@ import type { Fold, FoldCellDef, FoldPuzzle, FoldState, Mark } from '../core/fol
 import { heightAt } from '../world/terrain.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
+import { pulse } from './hints.ts';
 import { EASEL_TILT } from '../world/puzzleColliders.ts';
 
 /** Placement d'une feuille : sur un pupitre (panneau) ou à plat sur une estrade (paysage). */
@@ -192,6 +193,9 @@ export class FoldView implements PuzzleView {
   private lineGroup = new THREE.Group();
   private lineMat = new THREE.MeshBasicMaterial({ color: '#7a6a4f', toneMapped: false });
   private lineHot = new THREE.MeshBasicMaterial({ color: '#ffd36b', toneMapped: false });
+  private lineHint = new THREE.MeshBasicMaterial({ color: '#9fe8ff', toneMapped: false });
+  /** aide : ligne de pli à suivre (k) ou pierre de remise à zéro (RESET_K) */
+  private hintK: number | null = null;
   private tokens: THREE.Mesh[] = [];
   private tokenOn = new THREE.MeshStandardMaterial({ color: '#f5ecd6', roughness: 0.8 });
   private tokenOff = new THREE.MeshStandardMaterial({ color: '#5a5046', roughness: 0.9 });
@@ -373,7 +377,7 @@ export class FoldView implements PuzzleView {
       const th = Math.max(0.012, this.cell * 0.045);
       const line = new THREE.Mesh(
         f.axis === 'x' ? new THREE.BoxGeometry(th, th * 0.5, len) : new THREE.BoxGeometry(len, th * 0.5, th),
-        this.hovered === k ? this.lineHot : this.lineMat,
+        this.hovered === k ? this.lineHot : this.hintK === k ? this.lineHint : this.lineMat,
       );
       if (f.axis === 'x') line.position.set((f.at - w / 2) * this.cell, y, ((b.y0 + b.y1) / 2 - h / 2) * this.cell);
       else line.position.set(((b.x0 + b.x1) / 2 - w / 2) * this.cell, y, (f.at - h / 2) * this.cell);
@@ -416,9 +420,32 @@ export class FoldView implements PuzzleView {
     this.resetMat.emissive.set(k === RESET_K ? '#6b5320' : '#000000');
   }
 
+  private hintPulse(time: number): void {
+    if (this.hintK === null || this.solved) return;
+    const p = pulse(time);
+    this.lineHint.color.set('#7a6a4f').lerp(new THREE.Color('#9fe8ff'), p);
+    if (this.hintK === RESET_K && this.hovered !== RESET_K) this.resetMat.emissive.set('#2a8fb0').multiplyScalar(p);
+  }
+
+  hint(): number | null {
+    if (!this.powered || this.solved || this.anim) return null;
+    const sol = solveFold(this.puzzle).solution;
+    if (!sol) return null;
+    const done = this.fs.folds;
+    const onTrack = done.length < sol.length && done.every((f, i) => f.axis === sol[i]!.axis && f.at === sol[i]!.at && f.side === sol[i]!.side);
+    const next = sol[done.length];
+    this.hintK = onTrack && next ? (next.axis === 'x' ? 0 : 100) + next.at : RESET_K;
+    this.rebuildLines();
+    return this.hintK;
+  }
+
   interact(k: number, reverse = false): InteractResult {
     if (!this.powered || this.solved) return 'locked';
     if (this.anim || this.failTimer > 0) return 'denied';
+    if (this.hintK !== null) {
+      this.hintK = null;
+      this.lineHint.color.set('#9fe8ff');
+    }
     if (k === RESET_K) {
       if (this.fs.folds.length === 0) return 'denied';
       this.applyState([], false);
@@ -546,6 +573,7 @@ export class FoldView implements PuzzleView {
 
   update(dt: number, time: number): void {
     this.time = time;
+    this.hintPulse(time);
     if (this.anim) {
       const a = this.anim;
       a.t = Math.min(1, a.t + dt / 0.55);
