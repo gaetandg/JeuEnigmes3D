@@ -13,14 +13,22 @@ export class GamepadInput {
 
   constructor(private player: Player) {}
 
+  /** le stick gauche pilote-t-il le déplacement ? */
+  private stickHeld = false;
+
+  private releaseStick(): void {
+    this.player.move.forward = 0;
+    this.player.move.right = 0;
+    this.player.move.run = false;
+    this.stickHeld = false;
+  }
+
   poll(dt: number, playing: boolean): void {
     const pads = navigator.getGamepads?.() ?? [];
     const pad = Array.from(pads).find((p) => p && p.connected);
     if (!pad) {
-      if (this.active) {
-        this.player.move.forward = 0;
-        this.player.move.right = 0;
-      }
+      // manette débranchée en pleine course : on rend la main au clavier, à l'arrêt
+      if (this.stickHeld) this.releaseStick();
       this.active = false;
       return;
     }
@@ -33,11 +41,14 @@ export class GamepadInput {
       const ly = dz(pad.axes[1] ?? 0);
       const rx = dz(pad.axes[2] ?? 0);
       const ry = dz(pad.axes[3] ?? 0);
-      if (lx || ly || this.active) {
+      // le stick n'écrit le déplacement que lorsqu'il est poussé (puis une fois, au retour au
+      // centre) : une manette posée au repos ne doit pas écraser le clavier ou le tactile
+      if (lx || ly) {
         this.player.move.right = lx;
         this.player.move.forward = -ly;
         this.player.move.run = Math.hypot(lx, ly) > 0.95 || !!pressed[10];
-      }
+        this.stickHeld = true;
+      } else if (this.stickHeld) this.releaseStick();
       // le stick droit tourne le regard à vitesse constante (indépendante de la souris)
       if (rx || ry) this.player.lookRadians(-rx * 2.4 * dt, -ry * 1.8 * dt);
       if (edge(0)) this.onAct?.(false);

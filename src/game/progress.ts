@@ -35,8 +35,15 @@ export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      const d = JSON.parse(raw) as Partial<SaveData>;
-      return { solved: d.solved ?? [], states: d.states ?? {}, player: d.player, settings: d.settings, playTime: d.playTime };
+      const d = JSON.parse(raw) as Partial<SaveData> | null;
+      // une sauvegarde abîmée mais lisible ne doit pas passer telle quelle (« "d1" ».includes…)
+      const solved = Array.isArray(d?.solved) ? d.solved.filter((x): x is string => typeof x === 'string') : [];
+      const states = d?.states && typeof d.states === 'object' && !Array.isArray(d.states) ? d.states : {};
+      const p = d?.player;
+      const player = p && [p.x, p.z, p.yaw].every((v) => Number.isFinite(v)) ? p : undefined;
+      const settings = d?.settings && typeof d.settings === 'object' ? d.settings : undefined;
+      const playTime = Number.isFinite(d?.playTime) ? d!.playTime : undefined;
+      return { solved, states, player, settings, playTime };
     }
   } catch {
     /* stockage indisponible */

@@ -1,4 +1,4 @@
-import { objectLevers } from './levers.ts';
+import { objectLevers, objectPath } from './levers.ts';
 import type { Cell, Color, Dir, LightObject, LightPuzzle, LightState } from './types.ts';
 import { SHAPES, parseShape } from '../shadow/parse.ts';
 import { BLUE, GREEN, RED, WHITE } from './types.ts';
@@ -119,6 +119,8 @@ export function parsePuzzle(def: LightPuzzleDef): LightPuzzle {
     const text = SHAPES[o.shape];
     if (!text) throw new Error(`${def.id} : forme inconnue ${o.shape}`);
     const [ax, ay] = o.at;
+    // la boîte 3×3 doit tenir dans la grille (sinon l'index déborde sur la rangée suivante)
+    if (ax < 0 || ay < 0 || ax + 3 > width || ay + 3 > height) throw new Error(`${def.id} : l'objet en (${ax},${ay}) dépasse de la grille`);
     for (let dy = 0; dy < 3; dy++)
       for (let dx = 0; dx < 3; dx++) {
         const c = cells[(ay + dy) * width + ax + dx];
@@ -158,6 +160,8 @@ export function isValidState(p: LightPuzzle, s: readonly number[]): boolean {
   });
   if (!cellsOk) return false;
   if (!p.objects.every((_, j) => s[p.interactive.length + j]! >= 0 && s[p.interactive.length + j]! <= 3)) return false;
+  // avec des manivelles couplées, toutes les positions des objets ne sont pas forcément atteignables
+  if (p.cranks && !objectPath(p, p.objectStart, s.slice(p.interactive.length))) return false;
   return piecesUsed(p, s) <= p.inventory;
 }
 
