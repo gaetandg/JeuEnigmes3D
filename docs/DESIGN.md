@@ -98,6 +98,11 @@ Quand la réserve est épuisée sans succès, les marques fautives clignotent pu
 se déplie. Progression : p1–p4 (points), p5–p6 (taches, recto/verso), p7–p8 (étoiles,
 trous), p9–p12 (combinaisons générées, solution unique), puis **le Grand Pli** : une feuille
 de 13 m sur un chevalet au centre de l'atelier.
+- **Aperçu du pli** : au survol d'une ligne, la moitié qui va se rabattre s'éclaire en or. Si la
+  ligne peut plier dans les deux sens (moitiés égales), l'autre moitié s'éclaire en lavande :
+  c'est le clic droit (appui long sur mobile). Sans cet aperçu, un testeur a cru p8 impossible,
+  car il ne voyait que trois plis là où il y en a quatre. L'aide montre la moitié à plier, et
+  pas seulement la ligne.
 
 ## 5. Zone 3 — Ombres (le Cloître des Ombres)
 

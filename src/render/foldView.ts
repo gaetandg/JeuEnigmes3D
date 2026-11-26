@@ -197,6 +197,19 @@ export class FoldView implements PuzzleView {
   private lineMat = new THREE.MeshBasicMaterial({ color: '#7a6a4f', toneMapped: false });
   private lineHot = new THREE.MeshBasicMaterial({ color: '#ffd36b', toneMapped: false });
   private lineHint = new THREE.MeshBasicMaterial({ color: '#9fe8ff', toneMapped: false });
+  /**
+   * Aperçu du pli : la moitié qui va se rabattre s'éclaire au survol d'une ligne ; si la ligne
+   * plie dans les deux sens, l'autre moitié (clic droit) s'éclaire faiblement. L'aide, elle,
+   * montre la moitié à plier (pas seulement la ligne).
+   */
+  private previewMain = new THREE.Mesh(UNIT_BOX, new THREE.MeshBasicMaterial({ color: '#ffb81f', transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false }));
+  private previewAlt = new THREE.Mesh(UNIT_BOX, new THREE.MeshBasicMaterial({ color: '#c9b8ff', transparent: true, opacity: 0.3, depthWrite: false, toneMapped: false }));
+  private previewHint = new THREE.Mesh(UNIT_BOX, new THREE.MeshBasicMaterial({ color: '#9fe8ff', transparent: true, opacity: 0.25, depthWrite: false, toneMapped: false }));
+  /** plis possibles sur chaque ligne affichée */
+  private lineFolds = new Map<number, Fold[]>();
+  /** prochain pli de la solution désigné par l'aide (avec son côté) */
+  private hintFold: Fold | null = null;
+  private previewY = 0;
   /** aide : ligne de pli à suivre (k) ou pierre de remise à zéro (RESET_K) */
   private hintK: number | null = null;
   private tokens: THREE.Mesh[] = [];
@@ -313,6 +326,11 @@ export class FoldView implements PuzzleView {
       this.sheets.push({ def, mesh, mats: [front, back], quat: new THREE.Quaternion() });
     }
     this.board.add(this.lineGroup);
+    for (const m of [this.previewMain, this.previewAlt, this.previewHint]) {
+      m.visible = false;
+      m.renderOrder = 3;
+      this.board.add(m);
+    }
 
     // réserve de plis : encoches sur le bord proche
     for (let i = 0; i < puzzle.maxFolds; i++) {
@@ -367,23 +385,54 @@ export class FoldView implements PuzzleView {
     for (const [k, line] of this.lines) {
       line.material = this.hovered === k ? this.lineHot : this.hintK === k ? this.lineHint : this.lineMat;
     }
+    this.previewMain.visible = this.previewAlt.visible = this.previewHint.visible = false;
+    const opts = this.hovered !== null ? this.lineFolds.get(this.hovered) : undefined;
+    if (opts && opts.length) {
+      // clic gauche : la seule option, ou la moitié gauche / haute ; clic droit : l'autre
+      const main = opts.length === 1 ? opts[0]! : opts.find((o) => o.side === -1)!;
+      this.placePreview(this.previewMain, main);
+      const alt = opts.find((o) => o !== main);
+      if (alt) this.placePreview(this.previewAlt, alt);
+    }
+    // l'aide montre la moitié à plier, même pendant qu'on survole une autre ligne
+    if (this.hintFold && this.hintK !== null && this.hintK !== RESET_K && this.lines.has(this.hintK)) {
+      this.placePreview(this.previewHint, this.hintFold);
+    }
+  }
+
+  /** Recouvre la partie de la feuille qui se rabat avec ce pli. */
+  private placePreview(m: THREE.Mesh, f: Fold): void {
+    const { width: w, height: h } = this.puzzle;
+    const b = this.fs.bounds;
+    const lo = f.side === -1 ? (f.axis === 'x' ? b.x0 : b.y0) : f.at;
+    const hi = f.side === -1 ? f.at : f.axis === 'x' ? b.x1 : b.y1;
+    const [x0, x1, y0, y1] = f.axis === 'x' ? [lo, hi, b.y0, b.y1] : [b.x0, b.x1, lo, hi];
+    m.scale.set((x1 - x0) * this.cell * 0.98, 0.002, (y1 - y0) * this.cell * 0.98);
+    m.position.set(((x0 + x1) / 2 - w / 2) * this.cell, this.previewY + (m === this.previewHint ? 0.001 : 0), ((y0 + y1) / 2 - h / 2) * this.cell);
+    m.visible = true;
   }
 
   /** Lignes de pli cliquables pour l'état courant. */
   private rebuildLines(): void {
     this.lineGroup.clear();
     this.lines.clear();
+    this.lineFolds.clear();
     this.pickables.length = 0;
     this.pickables.push(this.resetPick);
-    if (!this.powered || this.solved) return;
+    if (!this.powered || this.solved) {
+      this.paintLines();
+      return;
+    }
     const folds = legalFolds(this.fs, this.puzzle.maxFolds);
     const { width: w, height: h } = this.puzzle;
     const b = this.fs.bounds;
     const top = Math.max(...this.fs.poses.map((p) => p.layer)) + 1;
     const y = (top + 0.3) * this.thick * 1.15 + 0.004;
+    this.previewY = y - 0.002;
     const seen = new Set<number>();
     for (const f of folds) {
       const k = (f.axis === 'x' ? 0 : 100) + f.at;
+      this.lineFolds.set(k, [...(this.lineFolds.get(k) ?? []), f]);
       if (seen.has(k)) continue;
       seen.add(k);
       const len = (f.axis === 'x' ? b.y1 - b.y0 : b.x1 - b.x0) * this.cell;
@@ -434,6 +483,7 @@ export class FoldView implements PuzzleView {
     if (this.hintK === null || this.solved) return;
     const p = pulse(time);
     this.lineHint.color.set('#7a6a4f').lerp(new THREE.Color('#9fe8ff'), p);
+    (this.previewHint.material as THREE.MeshBasicMaterial).opacity = 0.2 + 0.35 * p;
     if (this.hintK === RESET_K && this.hovered !== RESET_K) this.resetMat.emissive.set('#2a8fb0').multiplyScalar(p);
   }
 
@@ -445,6 +495,7 @@ export class FoldView implements PuzzleView {
     const onTrack = done.length < sol.length && done.every((f, i) => f.axis === sol[i]!.axis && f.at === sol[i]!.at && f.side === sol[i]!.side);
     const next = sol[done.length];
     this.hintK = onTrack && next ? (next.axis === 'x' ? 0 : 100) + next.at : RESET_K;
+    this.hintFold = onTrack && next ? next : null;
     this.paintLines();
     return this.hintK;
   }
@@ -454,6 +505,7 @@ export class FoldView implements PuzzleView {
     if (this.anim || this.failTimer > 0) return 'denied';
     if (this.hintK !== null) {
       this.hintK = null;
+      this.hintFold = null;
       this.lineHint.color.set('#9fe8ff');
       this.paintLines();
     }
@@ -551,6 +603,8 @@ export class FoldView implements PuzzleView {
     this.anim = { t: 0, fold: f, moving, pivot, axis, sign };
     this.lineGroup.clear();
     this.lines.clear();
+    this.lineFolds.clear();
+    this.previewMain.visible = this.previewAlt.visible = this.previewHint.visible = false;
     this.pickables.length = 0;
     this.pickables.push(this.resetPick);
     this.state = this.encode();
