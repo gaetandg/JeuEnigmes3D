@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { initialState, interact, simulate, solve } from '../core/light/index.ts';
+import { initialState, interact, isValidState, simulate, solve } from '../core/light/index.ts';
 import type { Cell, Color, LightPuzzle, LightState, SimResult } from '../core/light/index.ts';
 import { heightAt } from '../world/terrain.ts';
 import { TOWERS } from '../world/layout.ts';
@@ -267,7 +267,7 @@ export class WorldLightPuzzle implements PuzzleView {
   }
 
   applyState(s: LightState, instant = false): void {
-    this.state = s.slice();
+    this.state = isValidState(this.puzzle, s) ? s.slice() : initialState(this.puzzle);
     for (const t of this.towers) {
       t.targetAngle = this.state[t.k] === 0 ? Math.PI / 4 : -Math.PI / 4;
       if (instant) t.head.rotation.y = t.targetAngle;

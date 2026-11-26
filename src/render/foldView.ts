@@ -455,6 +455,7 @@ export class FoldView implements PuzzleView {
     if (this.hintK !== null) {
       this.hintK = null;
       this.lineHint.color.set('#9fe8ff');
+      this.paintLines();
     }
     if (k === RESET_K) {
       if (this.fs.folds.length === 0) return 'denied';
@@ -608,8 +609,13 @@ export class FoldView implements PuzzleView {
       if (a.t >= 1) {
         this.anim = null;
         this.layout(false);
-        if (this.queue.length) this.startFold(this.queue.shift()!);
-        else this.evaluate(true);
+        // file d'attente (réinitialisation animée) : on s'arrête au premier pli devenu illégal
+        const next = this.queue.shift();
+        if (next && isLegal(this.fs, next, this.puzzle.maxFolds)) this.startFold(next);
+        else {
+          this.queue = [];
+          this.evaluate(true);
+        }
       }
     }
     // erreurs : les marques fautives clignotent, puis la feuille se déplie

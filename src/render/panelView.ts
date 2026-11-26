@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {
   BLUE, GREEN, RED,
-  initialState, interact, piecesUsed, simulate, solve,
+  initialState, interact, isValidState, piecesUsed, simulate, solve,
 } from '../core/light/index.ts';
 import type { Cell, Color, LightPuzzle, LightState, SimResult } from '../core/light/index.ts';
 import { heightAt } from '../world/terrain.ts';
@@ -561,7 +561,7 @@ export class LightPanel implements PuzzleView {
   }
 
   applyState(s: LightState, instant = false): void {
-    this.state = s.slice();
+    this.state = isValidState(this.puzzle, s) ? s.slice() : initialState(this.puzzle);
     for (const piece of this.pieces) {
       const v = this.state[piece.k]!;
       if (piece.cell.kind === 'socket') {

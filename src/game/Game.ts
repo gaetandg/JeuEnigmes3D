@@ -598,11 +598,13 @@ export class Game {
   /** Applique la sauvegarde (ou l'état de départ). */
   private restore(): void {
     const solved = new Set(this.save.solved);
+    this.restoring = true;
     for (const [id, panel] of this.panels) {
       const st = this.save.states[id];
-      if (st && st.length === panel.state.length) panel.applyState(st, true);
+      if (Array.isArray(st)) panel.applyState(st, true); // chaque vue valide son état (les plis ont une longueur variable)
       if (solved.has(id)) panel.markSolved();
     }
+    this.restoring = false;
     this.updatePower(true);
     for (const id of SECRET_IDS) if (this.isSolved(id)) this.shards.add(null);
     const p = this.save.player;
@@ -680,8 +682,16 @@ export class Game {
     return { at: p.group.position.clone().add(new THREE.Vector3(0, big ? 5 : 1.4, 0)), big };
   }
 
+  private restoring = false;
+
   private onPanelSolved(panel: PuzzleView): void {
     const id = panel.id;
+    // pendant le chargement, une feuille déjà résolue se signale : on la note sans fête ni
+    // sauvegarde (sauvegarder ici écraserait les états des panneaux pas encore restaurés)
+    if (this.restoring) {
+      if (!this.save.solved.includes(id)) this.save.solved.push(id);
+      return;
+    }
     if (this.save.solved.includes(id) === false && SECRET_IDS.includes(id)) {
       this.shards.add(this.sparkAt(panel).at);
       this.audio.finale();
