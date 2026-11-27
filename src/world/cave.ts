@@ -4,6 +4,7 @@ import { heightAt } from './terrain.ts';
 import { stoneMaterial } from './props.ts';
 import { NOTES } from './lore.ts';
 import type { Colliders } from '../game/colliders.ts';
+import { mergeMeshes } from '../render/merge.ts';
 
 /** la fosse de la Racine-mère, au centre */
 export const PIT = { r: 7.6, depth: 2.2 };
@@ -109,6 +110,7 @@ export function buildCave(colliders: Colliders): Cave {
 
   // stalactites
   const stalMat = new THREE.MeshStandardMaterial({ color: '#5a4f5e', roughness: 1, flatShading: true });
+  const stals: THREE.Mesh[] = [];
   for (let i = 0; i < 70; i++) {
     const a = rnd() * Math.PI * 2;
     const r = rnd() * (caveEdge(a) - 2);
@@ -117,13 +119,21 @@ export function buildCave(colliders: Colliders): Cave {
     s.rotation.x = Math.PI;
     s.position.set(Math.cos(a) * r, CAVE.y + CAVE.height + 1 - len / 2 - (r / (CAVE.r + 6)) ** 2 * 3, Math.sin(a) * r);
     g.add(s);
+    stals.push(s);
   }
+  // un seul maillage par famille d'objets : la grotte doit rester fluide
+  mergeMeshes(stals, g, stalMat);
 
   // ── les racines du phare : elles percent la voûte en son centre (le phare est au-dessus),
   // s'écartent et vont s'ancrer au pied des parois, hors des chemins ; quelques-unes plongent
   // dans la fosse, vers la Racine-mère. Elles s'allument à la fin. ──
   const rootMat = new THREE.MeshStandardMaterial({ color: '#6b5236', roughness: 0.8, emissive: '#ffcf70', emissiveIntensity: 0.08 });
-  const rootTube = (pts: THREE.Vector3[], radius: number) => g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 28, radius, 6), rootMat));
+  const tubes: THREE.Mesh[] = [];
+  const rootTube = (pts: THREE.Vector3[], radius: number) => {
+    const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 28, radius, 6), rootMat);
+    g.add(m);
+    tubes.push(m);
+  };
   for (let i = 0; i < 14; i++) {
     const a = (i / 14) * Math.PI * 2 + rnd() * 0.3;
     const r0 = 3 + rnd() * 4;
@@ -146,9 +156,12 @@ export function buildCave(colliders: Colliders): Cave {
     ], 0.32);
   }
 
+  mergeMeshes(tubes, g, rootMat);
+
   // cristaux et mousse qui luisent
   const crystalMat = new THREE.MeshStandardMaterial({ color: '#8fd8ff', roughness: 0.2, emissive: '#5fc0ff', emissiveIntensity: 0.9, flatShading: true });
   const mossMat = new THREE.MeshBasicMaterial({ color: '#4fbf8c', transparent: true, opacity: 0.35, toneMapped: false, depthWrite: false });
+  const crystals: THREE.Mesh[] = [];
   const spots = [...ROOT_PANELS, ...NOTES.filter((n) => n.zone === 'racines'), CAVE_LIFT].map((p) => ({ x: p.x - CAVE.x, z: p.z - CAVE.z }));
   for (let i = 0; i < 26; i++) {
     const a = rnd() * Math.PI * 2;
@@ -161,7 +174,10 @@ export function buildCave(colliders: Colliders): Cave {
     c.position.set(x, H(x, z) + 0.6, z);
     c.rotation.set(rnd() * 0.5, rnd() * 6, rnd() * 0.5);
     g.add(c);
+    crystals.push(c);
   }
+  mergeMeshes(crystals, g, crystalMat);
+  const mosses: THREE.Mesh[] = [];
   for (let i = 0; i < 70; i++) {
     const a = rnd() * Math.PI * 2;
     const r = PIT.r + 1.5 + rnd() * (caveEdge(a) - PIT.r - 3);
@@ -171,10 +187,13 @@ export function buildCave(colliders: Colliders): Cave {
     m.rotation.x = -Math.PI / 2;
     m.position.set(x, H(x, z) + 0.03, z);
     g.add(m);
+    mosses.push(m);
   }
+  mergeMeshes(mosses, g, mossMat);
 
   // ── pierres de passage : au fond de la grotte, et au pied du phare enfoncé ──
   const glow = new THREE.MeshBasicMaterial({ color: '#b9e6ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
+  const shaftMat = new THREE.MeshBasicMaterial({ color: '#fff3d6', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
   const stones: THREE.Group[] = [];
   for (const L of [CAVE_LIFT, DEEP_LIFT]) {
     const s = new THREE.Group();
@@ -185,6 +204,17 @@ export function buildCave(colliders: Colliders): Cave {
     const halo = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 5, 20, 1, true), glow);
     halo.position.y = 2.6;
     s.add(halo);
+    if (L === CAVE_LIFT) {
+      // la sortie se voit de toute la grotte : un rai de jour qui tombe de la voûte sur la pierre
+      const h = CAVE.y + CAVE.height + 2 - s.position.y;
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.7, h, 20, 1, true), shaftMat);
+      shaft.position.y = h / 2;
+      s.add(shaft);
+      const spot = new THREE.Mesh(new THREE.CircleGeometry(2.4, 24), shaftMat);
+      spot.rotation.x = -Math.PI / 2;
+      spot.position.y = 0.27;
+      s.add(spot);
+    }
     root.add(s);
     stones.push(s);
   }
@@ -205,6 +235,7 @@ export function buildCave(colliders: Colliders): Cave {
     },
     update(time: number) {
       glow.opacity = open ? 0.18 + 0.06 * Math.sin(time * 1.4) : 0;
+      shaftMat.opacity = open ? 0.2 + 0.05 * Math.sin(time * 0.9) : 0;
       if (glowK > 0) rootMat.emissiveIntensity = 0.08 + glowK * (0.85 + 0.15 * Math.sin(time * 2));
     },
   };

@@ -19,6 +19,8 @@ export interface HudCallbacks {
   onCheat: (action: CheatAction, id: string) => void;
   /** mode test : rejouer une cinématique (sans toucher à la progression) */
   onCinematic: (which: Cinematic) => void;
+  /** mode test : se téléporter à un lieu (sans toucher à la progression) */
+  onTeleport: (place: string) => void;
 }
 
 export type Cinematic = 'phare' | 'ile' | 'vraie' | 'bascule' | 'racines';
@@ -36,7 +38,7 @@ export class Hud {
   private pauseBtn: HTMLButtonElement;
   private touch: boolean;
 
-  constructor(parent: HTMLElement, cb: HudCallbacks, settings: Settings, hasSave: boolean, touch: boolean, cheats: CheatList = []) {
+  constructor(parent: HTMLElement, cb: HudCallbacks, settings: Settings, hasSave: boolean, touch: boolean, cheats: CheatList = [], places: { id: string; label: string }[] = []) {
     const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
     const cheatOptions = cheats
       .map((g) => `<optgroup label="${esc(g.group)}">${g.items.map((i) => `<option value="${esc(i.id)}">${esc(i.label)}</option>`).join('')}</optgroup>`)
@@ -100,6 +102,10 @@ export class Hud {
               <button class="ghost" data-cheat="all" title="Résoudre toutes les énigmes principales">Tout résoudre</button>
             </div>
             <p class="cheat-note">Place la progression exactement à ce point (en avant comme en arrière), portes et câbles compris, et sauvegarde.</p>
+            <label>Lieu <select data-cheat="place">${places.map((p) => `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('')}</select></label>
+            <div class="cheat-actions">
+              <button class="ghost" data-cheat="tp" title="Aller à ce lieu sans rien changer à la progression">Se téléporter</button>
+            </div>
             <label>Cinématique
               <select data-cheat="cinematic">
                 <option value="phare">Le phare se rallume (fin)</option>
@@ -124,6 +130,11 @@ export class Hud {
     this.root.querySelector('[data-cheat="watch"]')!.addEventListener('click', () => {
       cb.onStart(); // la souris se libère d'elle-même pendant la séquence
       cb.onCinematic(cine.value as Cinematic);
+    });
+    const place = this.root.querySelector<HTMLSelectElement>('[data-cheat="place"]')!;
+    this.root.querySelector('[data-cheat="tp"]')!.addEventListener('click', () => {
+      cb.onTeleport(place.value);
+      cb.onStart();
     });
     for (const action of ['goto', 'before', 'upto', 'all'] as const) {
       this.root.querySelector(`[data-cheat="${action}"]`)!.addEventListener('click', () => {
