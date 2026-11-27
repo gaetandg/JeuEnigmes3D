@@ -203,7 +203,6 @@ export class Hud {
         <p>${stats.solved} énigmes sur ${stats.total} · ${stats.minutes} min de jeu</p>
         <p>${stats.shards === stats.shardsTotal ? 'Les sept éclats sont réunis : toute la lumière de l\'île.' : `Éclats trouvés : ${stats.shards} / ${stats.shardsTotal} — l'île cache encore des secrets.`}</p>
         <p>Billets du gardien lus : ${stats.notes} / ${stats.notesTotal}</p>
-        <p class="help">Merci d'avoir joué.<br/>Un jeu imaginé avec gaetandg et entièrement conçu, codé et testé par Claude.</p>
         <button class="primary" data-action="continue">Continuer à explorer</button>
       </div>`;
     this.root.appendChild(el);
@@ -215,6 +214,28 @@ export class Hud {
   }
 
   onContinue: (() => void) | null = null;
+
+  /** La vraie fin : la dernière lettre du gardien. */
+  showFinale(letter: string, stats: { solved: number; total: number; minutes: number; shards: number; shardsTotal: number; notes: number; notesTotal: number }): void {
+    const el = document.createElement('div');
+    el.className = 'overlay ending finale';
+    el.innerHTML = `
+      <div class="panel">
+        <h1>Lueur</h1>
+        <p class="subtitle">Les lanternes ont rejoint les étoiles.</p>
+        <p class="story letter"></p>
+        <p>${stats.solved} énigmes sur ${stats.total} · ${stats.minutes} min de jeu</p>
+        <p>Éclats : ${stats.shards} / ${stats.shardsTotal} · Billets du gardien : ${stats.notes} / ${stats.notesTotal}</p>
+        <button class="primary" data-action="continue">Rester sur l'île</button>
+      </div>`;
+    el.querySelector('.letter')!.textContent = letter;
+    this.root.appendChild(el);
+    document.exitPointerLock?.();
+    el.querySelector('[data-action="continue"]')!.addEventListener('click', () => {
+      el.remove();
+      this.onContinue?.();
+    });
+  }
 
   /** Un billet du gardien, lu à l'écran (se ferme au clic suivant ou en s'éloignant). */
   showNote(text: string, meta: string): void {

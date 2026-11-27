@@ -114,8 +114,30 @@ export class SeaAnswer {
     this.pos[i * 3 + 2] = z + (dz / d) * step;
   }
 
+  private rising = false;
+
+  /** La vraie fin : les lanternes quittent la mer et montent rejoindre les étoiles. */
+  ascend(): void {
+    this.group.visible = true;
+    if (this.t < 0) this.t = 60;
+    if (!this.full) this.bringLanterns(true);
+    this.rising = true;
+  }
+
   update(dt: number, time: number): void {
     if (this.t < 0) return;
+    if (this.rising) {
+      const m = this.lanterns.material as THREE.PointsMaterial;
+      m.opacity = 1;
+      for (let i = 0; i < LANTERNS; i++) {
+        const y = this.pos[i * 3 + 1]!;
+        if (y < 420) this.pos[i * 3 + 1] = y + dt * (14 + (i % 5) * 4);
+        this.pos[i * 3] = this.pos[i * 3]! + Math.sin(time * 0.3 + i) * dt * 2;
+      }
+      this.lanterns.geometry.attributes.position!.needsUpdate = true;
+      (this.light.material as THREE.SpriteMaterial).opacity = 1;
+      return;
+    }
     this.t += dt;
     // la lumière apparaît, puis clignote : deux éclats, une pause
     const fadeIn = Math.min(1, this.t / 2);

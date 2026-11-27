@@ -5,6 +5,8 @@ import { ZONE2, ZONE2_GRAND_PLI } from '../../src/puzzles/zone2.ts';
 import { checkFold, initialFoldState, parseFold, solveFold } from '../../src/core/fold/index.ts';
 import { ZONE3, ZONE3_CADRAN } from '../../src/puzzles/zone3.ts';
 import { ZONE4_FOLD, ZONE4_LIGHT } from '../../src/puzzles/zone4.ts';
+import { ZONE5, ZONE5_GRAND } from '../../src/puzzles/zone5.ts';
+import { isSolved, parseTilt, solveTilt, startTilt } from '../../src/core/tilt/index.ts';
 import { SECRET_FOLD, SECRET_IDS, SECRET_LIGHT, SECRET_SHADOW } from '../../src/puzzles/secrets.ts';
 import { checkShadow, parseShadow, shadowSearch, solveShadow, startState } from '../../src/core/shadow/index.ts';
 
@@ -143,6 +145,21 @@ describe('les Éclats — énigmes secrètes', () => {
       const p = parseShadow(def);
       expect(checkShadow(p, startState(def)).solved).toBe(false);
       expect(solveShadow(p).count).toBe(1);
+    });
+  }
+});
+
+describe('zone 5 — l\'Île du Ciel (inclinaison)', () => {
+  const all = [...ZONE5, ZONE5_GRAND];
+  it('identifiants uniques, difficulté croissante', () => {
+    expect(new Set(all.map((d) => d.id)).size).toBe(all.length);
+    for (let i = 1; i < all.length; i++) expect(all[i]!.moves).toBeGreaterThanOrEqual(all[i - 1]!.moves);
+  });
+  for (const def of all) {
+    it(`${def.id} : soluble en exactement ${def.moves} gestes, non résolue au départ`, () => {
+      const p = parseTilt(def);
+      expect(isSolved(startTilt(p))).toBe(false);
+      expect(solveTilt(p).minMoves).toBe(def.moves);
     });
   }
 });

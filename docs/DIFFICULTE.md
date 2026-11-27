@@ -20,6 +20,13 @@ demandent une idée. Les pochoirs à deux plis sont tous à 0 % (`scripts/stenci
 c'est à trois plis que l'intuition « plier pour découvrir » ne suffit plus. La difficulté « à
 l'aveugle » de f4 (7,6) surestime le pliage, comme en zone 2.
 
+**L'Île du Ciel** (inclinaison) : t1 et t2 sont des leçons (rouler, éviter les puits) ; dès que
+deux billes partagent le plateau, l'agent glouton échoue toujours, car une bille arrêtée sert de
+butée à l'autre, et il faut souvent éloigner une bille de son creux pour la ramener par un autre
+chemin. Plusieurs plateaux ont des impasses (une bille mal logée bloque l'autre) : la pierre de
+remise à zéro est là pour ça, et l'aide la désigne quand plus aucun chemin ne mène à la solution.
+L'agent au hasard recommence tous les 40 coups, comme un joueur coincé.
+
 | Zone | Énigme | Type | Pièces | Actions min. | Actions à l'aveugle (médiane) | Difficulté | Déclic |
 |---|---|---|---|---|---|---|---|
 | 1 Lumière | a1 | lumière | 1 | 1 | 1 | 1.0 █ | 0 % |
@@ -53,28 +60,37 @@ l'aveugle » de f4 (7,6) surestime le pliage, comme en zone 2.
 | 2 Pliage | p6 | pliage | 4 | 1 | 5 | 2.6 ███ | 0 % |
 | 2 Pliage | p7 | pliage | 8 | 2 | 50 | 5.7 ██████ ⚠ saut | 0 % |
 | 2 Pliage | p8 | pliage | 4 | 1 | 5 | 2.6 ███ | 0 % |
-| 2 Pliage | p9 | pliage | 12 | 2 | 53 | 5.8 ██████ ⚠ saut | 100 % |
-| 2 Pliage | p10 | pliage | 12 | 3 | 315 | 8.3 ████████ | 100 % |
-| 2 Pliage | p11 | pliage | 12 | 3 | 131 | 7.0 ███████ | 100 % |
-| 2 Pliage | p12 | pliage | 14 | 3 | 847 | 9.7 ██████████ | 100 % |
-| 2 Pliage | p13 | pliage | 20 | 4 | 1334 | 10.4 ██████████ | 100 % |
-| 2 Pliage | grand-pli | pliage | 15 | 3 | 387 | 8.6 █████████ | 100 % |
-| 3 Ombres | o1 | ombres | 1 | 1 | 1 | 1.0 █ | 0 % |
-| 3 Ombres | o2 | ombres | 1 | 2 | 4 | 2.3 ██ | 0 % |
+| 2 Pliage | p9 | pliage | 12 | 2 | 50 | 5.7 ██████ ⚠ saut | 100 % |
+| 2 Pliage | p10 | pliage | 12 | 3 | 279 | 8.1 ████████ | 100 % |
+| 2 Pliage | p11 | pliage | 12 | 3 | 123 | 7.0 ███████ | 100 % |
+| 2 Pliage | p12 | pliage | 14 | 3 | 783 | 9.6 ██████████ | 100 % |
+| 2 Pliage | p13 | pliage | 20 | 4 | 1289 | 10.3 ██████████ | 100 % |
+| 2 Pliage | grand-pli | pliage | 15 | 3 | 427 | 8.7 █████████ | 100 % |
+| 3 Ombres | o1 | ombres | 1 | 1 | 3 | 2.0 ██ | 0 % |
+| 3 Ombres | o2 | ombres | 1 | 2 | 2 | 1.6 ██ | 0 % |
 | 3 Ombres | o3 | ombres | 2 | 2 | 8 | 3.2 ███ | 0 % |
 | 3 Ombres | o4 | ombres | 1 | 1 | 3 | 2.0 ██ | 0 % |
 | 3 Ombres | o5 | ombres | 1 | 1 | 3 | 2.0 ██ | 0 % |
 | 3 Ombres | o6 | ombres | 1 | 2 | 4 | 2.3 ██ | 0 % |
-| 3 Ombres | o7 | ombres | 1 | 1 | 3 | 2.0 ██ | 0 % |
-| 3 Ombres | o8 | ombres | 2 | 3 | 15 | 4.0 ████ | 0 % |
+| 3 Ombres | o7 | ombres | 1 | 1 | 1 | 1.0 █ | 0 % |
+| 3 Ombres | o8 | ombres | 2 | 3 | 17 | 4.2 ████ ⚠ saut | 0 % |
 | 3 Ombres | o9 | ombres | 2 | 2 | 12 | 3.7 ████ | 48 % |
-| 3 Ombres | o10 | ombres | 3 | 3 | 59 | 5.9 ██████ | 57 % |
-| 3 Ombres | o11 | ombres+manivelles | 2 | 2 | 12 | 3.7 ████ | 100 % |
-| 3 Ombres | o12 | ombres+manivelles | 3 | 4 | 50 | 5.7 ██████ | 100 % |
+| 3 Ombres | o10 | ombres | 3 | 3 | 51 | 5.7 ██████ | 57 % |
+| 3 Ombres | o11 | ombres+manivelles | 2 | 2 | 14 | 3.9 ████ | 100 % |
+| 3 Ombres | o12 | ombres+manivelles | 3 | 4 | 48 | 5.6 ██████ | 100 % |
 | 3 Ombres | cadran | ombres+manivelles | 3 | 5 | 57 | 5.9 ██████ | 100 % |
 | 4 Phare | f1 | lumière+objets | 1 | 2 | 4 | 2.3 ██ | 0 % |
 | 4 Phare | f2 | lumière+objets | 1 | 1 | 3 | 2.0 ██ | 0 % |
-| 4 Phare | f3 | pliage+lumière | 8 | 1 | 7 | 3.0 ███ | 0 % |
-| 4 Phare | f4 | pliage+lumière | 16 | 3 | 195 | 7.6 ████████ ⚠ saut | 100 % |
-| 4 Phare | f5 | lumière+objets | 3 | 5 | 27 | 4.8 █████ | 48 % |
-| 4 Phare | f6 | lumière+objets+manivelles | 3 | 6 | 46 | 5.6 ██████ | 100 % |
+| 4 Phare | f3 | pliage+lumière | 8 | 1 | 9 | 3.3 ███ | 0 % |
+| 4 Phare | f4 | pliage+lumière | 16 | 3 | 235 | 7.9 ████████ ⚠ saut | 100 % |
+| 4 Phare | f5 | lumière+objets | 3 | 5 | 25 | 4.7 █████ | 48 % |
+| 4 Phare | f6 | lumière+objets+manivelles | 3 | 6 | 48 | 5.6 ██████ | 100 % |
+| 5 Ciel | t1 | inclinaison | 1 | 2 | 10 | 3.5 ████ | 0 % |
+| 5 Ciel | t2 | inclinaison | 1 | 4 | 26 | 4.8 █████ | 0 % |
+| 5 Ciel | t3 | inclinaison | 2 | 4 | 61 | 6.0 ██████ | 100 % |
+| 5 Ciel | t4 | inclinaison | 2 | 5 | 491 | 8.9 █████████ | 100 % |
+| 5 Ciel | t5 | inclinaison | 2 | 6 | 181 | 7.5 ████████ | 100 % |
+| 5 Ciel | t6 | inclinaison | 3 | 7 | 146 | 7.2 ███████ | 100 % |
+| 5 Ciel | t7 | inclinaison | 3 | 8 | 336 | 8.4 ████████ | 100 % |
+| 5 Ciel | t8 | inclinaison | 4 | 9 | 864 | 9.8 ██████████ | 100 % |
+| 5 Ciel | grand-plateau | inclinaison | 4 | 12 | 15137 | 13.9 ██████████████ ⚠ saut | 100 % |

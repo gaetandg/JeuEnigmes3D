@@ -189,6 +189,30 @@ couleurs et des dizaines de **lanternes** apparaissent sur la mer et rentrent ve
 trouve le dernier éclat après la fin, les lanternes partent à ce moment-là. Elles restent au
 large de la côte quand on continue d'explorer.
 
+## 6 quater. La suite : l'Île du Ciel (inclinaison)
+
+On croit le jeu fini quand le phare se rallume. Mais quand on clique sur « Continuer à explorer »,
+la terre tremble, la mer bouillonne à l'est, et **une île entière s'arrache de la mer et monte
+dans le ciel** (à 110 m, à 300 m de la côte). Un **pont de lumière** part d'une pierre d'envol au
+pied du phare : on y entre et il nous emporte jusqu'à l'île (une autre pierre ramène au phare).
+Pendant la transformation, la nuit passe et l'aube se lève.
+
+**Quatrième langage, l'inclinaison** : des plateaux portent des billes de couleur. On incline le
+plateau d'un côté (quatre flèches de pierre) et *toutes* les billes roulent jusqu'à buter contre
+un mur, le bord ou une autre bille. Chacune doit finir dans le creux de sa couleur ; un puits noir
+avale la bille et tout revient au départ. Une pierre ronde remet le plateau à zéro (utile dans les
+impasses, que l'aide signale). Le plateau penche vraiment pendant que les billes roulent.
+
+- Huit plateaux en cercle (t1, t2 : leçons ; puis deux billes, trois couleurs, deux paires), générés
+  par `scripts/tilt-gen.ts` et validés au solveur (parcours en largeur des inclinaisons), avec un
+  nombre de gestes minimum croissant de 2 à 9.
+- **Le Grand Plateau**, au fond d'un bassin de pierre au centre de l'île (on le regarde d'en haut,
+  on l'incline de loin) : quatre couleurs, 12 gestes.
+- Trois billets du gardien sur l'île ; quinze en tout.
+- **La vraie fin** : le Grand Plateau résolu, la nuit retombe, les étoiles se rallument et les
+  lanternes quittent la mer pour monter les rejoindre. Le gardien laisse sa dernière lettre : la
+  lumière est passée de ses mains aux nôtres.
+
 ## 6 bis. Les Éclats (secrets)
 
 Sept énigmes cachées hors des chemins, allumées dès le départ, sans câble ni guide lumineux :
@@ -250,6 +274,6 @@ tests/
 | 5 | Zone Ombres | idem |
 | 6 | Le Phare | zone finale combinée, fin du jeu |
 
-**Bilan** : 56 énigmes (22 + 1 en zone 1, 13 + 1 en zone 2, 12 + 1 en zone 3, 6 en zone 4),
+**Bilan** : 65 énigmes (22 + 1 en zone 1, 13 + 1 en zone 2, 12 + 1 en zone 3, 6 en zone 4, 8 + 1 sur l'Île du Ciel),
 toutes vérifiées par les solveurs à chaque modification.
 | 7 | Mobile | contrôles tactiles, performances |

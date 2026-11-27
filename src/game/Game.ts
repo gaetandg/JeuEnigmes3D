@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { parsePuzzle } from '../core/light/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
-import { SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell } from '../world/layout.ts';
+import { SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL } from '../world/layout.ts';
+import { BASIN, buildSkyIsland } from '../world/sky.ts';
+import type { SkyIsland } from '../world/sky.ts';
+import { ZONE5, ZONE5_GRAND } from '../puzzles/zone5.ts';
+import { parseTilt } from '../core/tilt/index.ts';
+import { TiltView } from '../render/tiltView.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../puzzles/zone2.ts';
 import { parseFold } from '../core/fold/index.ts';
 import { FoldView } from '../render/foldView.ts';
@@ -48,7 +53,7 @@ const REACH = 5;
 const HINT_DELAY = 180;
 
 /** Qui alimente quoi : panneaux + énigmes d'environnement. */
-const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS];
+const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU];
 
 /** Les énigmes qui donnent chacune un quart de lumière au phare. */
 /** dernière énigme : elle rallume le phare */
@@ -315,7 +320,23 @@ export class Game {
     this.shards = new Shards(this.beacon.position.clone());
     this.scene.add(this.shards.group);
     // le récit : les billets du gardien, et la réponse de la mer à la fin
-    this.notes = new LoreNotes(NOTES, this.save.notes ?? []);
+    this.notes = new LoreNotes(NOTES.filter((n) => n.zone !== 'ciel'), this.save.notes ?? []);
+    this.skyNotes = new LoreNotes(NOTES.filter((n) => n.zone === 'ciel'), this.save.notes ?? []);
+    this.scene.add(this.skyNotes.group);
+    // la suite : l'Île du Ciel, qui dort sous la mer jusqu'à la transformation
+    this.sky = buildSkyIsland(this.colliders);
+    this.scene.add(this.sky.group);
+    for (const spot of SKY_PANELS) {
+      const def = ZONE5.find((d) => d.id === spot.id)!;
+      this.addTiltView(new TiltView(parseTilt(def), { x: spot.x, z: spot.z, yaw: spot.yaw, cell: 0.24, kind: 'table' }));
+      this.colliders.addCircle(spot.x, spot.z, 0.75);
+    }
+    {
+      // au fond du bassin (l'île pose elle-même la barrière autour)
+      const grand = new TiltView(parseTilt(ZONE5_GRAND), { x: GRAND_PLATEAU.x, z: GRAND_PLATEAU.z, yaw: GRAND_PLATEAU.yaw, cell: GRAND_PLATEAU.cell, kind: 'plaza', sink: BASIN.depth });
+      this.addTiltView(grand);
+    }
+    this.setSkyRisen(!!this.save.sky);
     this.scene.add(this.notes.group);
     for (const n of NOTES) this.colliders.addCircle(n.x, n.z, 0.3);
     this.answer = new SeaAnswer();
@@ -365,6 +386,7 @@ export class Game {
   /** Aides discrètes : après HINT_DELAY secondes près d'une énigme non résolue, une pièce luit. */
   /** Zone où se trouve le joueur (pour la musique). */
   private zoneAt(x: number, z: number): Zone {
+    if (Math.hypot(x - SKY.x, z - SKY.z) < SKY.r + 10) return 'ciel';
     if (Math.hypot(x - ATELIER.x, z - ATELIER.z) < ATELIER.r + 15) return 'atelier';
     if (Math.abs(x - CLOITRE.x) < CLOITRE.half + 12 && Math.abs(z - CLOITRE.z) < CLOITRE.half + 12) return 'cloitre';
     if (Math.hypot(x - PHARE.x, z - PHARE.z) < PHARE.r + 12) return 'phare';
@@ -375,7 +397,7 @@ export class Game {
     const pos = this.player.position;
     const pts: THREE.Vector3[] = [];
     for (const p of this.panels.values()) {
-      if (!p.powered || p.solved || SECRET_IDS.includes(p.id)) continue;
+      if (!p.powered || p.solved || SECRET_IDS.includes(p.id) || !p.group.visible) continue;
       const a = this.anchorsOf(p)[0]!;
       if (Math.hypot(a.x - pos.x, a.z - pos.z) < 9) continue;
       pts.push(new THREE.Vector3(a.x, heightAt(a.x, a.z) + 2.2, a.z));
@@ -401,7 +423,7 @@ export class Game {
   }
 
   private applyDay(): void {
-    applyDaylight(this.day, { scene: this.scene, lights: this.lights, renderer: this.renderer, sunGlow: SUN_GLOW, stars: this.stars });
+    applyDaylight(this.day, { scene: this.scene, lights: this.lights, renderer: this.renderer, sunGlow: SUN_GLOW, stars: this.stars, starBoost: this.starBoost });
   }
 
   /** Fait avancer l'heure et la séquence de fin. */
@@ -435,6 +457,114 @@ export class Game {
   }
 
   private hudEndingShown = false;
+  sky!: SkyIsland;
+  skyNotes!: LoreNotes;
+  /** éclat des étoiles (la vraie fin les rallume) */
+  private starBoost = 1;
+  /** séquence : l'Île du Ciel surgit de la mer */
+  rise: { t: number } | null = null;
+  /** séquence : le pont de lumière emporte le joueur (vers l'île, ou vers le phare) */
+  lift: { t: number; up: boolean } | null = null;
+  /** séquence : la vraie fin (le Grand Plateau résolu) */
+  finale: { t: number } | null = null;
+
+  /** La transformation : la terre tremble, l'île monte de la mer jusqu'au ciel, le pont s'allume. */
+  startRise(): void {
+    this.rise = { t: 0 };
+    this.audio.finale();
+  }
+
+  private updateRise(dt: number): void {
+    const r = this.rise!;
+    r.t += dt;
+    const k = THREE.MathUtils.smoothstep(r.t, 1.5, 11);
+    this.sky.setRise(k);
+    this.sky.setBridge(THREE.MathUtils.smoothstep(r.t, 11.2, 13.2));
+    // la mer bouillonne au pied de l'île qui sort de l'eau
+    if (k > 0.02 && k < 0.6 && Math.random() < 0.5) {
+      const a = Math.random() * Math.PI * 2;
+      this.sparks.burst(new THREE.Vector3(SKY.x + Math.cos(a) * SKY.r, 0.5, SKY.z + Math.sin(a) * SKY.r), new THREE.Color('#ffffff'), 18, 6);
+    }
+    const shake = k > 0.02 && k < 0.97 ? 0.35 : 0;
+    const j = () => (Math.random() - 0.5) * shake;
+    const target = r.t < 11
+      ? new THREE.Vector3(SKY.x, 10 + k * (SKY.y - 25), SKY.z)
+      : this.sky.bridgeCurve.getPoint(THREE.MathUtils.clamp((r.t - 11) / 3, 0, 1) * 0.5 + 0.25);
+    this.cameraOverride = { pos: new THREE.Vector3(130 + j(), 34 + j(), 40 + j()), target };
+    if (r.t >= 11.2 && r.t - dt < 11.2) this.audio.solved();
+    if (r.t >= 14.5) {
+      this.rise = null;
+      this.cameraOverride = null;
+      this.save.sky = true;
+      this.setSkyRisen(true);
+      this.dayTarget = 5;
+      // retour au pied du phare, face à la pierre d'envol
+      this.player.place(LIFT.x, LIFT.z + 4, 0, -0.1);
+      this.persist();
+    }
+  }
+
+  /** Le pont de lumière : vers l'île (up) ou vers le phare. */
+  private updateLift(dt: number): void {
+    const l = this.lift!;
+    l.t += dt;
+    const u = THREE.MathUtils.smoothstep(l.t, 0, 6);
+    const at = (v: number) => this.sky.bridgeCurve.getPoint(THREE.MathUtils.clamp(l.up ? v : 1 - v, 0, 1));
+    this.cameraOverride = { pos: at(u).add(new THREE.Vector3(0, 1.6, 0)), target: at(Math.min(1, u + 0.06)).add(new THREE.Vector3(0, 1.4, 0)) };
+    if (l.t >= 6.2) {
+      this.lift = null;
+      this.cameraOverride = null;
+      if (l.up) this.player.place(SKY_ARRIVAL.x, SKY_ARRIVAL.z, SKY_ARRIVAL.yaw, 0);
+      else this.player.place(LIFT.x, LIFT.z + 4, 0, -0.1);
+    }
+  }
+
+  /** On entre dans le rai de lumière d'une pierre d'envol. */
+  private checkLift(): void {
+    if (!this.save.sky || this.lift || this.rise || this.finale || this.cinematic) return;
+    const p = this.player.position;
+    const onSky = p.y > SKY.y - 20;
+    const stone = onSky ? SKY_LIFT : LIFT;
+    if (Math.hypot(p.x - stone.x, p.z - stone.z) < 1.3) {
+      this.lift = { t: 0, up: !onSky };
+      this.audio.solved();
+    }
+  }
+
+  /** La vraie fin : la nuit retombe, les lanternes montent de la mer jusqu'aux étoiles. */
+  private startFinale(): void {
+    this.finale = { t: 0 };
+    this.dayTarget = 4;
+    this.answer.ascend();
+    this.audio.finale();
+    this.input?.release();
+  }
+
+  private updateFinale(dt: number): void {
+    const f = this.finale!;
+    f.t += dt;
+    const k = THREE.MathUtils.smoothstep(f.t, 0, 16);
+    this.starBoost = 1 + 2 * k;
+    this.applyDay();
+    this.cameraOverride = {
+      pos: new THREE.Vector3(SKY_LIFT.x + 6, SKY.y + 9, SKY_LIFT.z + 16),
+      target: new THREE.Vector3(40, 25 + k * 220, -10),
+    };
+    if (f.t >= 18 && !this.finaleShown) {
+      this.finaleShown = true;
+      this.playing = false;
+      this.hud?.showFinale(ENDING.final, this.stats());
+    }
+  }
+  private finaleShown = false;
+
+  /** Après la carte de la vraie fin : retour sur l'île, l'aube revient. */
+  private endFinale(): void {
+    this.finale = null;
+    this.cameraOverride = null;
+    this.dayTarget = 5;
+  }
+
   notes!: LoreNotes;
   answer!: SeaAnswer;
   /** billet visé (lecture au clic) */
@@ -453,6 +583,7 @@ export class Game {
     const first = !notes.includes(id);
     if (first) notes.push(id);
     this.notes.markRead(id);
+    this.skyNotes.markRead(id);
     this.audio.click();
     this.hud?.showNote(NOTES[i]!.text, `billet ${i + 1} sur ${NOTES.length}${first ? '' : ' · déjà lu'}`);
     this.noteAt = this.player.position.clone();
@@ -500,6 +631,26 @@ export class Game {
       shards: SECRET_IDS.filter((id) => this.isSolved(id)).length,
       shardsTotal: SECRET_IDS.length,
     };
+  }
+
+  private addTiltView(view: TiltView): void {
+    view.onSolved = () => this.onPanelSolved(view);
+    view.onRoll = () => this.audio.click();
+    view.onFail = () => this.audio.denied();
+    this.panels.set(view.id, view);
+    this.scene.add(view.group);
+  }
+
+  /** L'Île du Ciel à sa place (ou encore sous la mer) : île, pont de lumière, énigmes, billets. */
+  private setSkyRisen(on: boolean): void {
+    this.sky.setRise(on ? 1 : 0);
+    this.sky.setBridge(on ? 1 : 0);
+    this.skyNotes.group.visible = on;
+    for (const id of [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id]) this.panels.get(id)!.group.visible = on;
+  }
+
+  get skyRisen(): boolean {
+    return !!this.save.sky;
   }
 
   private addShadowView(view: ShadowView): void {
@@ -592,6 +743,9 @@ export class Game {
       // fin de la séquence : retour au joueur
       this.cinematic = null;
       this.cameraOverride = null;
+      // … mais la lumière ne s'arrête pas là : l'Île du Ciel surgit de la mer
+      if (this.ended && !this.save.sky && !this.rise) this.startRise();
+      if (this.finale && this.finale.t >= 18) this.endFinale();
       if (touchInput) {
         touchInput.enabled = true;
         this.playing = true;
@@ -600,7 +754,8 @@ export class Game {
     this.input.onLockChange = (locked) => {
       this.playing = locked;
       if (locked) this.hud!.hideTitle();
-      else if (!this.cinematic) {
+      // pendant une séquence (fin, île qui monte, pont de lumière, vraie fin), pas de menu pause
+      else if (!this.cinematic && !this.finale && !this.rise && !this.lift) {
         this.hud!.showTitle(true);
         this.persist();
       }
@@ -703,7 +858,8 @@ export class Game {
     m.emissive.set('#ffd98a').multiplyScalar(allees * 0.25);
     // chaque zone terminée donne un quart de lumière au phare ; le dernier panneau l'allume
     const steps = BEACON_STEPS.filter((id) => this.isSolved(id)).length;
-    this.dayTarget = steps;
+    // après la transformation, l'aube se lève sur l'Île du Ciel (la vraie fin ramène la nuit)
+    this.dayTarget = this.finale ? 4 : this.save.sky ? 5 : steps;
     if (instant) {
       this.day = steps;
       this.applyDay();
@@ -755,6 +911,8 @@ export class Game {
       if (!this.save.solved.includes(id)) this.save.solved.push(id);
       return;
     }
+    // le Grand Plateau : la vraie fin
+    if (id === GRAND_PLATEAU.id && !this.save.solved.includes(id) && this.hud) this.startFinale();
     if (this.save.solved.includes(id) === false && SECRET_IDS.includes(id)) {
       this.shards.add(this.sparkAt(panel).at);
       this.audio.finale();
@@ -846,7 +1004,7 @@ export class Game {
       ? this.raycaster.intersectObjects(candidates, false).find((h) => h.distance <= (h.object.userData.panel as PuzzleView).reach)
       : undefined;
     // un billet du gardien, plus proche qu'une pièce d'énigme ?
-    const noteHit = this.raycaster.intersectObjects(this.notes.pickables, false)[0];
+    const noteHit = this.raycaster.intersectObjects(this.save.sky ? [...this.notes.pickables, ...this.skyNotes.pickables] : this.notes.pickables, false)[0];
     const note = noteHit && noteHit.distance <= NOTE_REACH && (!hit || noteHit.distance < hit.distance) ? (noteHit.object.userData.note as string) : null;
     if (note !== this.hoveredNote) {
       this.hoveredNote = note;
@@ -886,7 +1044,7 @@ export class Game {
     this.timer.update();
     const dt = Math.min(0.05, this.timer.getDelta());
     this.time += dt;
-    this.player.update(dt);
+    if (!this.rise && !this.lift && !this.finale) this.player.update(dt);
     if (this.cameraOverride) {
       this.camera.position.copy(this.cameraOverride.pos);
       this.camera.lookAt(this.cameraOverride.target);
@@ -915,6 +1073,12 @@ export class Game {
     if (this.beacon.visible) this.beacon.rotation.y += dt * 0.35;
     this.shards.update(dt);
     this.notes.update(this.time);
+    this.skyNotes.update(this.time);
+    this.sky.update(this.time);
+    if (this.rise) this.updateRise(dt);
+    if (this.lift) this.updateLift(dt);
+    if (this.finale) this.updateFinale(dt);
+    this.checkLift();
     this.answer.update(dt, this.time);
     if (this.shards.complete) {
       const hue = (this.time * 0.05) % 1;
@@ -962,6 +1126,16 @@ export class Game {
 
   /** Place le joueur devant un panneau. */
   view(id: string): void {
+    const tiltSpot = SKY_PANELS.find((p) => p.id === id);
+    if (tiltSpot) {
+      const s = standPoint(tiltSpot, 1.5);
+      this.player.place(s.x, s.z, tiltSpot.yaw, -0.6);
+      return;
+    }
+    if (id === GRAND_PLATEAU.id) {
+      this.player.place(GRAND_PLATEAU.x, GRAND_PLATEAU.z + 11, 0, -0.6);
+      return;
+    }
     if (id === GRAND_PLI.id) {
       this.player.place(GRAND_PLI.x, GRAND_PLI.z + 10.5, 0, 0.12);
       return;
@@ -1034,6 +1208,7 @@ export class Game {
       { group: 'Zone 2 · Pliage', items: [...FOLD_PANELS.map((p) => p.id), GRAND_PLI.id].map(item) },
       { group: 'Zone 3 · Ombres', items: [...SHADOW_PANELS.map((p) => p.id), CADRAN.id].map(item) },
       { group: 'Zone 4 · Phare', items: FINAL_PANELS.map((p) => item(p.id)) },
+      { group: 'Zone 5 · Ciel', items: [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id].map((id) => ({ id, label: id === GRAND_PLATEAU.id ? 'Grand Plateau (vraie fin)' : id })) },
       { group: 'Éclats (secrets)', items: SECRET_IDS.map((id) => ({ id, label: `Éclat : ${id.replace('eclat-', '')}` })) },
     ];
   }
@@ -1044,6 +1219,13 @@ export class Game {
    * Sans fanfare ni étincelles ; portes, câbles et lumière du jour suivent, et l'on sauvegarde.
    */
   cheat(action: CheatAction, id: string): void {
+    // les énigmes du ciel : l'île monte d'abord (sans la séquence)
+    const skyTarget = [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id].includes(id);
+    if (skyTarget && !this.save.sky) {
+      this.save.sky = true;
+      this.setSkyRisen(true);
+      this.dayTarget = 5;
+    }
     if (action !== 'goto') {
       const order = POWER.map((p) => p.id);
       const at = order.indexOf(id);
@@ -1076,6 +1258,11 @@ export class Game {
       this.cables.update(0.05);
       for (const p of this.panels.values()) p.update(0.05, this.time);
       this.answer.update(0.05, this.time);
+      this.sky.update(this.time);
+      if (this.rise) this.updateRise(0.05);
+      if (this.lift) this.updateLift(0.05);
+      if (this.finale) this.updateFinale(0.05);
+      this.checkLift();
       this.updateDay(0.05);
       this.sparks.update(0.05);
       this.shards.update(0.05);

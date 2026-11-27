@@ -67,6 +67,10 @@ export function exposeDebugApi(game: Game): void {
     readNote: (id: string) => game.readNote(id),
     aimNote: (id: string) => game.aimAtNote(id),
     /** la fin : la mer a répondu ? les lanternes rentrent ? */
+    /** la suite : l'Île du Ciel */
+    startRise: () => game.startRise(),
+    skyRisen: () => game.skyRisen,
+    sequences: () => ({ rise: !!game.rise, lift: game.lift ? (game.lift.up ? 'montée' : 'descente') : null, finale: !!game.finale }),
     answered: () => game.answer.answered,
     homecoming: () => game.answer.homecoming,
     guides: () => game.guides.mesh.count,
