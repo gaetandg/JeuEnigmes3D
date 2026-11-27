@@ -39,6 +39,18 @@ guide lumineux (colonnes au-dessus des énigmes en attente), champ de vision, in
 vertical, balancement de la marche. **Manette** : stick gauche marcher, stick droit regarder,
 A agir, B ou X sens inverse, Start pause.
 
+## Mode test (triche)
+
+Dans l'écran d'accueil ou de pause (Échap), la section **Mode test (triche)** permet de choisir
+une énigme puis :
+- **Y aller** : se téléporter devant ;
+- **Valider ce qui précède** : résoudre tout ce qui vient avant dans l'ordre du jeu, portes et
+  câbles compris, puis y aller ;
+- **Valider jusqu'ici** : idem, en résolvant aussi cette énigme ;
+- **Tout résoudre**.
+
+La progression est sauvegardée. « Recommencer depuis le début » (dans Réglages) remet tout à zéro.
+
 ## Développement
 
 ```bash

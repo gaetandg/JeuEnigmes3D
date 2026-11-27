@@ -38,6 +38,7 @@ import type { Zone } from './audio.ts';
 import { clearSave, loadSave, writeSave } from './progress.ts';
 import type { Quality, SaveData, Settings } from './progress.ts';
 import { Hud } from '../ui/hud.ts';
+import type { CheatAction, CheatList } from '../ui/hud.ts';
 
 const REACH = 5;
 /** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
@@ -527,7 +528,8 @@ export class Game {
         saveSettings({ hints: on });
       },
       onReset: () => this.reset(),
-    }, settings, this.save.solved.length > 0, touch);
+      onCheat: (action, id) => this.cheat(action, id),
+    }, settings, this.save.solved.length > 0, touch, this.cheatList());
     if (touch) {
       touchInput = new TouchInput(this.opts.canvas, this.opts.ui, this.player);
       touchInput.onTap = (reverse) => this.click(reverse);
@@ -937,6 +939,49 @@ export class Game {
     if (!sol) return false;
     panel.applyState(sol);
     return panel.solved;
+  }
+
+  /** Énigmes du mode test, groupées par zone, dans l'ordre de progression. */
+  private cheatList(): CheatList {
+    const named: Record<string, string> = { tours: 'Tours-Miroirs', 'grand-pli': 'Grand Pli', cadran: 'Cadran', [FINAL_ID]: `${FINAL_ID} (finale)` };
+    const item = (id: string) => ({ id, label: named[id] ?? id });
+    return [
+      { group: 'Zone 1 · Lumière', items: [...PANELS.map((p) => p.id), TOWERS.id].map(item) },
+      { group: 'Zone 2 · Pliage', items: [...FOLD_PANELS.map((p) => p.id), GRAND_PLI.id].map(item) },
+      { group: 'Zone 3 · Ombres', items: [...SHADOW_PANELS.map((p) => p.id), CADRAN.id].map(item) },
+      { group: 'Zone 4 · Phare', items: FINAL_PANELS.map((p) => item(p.id)) },
+      { group: 'Éclats (secrets)', items: SECRET_IDS.map((id) => ({ id, label: `Éclat : ${id.replace('eclat-', '')}` })) },
+    ];
+  }
+
+  /**
+   * Mode test : résout dans l'ordre de progression ce qui précède l'énigme choisie (« before »),
+   * ou jusqu'à elle incluse (« upto »), ou tout (« all »), puis place le joueur devant.
+   * Sans fanfare ni étincelles ; portes, câbles et lumière du jour suivent, et l'on sauvegarde.
+   */
+  cheat(action: CheatAction, id: string): void {
+    if (action !== 'goto') {
+      const order = POWER.map((p) => p.id);
+      const at = order.indexOf(id);
+      const until = action === 'all' ? order.length : at < 0 ? 0 : action === 'before' ? at : at + 1;
+      const targets = new Set(order.slice(0, until));
+      // un Éclat ne dépend de rien : « jusqu'ici » le résout seul (avec son éclat qui s'envole)
+      if (at < 0 && action === 'upto' && SECRET_IDS.includes(id)) this.solvePanel(id);
+      this.restoring = true;
+      for (let progress = true; progress; ) {
+        progress = false;
+        for (const t of targets) {
+          if (this.solvePanel(t)) {
+            this.updatePower(true);
+            progress = true;
+          }
+        }
+      }
+      this.restoring = false;
+      this.updatePower(true);
+      this.persist();
+    }
+    this.view(action === 'all' ? FINAL_ID : id);
   }
 
   /** Avance la simulation sans rendu (pour les tests). */
