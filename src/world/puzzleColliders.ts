@@ -35,6 +35,8 @@ export function addPuzzleColliders(c: Colliders): void {
   for (const s of SECRETS) {
     if (s.kind === 'light' || s.kind === 'fold-desk') c.addCircle(s.x, s.z, 0.45);
     if (s.kind === 'shadow') c.addCircle(s.x, s.z, 0.85);
+    if (s.kind === 'tilt') c.addCircle(s.x, s.z, 0.75);
+    if (s.kind === 'roots') c.addCircle(s.x, s.z, 0.6);
     if (s.kind === 'fold-easel') {
       const v = parseFold(SECRET_FOLD.find((d) => d.id === s.id)!);
       // chevalet tourné : on borne par un cercle de la demi-largeur

@@ -22,8 +22,8 @@ export interface MapMark {
 
 export interface MapData {
   marks: MapMark[];
-  /** éclats trouvés */
-  shards: { x: number; z: number }[];
+  /** éclats trouvés (zone : ciel ou racines pour ceux de la suite) */
+  shards: { x: number; z: number; zone?: MapZone | null }[];
   shardsTotal: number;
   notes: number;
   notesTotal: number;
@@ -318,8 +318,8 @@ export function drawMap(canvas: HTMLCanvasElement, data: MapData, t: number): vo
     }
   }
   for (const sh of data.shards) {
-    const p = main(sh.x, sh.z);
-    star(g, p[0], p[1], 5 * s);
+    const p = where(sh.zone ?? null, sh.x, sh.z);
+    if (p) star(g, p[0], p[1], 5 * s);
   }
   // nous
   const pl = data.player;

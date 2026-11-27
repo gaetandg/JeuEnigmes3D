@@ -170,9 +170,9 @@ describe('navigation — on peut marcher jusqu\'à chaque énigme', () => {
 
 describe('navigation — les secrets sont accessibles', () => {
   const reach = explore(ALL_GATES);
-  it('chaque énigme secrète', () => {
+  it('chaque énigme secrète de l\'île', () => {
     const missing: string[] = [];
-    for (const s of SECRETS) {
+    for (const s of SECRETS.filter((q) => q.kind !== 'tilt' && q.kind !== 'roots')) {
       let ok: boolean;
       if (s.kind === 'world-light') ok = reach(SECRET_PLAGE.x0 + 8, SECRET_PLAGE.z0 + 13) || reach(SECRET_PLAGE.x0 + 8, SECRET_PLAGE.z0 - 3);
       else if (s.kind === 'fold-easel') ok = reach(s.x + Math.sin(s.yaw) * 6.5, s.z + Math.cos(s.yaw) * 6.5);
@@ -218,6 +218,10 @@ describe('navigation — l\'Île du Ciel', () => {
     if (!reach(GRAND_PLATEAU.x, GRAND_PLATEAU.z + 11)) missing.push(GRAND_PLATEAU.id);
     for (const n of NOTES.filter((m) => m.zone === 'ciel')) if (!reach(n.x, n.z)) missing.push(n.id);
     if (!reach(SKY_LIFT.x, SKY_LIFT.z)) missing.push('pierre du retour');
+    for (const s of SECRETS.filter((q) => q.kind === 'tilt')) {
+      const p = standPoint(s, 1.5);
+      if (!reach(p.x, p.z)) missing.push(s.id);
+    }
     expect(missing).toEqual([]);
   });
   it('contrôle : on ne peut pas sortir de l\'île (le vide), quel que soit le cap', () => {
@@ -240,6 +244,10 @@ describe('navigation — la grotte des Racines', () => {
     if (!reach(CAVE.x + 9.5, CAVE.z + 3)) missing.push(RACINE_MERE.id);
     for (const n of NOTES.filter((m) => m.zone === 'racines')) if (!reach(n.x, n.z)) missing.push(n.id);
     if (!reach(CAVE_LIFT.x, CAVE_LIFT.z)) missing.push('pierre du retour');
+    for (const s of SECRETS.filter((q) => q.kind === 'roots')) {
+      const p = standPoint(s, 1.5);
+      if (!reach(p.x, p.z)) missing.push(s.id);
+    }
     expect(missing).toEqual([]);
   });
   it('contrôle : ni la fosse ni le roc au-delà des parois', () => {
