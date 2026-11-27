@@ -40,11 +40,15 @@ test('mode test : valider ce qui précède une énigme, puis jusqu\'à une autre
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'f1')!.powered).toBe(true);
 
   // un billet du gardien, lu d'un vrai clic : la carte s'affiche, le carnet le garde
-  await page.evaluate(() => {
-    window.__game.teleport(9, -93, 3.14);
-    window.__game.aimNote('mer');
-  });
-  await page.waitForFunction(() => window.__game.hoveredNote() === 'mer', null, { timeout: 15_000 });
+  await page.evaluate(() => window.__game.teleport(9.4, -94, 3.14));
+  // on revise à chaque vérification (un mouvement de souris résiduel peut tourner la caméra)
+  const aimed = await page
+    .waitForFunction(() => {
+      window.__game.aimNote('mer');
+      return window.__game.hoveredNote() === 'mer';
+    }, null, { timeout: 15_000 })
+    .then(() => true, () => false);
+  expect(aimed, JSON.stringify(await page.evaluate(() => ({ p: window.__game.player(), note: window.__game.hoveredNote(), piece: window.__game.hovered() })))).toBe(true);
   await page.mouse.down();
   await page.mouse.up();
   await expect(page.locator('.note-card')).toBeVisible();
