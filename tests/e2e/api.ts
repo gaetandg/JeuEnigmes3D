@@ -31,6 +31,7 @@ export type Api = {
   deep: () => boolean;
   cheat: (action: 'goto' | 'before' | 'upto' | 'all', id: string) => void;
   lighthouseY: () => number;
+  map: () => { marks: { id: string; zone: string; state: 'solved' | 'open' | 'locked' }[]; shards: unknown[]; sky: boolean; deep: boolean };
   answered: () => boolean;
   homecoming: () => boolean;
   guides: () => number;

@@ -194,3 +194,39 @@ test('mode test : se téléporter sans rien changer à la progression, et ressor
   expect((await page.evaluate(() => window.__game.panels())).filter((q) => q.solved)).toHaveLength(0);
   expect(errors).toEqual([]);
 });
+
+test('la carte du gardien : énigmes résolues, à faire et verrouillées, pourcentage et zones', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => localStorage.clear());
+  await page.goto('./?debug');
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60_000 });
+  // on avance jusqu'à p5, puis on laisse p5 de côté : p6 et p7 s'allument quand même
+  await page.evaluate(() => {
+    window.__game.cheat('before', 'p5');
+    window.__game.solve('p6');
+  });
+  const marks = await page.evaluate(() => window.__game.map().marks);
+  const st = (id: string) => marks.find((m) => m.id === id)!.state;
+  expect(st('a1')).toBe('solved');
+  expect(st('p5')).toBe('open');
+  expect(st('p6')).toBe('solved');
+  expect(st('p7')).toBe('open');
+  expect(st('p8')).toBe('open');
+  expect(st('p9')).toBe('locked');
+  expect(marks.filter((m) => m.zone === 'ciel')).toHaveLength(9);
+  // la carte dans le menu pause
+  await page.locator('[data-action="start"]').click();
+  await page.evaluate(() => document.exitPointerLock());
+  await expect(page.locator('.overlay').first()).toBeVisible();
+  await page.locator('details.carte summary').click();
+  await expect(page.locator('.carte-pct')).toHaveText(/\(\d+ %\)/);
+  await expect(page.locator('.carte-zones')).toContainText('Jardin 23/23 ✓');
+  await expect(page.locator('.carte-zones')).toContainText('Atelier 5/14');
+  await expect(page.locator('.carte-zones')).not.toContainText('Ciel');
+  const drawn = await page.locator('canvas.carte-canvas').evaluate((c) => (c as HTMLCanvasElement).width > 0);
+  expect(drawn).toBe(true);
+  await page.locator('canvas.carte-canvas').screenshot({ path: 'test-results/carte.png' });
+  expect(errors).toEqual([]);
+});

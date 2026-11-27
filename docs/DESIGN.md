@@ -28,7 +28,16 @@ Au sommet se dresse un **phare éteint**. Pour le rallumer, il faut comprendre t
    visible (câble lumineux, porte, pont). À la fin de chaque zone, une énigme à l'échelle
    du paysage réutilise le langage appris.
 5. **Liberté.** Plusieurs énigmes ouvertes en même temps ; on peut toujours aller voir
-   ailleurs.
+   ailleurs. **Progression souple** : dans chaque suite d'énigmes, les trois premières
+   s'allument l'une après l'autre (les deux premières, des leçons, sont obligatoires) ;
+   ensuite, chacune s'allume dès que *l'une des deux précédentes* est résolue. Bloqué sur une
+   énigme, on la laisse de côté et l'on continue (jamais deux de suite) ; seules les grandes
+   énigmes de zone sont obligatoires. Les câbles le montrent : deux câbles arrivent à chaque
+   énigme, le premier allumé suffit. Le 100 % reste à aller chercher : la **carte du gardien**
+   (menu pause) dessine l'île d'après son relief, chaque énigme y est une lanterne (allumée :
+   résolue ; qui palpite : à faire ; éteinte : pas encore accessible), avec les éclats trouvés,
+   notre position, l'Île du Ciel et la grotte en médaillons une fois découvertes, et le compte
+   par zone. Vérifié par `tests/unit/progression.test.ts`.
 6. **Contemplation.** Palette forte, brouillard doux, sons naturels, aucune pression de temps.
 
 ## 3. Zone 1 — Lumière

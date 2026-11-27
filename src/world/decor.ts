@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from './noise.ts';
 import { distToSegment, heightAt } from './terrain.ts';
-import { GARDEN, GATES, PANELS, PLAZA } from './layout.ts';
+import { GARDEN, GATES, PANELS, PLAZA, reqIds } from './layout.ts';
 import { freeSpot, stoneMaterial } from './props.ts';
 import type { Colliders } from '../game/colliders.ts';
 
@@ -10,7 +10,7 @@ function cableSegments(): [number, number, number, number][] {
   const pos = new Map(PANELS.map((p) => [p.id, p] as const));
   const segs: [number, number, number, number][] = [];
   for (const t of [...PANELS, ...GATES]) {
-    for (const r of t.requires) {
+    for (const r of reqIds(t.requires)) {
       const a = pos.get(r);
       if (a) segs.push([a.x, a.z, t.x, t.z]);
     }
