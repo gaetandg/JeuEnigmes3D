@@ -39,6 +39,12 @@ guide lumineux (colonnes au-dessus des énigmes en attente), champ de vision, in
 vertical, balancement de la marche. **Manette** : stick gauche marcher, stick droit regarder,
 A agir, B ou X sens inverse, Start pause.
 
+## Le récit
+
+Douze **billets du gardien** sont cachés près des chemins : on les vise et on clique pour les lire,
+et le **carnet** (menu pause) les rassemble. À la fin, regardez la mer… et avec les sept éclats,
+encore plus.
+
 ## Mode test (triche)
 
 Dans l'écran d'accueil ou de pause (Échap), la section **Mode test (triche)** permet de choisir

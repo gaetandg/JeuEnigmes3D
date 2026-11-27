@@ -188,3 +188,28 @@ input[type='checkbox'] { width: 20px; height: 20px; accent-color: var(--accent);
 .cheat-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .cheat-actions button { flex: 1 1 45%; }
 .cheat-note { font-size: 12px; opacity: 0.7; margin: 4px 0 0; }
+
+/* billet du gardien, lu à l'écran */
+.note-card {
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  transform: translateX(-50%) rotate(-0.6deg);
+  width: min(520px, 86vw);
+  padding: 18px 22px 12px;
+  background: #fbf3df;
+  color: #3b3127;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  font: italic 18px/1.5 Georgia, 'Times New Roman', serif;
+  animation: note-in 0.35s ease-out;
+}
+.note-card .note-text { margin: 0; }
+.note-card .note-meta { margin: 10px 0 0; text-align: right; font: 12px system-ui, sans-serif; opacity: 0.6; }
+@keyframes note-in { from { opacity: 0; transform: translate(-50%, 12px) rotate(-0.6deg); } }
+
+/* carnet (menu pause) */
+.journal-list { text-align: left; font: italic 14px/1.45 Georgia, serif; padding-left: 22px; max-height: 32vh; overflow-y: auto; }
+.journal-list li { margin: 6px 0; }
+.journal-list li.missing { opacity: 0.5; font-style: normal; font-family: system-ui, sans-serif; font-size: 12px; }
+.ending .story { font: italic 17px/1.5 Georgia, serif; }

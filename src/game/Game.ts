@@ -38,6 +38,9 @@ import type { Zone } from './audio.ts';
 import { clearSave, loadSave, writeSave } from './progress.ts';
 import type { Quality, SaveData, Settings } from './progress.ts';
 import { Hud } from '../ui/hud.ts';
+import { ENDING, NOTES } from '../world/lore.ts';
+import { LoreNotes, NOTE_REACH } from '../render/notes.ts';
+import { SeaAnswer } from '../render/ending.ts';
 import type { CheatAction, CheatList } from '../ui/hud.ts';
 
 const REACH = 5;
@@ -311,6 +314,12 @@ export class Game {
     this.scene.add(this.beacon);
     this.shards = new Shards(this.beacon.position.clone());
     this.scene.add(this.shards.group);
+    // le récit : les billets du gardien, et la réponse de la mer à la fin
+    this.notes = new LoreNotes(NOTES, this.save.notes ?? []);
+    this.scene.add(this.notes.group);
+    for (const n of NOTES) this.colliders.addCircle(n.x, n.z, 0.3);
+    this.answer = new SeaAnswer();
+    this.scene.add(this.answer.group);
 
     // rais de lumière jusqu'au phare (visibles une fois chaque zone finie)
     const crystal = towerCell(3, 0);
@@ -415,7 +424,9 @@ export class Game {
         pos: new THREE.Vector3(LIGHTHOUSE.x + Math.cos(a) * R, h, LIGHTHOUSE.z + Math.sin(a) * R),
         target: new THREE.Vector3(LIGHTHOUSE.x, heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z) + 22 - e * 18, LIGHTHOUSE.z + e * 40),
       };
-      if (c.t >= 14 && !this.hudEndingShown) {
+      // la mer répond, au loin, dans l'axe du dernier plan
+      if (c.t >= 7 && !this.answer.answered) this.answer.start(this.allSecrets());
+      if (c.t >= 18 && !this.hudEndingShown) {
         this.hudEndingShown = true;
         this.playing = false;
         this.hud?.showEnding(this.stats());
@@ -424,6 +435,45 @@ export class Game {
   }
 
   private hudEndingShown = false;
+  notes!: LoreNotes;
+  answer!: SeaAnswer;
+  /** billet visé (lecture au clic) */
+  hoveredNote: string | null = null;
+
+  /** Les sept éclats sont-ils réunis ? (au chargement, avant que les éclats ne soient recomptés) */
+  private allSecrets(): boolean {
+    return SECRET_IDS.every((id) => this.isSolved(id));
+  }
+
+  /** Lit un billet du gardien : carte à l'écran, carnet et sauvegarde. */
+  readNote(id: string): void {
+    const i = NOTES.findIndex((n) => n.id === id);
+    if (i < 0) return;
+    const notes = (this.save.notes ??= []);
+    const first = !notes.includes(id);
+    if (first) notes.push(id);
+    this.notes.markRead(id);
+    this.audio.click();
+    this.hud?.showNote(NOTES[i]!.text, `billet ${i + 1} sur ${NOTES.length}${first ? '' : ' · déjà lu'}`);
+    this.noteAt = this.player.position.clone();
+    this.refreshJournal();
+    writeSave(this.save);
+  }
+  private noteAt: THREE.Vector3 | null = null;
+
+  private refreshJournal(): void {
+    const read = new Set(this.save.notes ?? []);
+    this.hud?.setJournal(NOTES.map((n) => ({ zone: n.zone, text: read.has(n.id) ? n.text : null })));
+  }
+
+  /** Vise un billet (tests). */
+  aimAtNote(id: string): void {
+    const a = this.notes.anchor(id);
+    if (!a) throw new Error(`billet ${id} introuvable`);
+    a.y += 0.25;
+    const d = a.sub(this.player.position);
+    this.player.place(this.player.position.x, this.player.position.z, Math.atan2(-d.x, -d.z), Math.atan2(d.y, Math.hypot(d.x, d.z)));
+  }
 
   /** Un scintillement furtif près des secrets non trouvés, quand on passe à proximité. */
   private glintSecrets(): void {
@@ -438,9 +488,12 @@ export class Game {
   }
 
   /** Bilan affiché à la fin. */
-  stats(): { solved: number; total: number; minutes: number; shards: number; shardsTotal: number } {
+  stats(): { solved: number; total: number; minutes: number; shards: number; shardsTotal: number; notes: number; notesTotal: number; story: string } {
     const main = [...this.panels.keys()].filter((id) => !SECRET_IDS.includes(id));
     return {
+      notes: new Set(this.save.notes ?? []).size,
+      notesTotal: NOTES.length,
+      story: this.allSecrets() ? `${ENDING.answer} ${ENDING.full}` : ENDING.answer,
       solved: main.filter((id) => this.isSolved(id)).length,
       total: main.length,
       minutes: Math.round((this.save.playTime ?? 0) / 60),
@@ -530,6 +583,7 @@ export class Game {
       onReset: () => this.reset(),
       onCheat: (action, id) => this.cheat(action, id),
     }, settings, this.save.solved.length > 0, touch, this.cheatList());
+    this.refreshJournal();
     if (touch) {
       touchInput = new TouchInput(this.opts.canvas, this.opts.ui, this.player);
       touchInput.onTap = (reverse) => this.click(reverse);
@@ -666,8 +720,12 @@ export class Game {
           const p = this.player.position;
           this.cinematic = { t: 0, a0: Math.atan2(p.z - LIGHTHOUSE.z, p.x - LIGHTHOUSE.x) };
           this.input?.release();
+          this.hud.closeNote(); // un billet ouvert ne doit pas masquer la séquence
+          this.noteAt = null;
         }
       }
+      // sans séquence (chargement, tests) : la mer a déjà répondu
+      if (!this.cinematic) this.answer.start(this.allSecrets(), true);
     }
     for (const s of this.shafts) {
       if (this.isSolved(s.id) && !s.mesh.visible) {
@@ -700,6 +758,8 @@ export class Game {
     if (this.save.solved.includes(id) === false && SECRET_IDS.includes(id)) {
       this.shards.add(this.sparkAt(panel).at);
       this.audio.finale();
+      // le dernier éclat trouvé après la fin : les lanternes partent à leur tour
+      if (this.answer.answered && SECRET_IDS.every((s) => s === id || this.isSolved(s))) this.answer.bringLanterns();
     }
     if (this.save.solved.includes(id) === false) {
       const s = this.sparkAt(panel);
@@ -725,6 +785,16 @@ export class Game {
   }
 
   private click(reverse: boolean): void {
+    // un billet ouvert se range au clic suivant
+    if (this.hud?.noteOpen) {
+      this.hud.closeNote();
+      this.noteAt = null;
+      return;
+    }
+    if (this.hoveredNote) {
+      this.readNote(this.hoveredNote);
+      return;
+    }
     if (!this.hovered) return;
     this.interactPanel(this.hovered.panel.id, this.hovered.k, reverse);
   }
@@ -775,13 +845,25 @@ export class Game {
     const hit = candidates.length
       ? this.raycaster.intersectObjects(candidates, false).find((h) => h.distance <= (h.object.userData.panel as PuzzleView).reach)
       : undefined;
-    const next = hit ? { panel: hit.object.userData.panel as PuzzleView, k: hit.object.userData.k as number } : null;
+    // un billet du gardien, plus proche qu'une pièce d'énigme ?
+    const noteHit = this.raycaster.intersectObjects(this.notes.pickables, false)[0];
+    const note = noteHit && noteHit.distance <= NOTE_REACH && (!hit || noteHit.distance < hit.distance) ? (noteHit.object.userData.note as string) : null;
+    if (note !== this.hoveredNote) {
+      this.hoveredNote = note;
+      this.notes.setHover(note);
+    }
+    const next = hit && !note ? { panel: hit.object.userData.panel as PuzzleView, k: hit.object.userData.k as number } : null;
     if (this.hovered && (!next || next.panel !== this.hovered.panel || next.k !== this.hovered.k)) {
       this.hovered.panel.setHover(null);
     }
     this.hovered = next;
     if (next) next.panel.setHover(next.k);
-    this.hud?.setCrosshairActive(!!next);
+    this.hud?.setCrosshairActive(!!next || !!note);
+    // la carte d'un billet se range quand on s'éloigne
+    if (this.noteAt && this.hud?.noteOpen && this.noteAt.distanceTo(this.player.position) > 3) {
+      this.hud.closeNote();
+      this.noteAt = null;
+    }
     // l'aide désigne la pièce visée : montrer le bon bouton
     const help = next?.panel.activeHint();
     this.hud?.setMouseHint(help && help.k === next!.k ? (help.reverse ? 'right' : 'left') : null);
@@ -832,6 +914,8 @@ export class Game {
     this.plazaCrystal.rotation.y += dt * 0.2;
     if (this.beacon.visible) this.beacon.rotation.y += dt * 0.35;
     this.shards.update(dt);
+    this.notes.update(this.time);
+    this.answer.update(dt, this.time);
     if (this.shards.complete) {
       const hue = (this.time * 0.05) % 1;
       for (const c of this.beacon.children) ((c as THREE.Mesh).material as THREE.MeshBasicMaterial).color.setHSL(hue, 0.7, 0.75);
@@ -991,6 +1075,7 @@ export class Game {
       this.time += 0.05;
       this.cables.update(0.05);
       for (const p of this.panels.values()) p.update(0.05, this.time);
+      this.answer.update(0.05, this.time);
       this.updateDay(0.05);
       this.sparks.update(0.05);
       this.shards.update(0.05);

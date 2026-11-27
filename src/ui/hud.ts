@@ -51,6 +51,10 @@ export class Hud {
         <span class="label"></span>
       </div>
       <div class="toast" hidden></div>
+      <div class="note-card" hidden>
+        <p class="note-text"></p>
+        <p class="note-meta"></p>
+      </div>
       <button class="pause" data-action="pause" hidden aria-label="Pause">❚❚</button>
       <div class="overlay" data-screen="title">
         <div class="panel">
@@ -76,6 +80,10 @@ export class Hud {
             <label>Inverser l'axe vertical <input type="checkbox" data-setting="invertY" /></label>
             <label>Balancement de la marche <input type="checkbox" data-setting="bob" /></label>
             <button class="ghost" data-action="reset">Recommencer depuis le début</button>
+          </details>
+          <details class="journal">
+            <summary>Carnet du gardien <span class="journal-count"></span></summary>
+            <ol class="journal-list"></ol>
           </details>
           <details class="cheat">
             <summary>Mode test (triche)</summary>
@@ -184,15 +192,17 @@ export class Hud {
   private mouseHintShown: 'left' | 'right' | null = null;
 
   /** Écran de fin. */
-  showEnding(stats: { solved: number; total: number; minutes: number; shards: number; shardsTotal: number }): void {
+  showEnding(stats: { solved: number; total: number; minutes: number; shards: number; shardsTotal: number; notes: number; notesTotal: number; story: string }): void {
     const el = document.createElement('div');
     el.className = 'overlay ending';
     el.innerHTML = `
       <div class="panel">
         <h1>Lueur</h1>
         <p class="subtitle">Le phare brille à nouveau.</p>
+        <p class="story">${stats.story}</p>
         <p>${stats.solved} énigmes sur ${stats.total} · ${stats.minutes} min de jeu</p>
         <p>${stats.shards === stats.shardsTotal ? 'Les sept éclats sont réunis : toute la lumière de l\'île.' : `Éclats trouvés : ${stats.shards} / ${stats.shardsTotal} — l'île cache encore des secrets.`}</p>
+        <p>Billets du gardien lus : ${stats.notes} / ${stats.notesTotal}</p>
         <p class="help">Merci d'avoir joué.<br/>Un jeu imaginé avec gaetandg et entièrement conçu, codé et testé par Claude.</p>
         <button class="primary" data-action="continue">Continuer à explorer</button>
       </div>`;
@@ -205,6 +215,39 @@ export class Hud {
   }
 
   onContinue: (() => void) | null = null;
+
+  /** Un billet du gardien, lu à l'écran (se ferme au clic suivant ou en s'éloignant). */
+  showNote(text: string, meta: string): void {
+    const card = this.root.querySelector<HTMLElement>('.note-card')!;
+    card.querySelector('.note-text')!.textContent = text;
+    card.querySelector('.note-meta')!.textContent = meta;
+    card.hidden = false;
+  }
+
+  closeNote(): void {
+    this.root.querySelector<HTMLElement>('.note-card')!.hidden = true;
+  }
+
+  get noteOpen(): boolean {
+    return !this.root.querySelector<HTMLElement>('.note-card')!.hidden;
+  }
+
+  /** Le carnet (menu pause) : les billets lus, dans l'ordre du récit ; les autres restent à trouver. */
+  setJournal(entries: { zone: string; text: string | null }[]): void {
+    const read = entries.filter((e) => e.text).length;
+    this.root.querySelector('.journal-count')!.textContent = `(${read} / ${entries.length})`;
+    const list = this.root.querySelector('.journal-list')!;
+    list.innerHTML = '';
+    for (const e of entries) {
+      const li = document.createElement('li');
+      if (e.text) li.textContent = e.text;
+      else {
+        li.className = 'missing';
+        li.textContent = `… un billet reste à trouver (${e.zone})`;
+      }
+      list.appendChild(li);
+    }
+  }
 
   /** Message discret (uniquement pour les menus/erreurs, jamais pour les énigmes). */
   notify(msg: string): void {

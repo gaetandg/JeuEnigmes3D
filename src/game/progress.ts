@@ -28,6 +28,8 @@ export interface SaveData {
   player?: { x: number; z: number; yaw: number };
   /** temps de jeu en secondes */
   playTime?: number;
+  /** billets du gardien déjà lus */
+  notes?: string[];
   settings?: Settings;
 }
 
@@ -43,7 +45,8 @@ export function loadSave(): SaveData {
       const player = p && [p.x, p.z, p.yaw].every((v) => Number.isFinite(v)) ? p : undefined;
       const settings = d?.settings && typeof d.settings === 'object' ? d.settings : undefined;
       const playTime = Number.isFinite(d?.playTime) ? d!.playTime : undefined;
-      return { solved, states, player, settings, playTime };
+      const notes = Array.isArray(d?.notes) ? d.notes.filter((x): x is string => typeof x === 'string') : [];
+      return { solved, states, player, settings, playTime, notes };
     }
   } catch {
     /* stockage indisponible */
