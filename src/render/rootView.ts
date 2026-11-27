@@ -5,6 +5,7 @@ import { heightAt } from '../world/terrain.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { pulse } from './hints.ts';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export interface RootPlacement {
   x: number;
@@ -107,31 +108,22 @@ export class RootView implements PuzzleView {
         tile.userData = { panel: this, k: i };
         this.pickables.push(tile);
       }
-      // segments de la forme de base (rotation 0), la tuile entière tourne
-      const segs: THREE.Mesh[] = [];
+      // la forme de la racine (segments de la forme de base, nœud, cristal) en un seul maillage :
+      // la tuile entière tourne, et l'on ne change que son matériau (allumée ou non)
+      const parts: THREE.BufferGeometry[] = [];
       for (let d = 0; d < 4; d++) {
         if (!(t.mask & (1 << d))) continue;
-        const s = new THREE.Mesh(segGeo, this.darkMat);
-        s.rotation.y = -d * (Math.PI / 2);
-        s.position.y = c * 0.08;
-        tg.add(s);
-        segs.push(s);
+        parts.push(segGeo.clone().rotateY(-d * (Math.PI / 2)).translate(0, c * 0.08, 0));
       }
-      const knot = new THREE.Mesh(knotGeo, this.darkMat);
-      knot.position.y = c * 0.08;
-      tg.add(knot);
-      segs.push(knot);
+      parts.push(knotGeo.clone().translate(0, c * 0.08, 0));
+      if (t.crystal) parts.push(new THREE.OctahedronGeometry(c * 0.2, 0).scale(1, 1.5, 1).translate(0, c * 0.28, 0));
+      const shape = new THREE.Mesh(mergeGeometries(parts.map((q) => (q.index ? q.toNonIndexed() : q)), false)!, this.darkMat);
+      tg.add(shape);
+      const segs = [shape];
       if (t.seed) {
         const seed = new THREE.Mesh(new THREE.SphereGeometry(c * 0.24, 14, 10), new THREE.MeshStandardMaterial({ color: '#fff1c4', emissive: '#ffcf5a', emissiveIntensity: 1.4, toneMapped: false }));
         seed.position.y = c * 0.2;
         tg.add(seed);
-      }
-      if (t.crystal) {
-        const cr = new THREE.Mesh(new THREE.OctahedronGeometry(c * 0.2, 0), this.darkMat);
-        cr.position.y = c * 0.28;
-        cr.scale.y = 1.5;
-        tg.add(cr);
-        segs.push(cr);
       }
       // bouts de racine : rouges s'ils fuient dans le vide
       const caps: THREE.Mesh[] = [];

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { parsePuzzle } from '../core/light/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
-import { SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL, skyEdge, CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE } from '../world/layout.ts';
+import { PLAZA, SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL, skyEdge, CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE } from '../world/layout.ts';
 import { PIT, buildCave } from '../world/cave.ts';
 import type { Cave } from '../world/cave.ts';
 import { ZONE6, ZONE6_MERE } from '../puzzles/zone6.ts';
@@ -72,6 +72,18 @@ const CAVE_FOG = new THREE.Color('#141019');
 /** dernière énigme : elle rallume le phare */
 const FINAL_ID = 'f6';
 const BEACON_STEPS = ['tours', 'grand-pli', 'cadran', FINAL_ID];
+
+/** Mode test : lieux où se téléporter d'un coup, sans rien changer à la progression. */
+const PLACES: { id: string; label: string; x: number; z: number; yaw: number; needs?: 'sky' | 'deep' }[] = [
+  { id: 'plage', label: 'La plage (départ)', x: START.x, z: START.z, yaw: START.yaw },
+  { id: 'place', label: 'La place du jardin', x: PLAZA.x, z: PLAZA.z + 12, yaw: 0 },
+  { id: 'tours', label: 'Le belvédère des Tours-Miroirs', x: 4, z: 1, yaw: 0 },
+  { id: 'atelier', label: "L'Atelier de Papier", x: ATELIER.x, z: ATELIER.z + 10.5, yaw: 0 },
+  { id: 'cloitre', label: 'Le Cloître des Ombres', x: CADRAN.x - 7, z: CADRAN.z + 10, yaw: -0.6 },
+  { id: 'phare', label: 'Le pied du phare', x: LIFT.x + 5, z: LIFT.z + 7, yaw: 0.18 },
+  { id: 'ciel', label: "L'Île du Ciel (une fois montée)", x: SKY_ARRIVAL.x, z: SKY_ARRIVAL.z, yaw: SKY_ARRIVAL.yaw, needs: 'sky' },
+  { id: 'grotte', label: 'La grotte des Racines', x: CAVE_ARRIVAL.x, z: CAVE_ARRIVAL.z, yaw: CAVE_ARRIVAL.yaw, needs: 'deep' },
+];
 
 /** Liens dessinés au sol (câbles lumineux). */
 function cableLinks(): { from: string; ax: number; az: number; bx: number; bz: number }[] {
@@ -186,6 +198,7 @@ export class Game {
 
     // ciel + reflets d'environnement
     const sky = buildSky();
+    this.skyDome = sky;
     this.scene.add(sky);
     const pmrem = new THREE.PMREMGenerator(this.renderer);
     const envScene = new THREE.Scene();
@@ -472,6 +485,19 @@ export class Game {
     fog.far = this.fogFar + (80 - this.fogFar) * k;
     this.caveLight.intensity = 160 * k;
     this.caveLight.visible = k > 0;
+    // sous terre, on ne dessine que la grotte : l'île est loin (au-delà de la vue courte), la mer, le
+    // ciel et les étoiles sont au-dessus de la voûte, et le soleil ne projette plus d'ombres
+    // (ces bascules n'ont lieu qu'au moment d'entrer ou de sortir, pendant un fondu au noir)
+    const under = k > 0;
+    const far = under ? 140 : 1500;
+    if (this.camera.far !== far) {
+      this.camera.far = far;
+      this.camera.updateProjectionMatrix();
+    }
+    this.water.mesh.visible = !under;
+    this.skyDome.visible = !under;
+    this.lights.sun.castShadow = !under;
+    if (under) this.stars.visible = false;
     this.scene.environmentIntensity = 0.6 * (1 - 0.75 * k);
     if (k <= 0) return;
     const L = this.lights;
@@ -486,6 +512,7 @@ export class Game {
 
   /** 0 : dehors ; 1 : dans la grotte (lumière, brume, son de la mer) */
   private caveMix = 0;
+  private skyDome!: THREE.Object3D;
   /** passer d'un coup à l'ambiance du lieu (téléportation, chargement) */
   private snapCave = false;
   private fogFar = 420;
@@ -831,7 +858,7 @@ export class Game {
 
   /** On marche sur une pierre de passage : fondu, et l'on se retrouve à l'autre. */
   private checkPassage(): void {
-    if (!this.save.deep || this.busy) return;
+    if (!(this.save.deep || this.caveVisit) || this.busy) return;
     const p = this.player.position;
     const down = !this.inCave(p);
     const stone = down ? DEEP_LIFT : CAVE_LIFT;
@@ -1104,7 +1131,8 @@ export class Game {
       onReset: () => this.reset(),
       onCheat: (action, id) => this.cheat(action, id),
       onCinematic: (which) => this.replay(which),
-    }, settings, this.save.solved.length > 0, touch, this.cheatList());
+      onTeleport: (place) => this.teleportTo(place),
+    }, settings, this.save.solved.length > 0, touch, this.cheatList(), PLACES.map((p) => ({ id: p.id, label: p.label })));
     this.refreshJournal();
     if (touch) {
       touchInput = new TouchInput(this.opts.canvas, this.opts.ui, this.player);
@@ -1432,12 +1460,19 @@ export class Game {
     this.water.update(this.time);
     this.cables.update(dt);
     for (const p of this.panels.values()) {
-      const small = p instanceof LightPanel || (p instanceof FoldView && p.place.kind === 'desk') || (p instanceof ShadowView && p.place.voxel < 0.5);
+      const lectern = p instanceof RootView && p.place.kind === 'lectern';
+      const small = p instanceof LightPanel || (p instanceof FoldView && p.place.kind === 'desk') || (p instanceof ShadowView && p.place.voxel < 0.5) || lectern;
       if (!small) {
         p.update(dt, this.time);
         continue;
       }
       const d2 = p.group.position.distanceToSquared(this.camera.position);
+      // pupitres des racines : beaucoup de tuiles, détail seulement de près
+      if (lectern) {
+        p.setDetail(d2 < 26 * 26);
+        if (d2 < 26 * 26) p.update(dt, this.time);
+        continue;
+      }
       if (p instanceof LightPanel) p.setLevel(d2 < 32 * 32 ? 2 : d2 < 70 * 70 ? 1 : 0);
       else p.setDetail(d2 < 55 * 55);
       if (d2 < 55 * 55) p.update(dt, this.time);
@@ -1601,6 +1636,27 @@ export class Game {
     if (!sol) return false;
     panel.applyState(sol);
     return panel.solved;
+  }
+
+  /** mode test : la grotte visitée sans la bascule (ses pierres de passage marchent quand même) */
+  private caveVisit = false;
+
+  /** Mode test : aller à un lieu, sans rien résoudre ni changer (la grotte s'ouvre pour l'occasion). */
+  teleportTo(id: string): void {
+    const p = PLACES.find((q) => q.id === id);
+    if (!p) return;
+    if (p.needs === 'sky' && !this.save.sky) {
+      this.hud?.notify("L'Île du Ciel n'est pas encore montée.");
+      return;
+    }
+    // la grotte n'a pas d'autre accès que la bascule : on ouvre ses pierres de passage pour pouvoir
+    // en ressortir, sans toucher au phare ni à la sauvegarde
+    if (p.needs === 'deep' && !this.save.deep) {
+      this.cave.setOpen(true);
+      this.caveVisit = true;
+    }
+    this.player.place(p.x, p.z, p.yaw, 0);
+    this.snapCave = true;
   }
 
   /** Énigmes du mode test, groupées par zone, dans l'ordre de progression. */

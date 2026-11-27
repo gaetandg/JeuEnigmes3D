@@ -157,3 +157,40 @@ test('mode test : voir une cinématique sans toucher à la progression', async (
   expect(Math.hypot(back.x - before.x, back.z - before.z)).toBeLessThan(0.5);
   expect(errors).toEqual([]);
 });
+
+test('mode test : se téléporter sans rien changer à la progression, et ressortir de la grotte', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => localStorage.clear());
+  await page.goto('./?debug');
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60_000 });
+  await page.locator('details.cheat summary').click();
+  // l'atelier
+  await page.locator('[data-cheat="place"]').selectOption('atelier');
+  await page.locator('[data-cheat="tp"]').click();
+  const p = await page.evaluate(() => window.__game.player());
+  expect(Math.hypot(p.x - -50, p.z - -45.5)).toBeLessThan(1);
+  expect((await page.evaluate(() => window.__game.panels())).filter((q) => q.solved)).toHaveLength(0);
+  // l'Île du Ciel n'est pas montée : on ne bouge pas
+  await page.evaluate(() => document.exitPointerLock());
+  await page.locator('details.cheat').evaluate((d) => ((d as HTMLDetailsElement).open = true));
+  await page.locator('[data-cheat="place"]').selectOption('ciel');
+  await page.locator('[data-cheat="tp"]').click();
+  expect(Math.hypot((await page.evaluate(() => window.__game.player())).x - p.x, 0)).toBeLessThan(1);
+  // la grotte : on y va, et sa pierre de passage ramène au pied du phare
+  await page.evaluate(() => document.exitPointerLock());
+  await page.locator('details.cheat').evaluate((d) => ((d as HTMLDetailsElement).open = true));
+  await page.locator('[data-cheat="place"]').selectOption('grotte');
+  await page.locator('[data-cheat="tp"]').click();
+  expect((await page.evaluate(() => window.__game.player())).y).toBeLessThan(-50);
+  expect(await page.evaluate(() => window.__game.deep())).toBe(false);
+  await page.evaluate(() => {
+    window.__game.teleport(-308, -24, 0);
+    window.__game.advance(0.1);
+    window.__game.advance(2);
+  });
+  expect((await page.evaluate(() => window.__game.player())).y).toBeGreaterThan(5);
+  expect((await page.evaluate(() => window.__game.panels())).filter((q) => q.solved)).toHaveLength(0);
+  expect(errors).toEqual([]);
+});
