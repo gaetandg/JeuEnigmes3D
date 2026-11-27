@@ -43,6 +43,11 @@ export class RootView implements PuzzleView {
   powered = false;
   onSolved: (() => void) | null = null;
   onTurn: (() => void) | null = null;
+  /** un cristal de plus reçoit la lumière (n : combien sont allumés) */
+  onCrystal: ((n: number) => void) | null = null;
+  private litCrystals = new Set<number>();
+  /** pas de tintement pendant un chargement ou une résolution automatique */
+  private quiet = false;
 
   private board = new THREE.Group();
   private tiles: Tile[] = [];
@@ -153,7 +158,9 @@ export class RootView implements PuzzleView {
 
   setPowered(on: boolean): void {
     this.powered = on;
+    this.quiet = true;
     this.refresh();
+    this.quiet = false;
   }
 
   setDetail(visible: boolean): void {
@@ -168,6 +175,15 @@ export class RootView implements PuzzleView {
   private refresh(): void {
     const chk = checkRoots(this.puzzle, this.state);
     const { width: w, height: h } = this.puzzle;
+    // les cristaux qui viennent de s'allumer tintent, de plus en plus haut
+    this.puzzle.tiles.forEach((t, i) => {
+      if (!t.crystal) return;
+      const lit = this.powered && chk.lit[i]!;
+      if (lit && !this.litCrystals.has(i)) {
+        this.litCrystals.add(i);
+        if (!this.quiet) this.onCrystal?.(this.litCrystals.size);
+      } else if (!lit) this.litCrystals.delete(i);
+    });
     this.tiles.forEach((t, i) => {
       const lit = this.powered && chk.lit[i]!;
       for (const s of t.segs) s.material = lit ? this.litMat : this.darkMat;
@@ -235,13 +251,17 @@ export class RootView implements PuzzleView {
       t.target = t.current = this.state[i]!;
       t.group.rotation.y = -t.current * (Math.PI / 2);
     });
+    this.quiet = true;
     this.refresh();
+    this.quiet = false;
   }
 
   markSolved(): void {
     this.solved = true;
     this.solvedAt = -100;
+    this.quiet = true;
     this.refresh();
+    this.quiet = false;
   }
 
   solution(): number[] | null {

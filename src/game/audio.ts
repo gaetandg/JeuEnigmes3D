@@ -21,6 +21,12 @@ export class Audio {
   private waves: GainNode | null = null;
   private wind: GainNode | null = null;
   private music: GainNode | null = null;
+  /** part réverbérée (l'écho grandit sous terre) */
+  private wet: GainNode | null = null;
+  /** bourdon grave de la grotte */
+  private drone: GainNode | null = null;
+  /** 0 : dehors ; 1 : sous terre */
+  private under = 0;
   private nextBar = 0;
   private zone: Zone = 'jardin';
   musicVolume = 0.5;
@@ -44,9 +50,47 @@ export class Audio {
     this.reverb.buffer = this.impulse(2.8);
     const wet = ctx.createGain();
     wet.gain.value = 0.35;
+    this.wet = wet;
     this.reverb.connect(wet).connect(this.master);
     this.ambient();
     this.startMusic();
+    this.setUnderground(this.under);
+  }
+
+  /**
+   * Sous terre (0..1) : plus de vent, un écho plus long, un bourdon grave, des gouttes d'eau
+   * qui tombent de la voûte, et les pas qui résonnent.
+   */
+  setUnderground(k: number): void {
+    this.under = k;
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this.wind?.gain.setTargetAtTime(0.22 * (1 - k), t, 0.3);
+    this.wet?.gain.setTargetAtTime(0.35 + 0.45 * k, t, 0.3);
+    this.drone?.gain.setTargetAtTime(0.07 * k, t, 0.6);
+  }
+
+  /** Une goutte tombe de la voûte : un « plic » qui glisse vers le grave, quelque part autour. */
+  private drip(at: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || !this.reverb) return;
+    const o = ctx.createOscillator();
+    const f0 = 900 + Math.random() * 900;
+    o.frequency.setValueAtTime(f0, at);
+    o.frequency.exponentialRampToValueAtTime(f0 * 0.45, at + 0.07);
+    const g = ctx.createGain();
+    const peak = 0.03 + Math.random() * 0.05;
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(peak, at + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.12);
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = Math.random() * 1.6 - 0.8;
+    o.connect(g).connect(pan);
+    pan.connect(this.master);
+    pan.connect(this.reverb);
+    o.start(at);
+    o.stop(at + 0.15);
   }
 
   setMusicVolume(v: number): void {
@@ -84,6 +128,12 @@ export class Audio {
     // onglet en arrière-plan : le minuteur ralentit mais l'horloge audio continue ; on ne
     // rattrape pas les mesures manquées (elles partiraient toutes en même temps)
     if (this.nextBar < ctx.currentTime) this.nextBar = ctx.currentTime + 0.1;
+    // sous terre : des gouttes, parfois deux à la suite
+    if (this.under > 0.5 && Math.random() < 0.22) {
+      const at = ctx.currentTime + Math.random() * 0.5;
+      this.drip(at);
+      if (Math.random() < 0.3) this.drip(at + 0.25 + Math.random() * 0.3);
+    }
     while (this.nextBar < ctx.currentTime + 2) {
       const { root, steps } = ZONE_SCALES[this.zone];
       const t = this.nextBar;
@@ -207,6 +257,20 @@ export class Audio {
     sea.connect(sf).connect(swell).connect(this.waves).connect(this.master!);
     sea.start();
     swellLfo.start();
+    // bourdon de la grotte : deux graves (ré, la) qui battent lentement, muets dehors
+    this.drone = ctx.createGain();
+    this.drone.gain.value = 0;
+    const df = ctx.createBiquadFilter();
+    df.type = 'lowpass';
+    df.frequency.value = 260;
+    this.drone.connect(df).connect(this.master!);
+    for (const f of [73.42, 110.3, 146.2]) {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = f;
+      o.connect(this.drone);
+      o.start();
+    }
   }
 
   private tone(freq: number, at: number, dur: number, gain: number, type: OscillatorType = 'sine', reverb = true): void {
@@ -306,6 +370,8 @@ export class Audio {
     g.gain.linearRampToValueAtTime(0.09, t + 0.01);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
     src.connect(f).connect(g).connect(this.master);
+    // sous terre, les pas résonnent
+    if (this.under > 0.5 && this.reverb) g.connect(this.reverb);
     src.start();
   }
 

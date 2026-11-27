@@ -506,6 +506,7 @@ export class Game {
     if (next !== this.caveMix) {
       this.caveMix = next;
       this.applyDay();
+      this.audio.setUnderground(next);
     }
   }
 
@@ -717,17 +718,14 @@ export class Game {
       if (t >= 2.5 && t - dt < 2.5) this.audio.rumble();
     }
     if (t < 7.6) {
-      // on glisse vers le bord, de plus en plus vite (en contournant le bassin)
+      // on glisse vers le bord, de plus en plus vite, en contournant le bassin, les arbres et les
+      // rochers (avec assez de marge pour ne pas traverser un feuillage)
       const u = THREE.MathUtils.clamp((t - 3) / 4.6, 0, 1);
       const s = u * u;
       const edge = -skyEdge(Math.PI) + 0.6;
-      let x = b.lx + (edge - b.lx) * s;
-      let z = b.lz * (1 - 0.5 * s) + 0.01;
-      const r = Math.hypot(x, z);
-      if (r < BASIN.r + 2) {
-        x *= (BASIN.r + 2) / r;
-        z *= (BASIN.r + 2) / r;
-      }
+      const free = this.colliders.resolve(SKY.x + b.lx + (edge - b.lx) * s, SKY.z + b.lz * (1 - 0.5 * s) + 0.01, 2.2);
+      const x = free.x - SKY.x;
+      const z = free.z - SKY.z;
       const frame = this.sky.frame;
       frame.updateWorldMatrix(true, false);
       const g = heightAt(SKY.x + x, SKY.z + z);
@@ -1005,6 +1003,7 @@ export class Game {
 
   private addRootView(view: RootView): void {
     view.onSolved = () => this.onPanelSolved(view);
+    view.onCrystal = (n) => this.audio.crystal(((n - 1) % 7) + 1);
     this.panels.set(view.id, view);
     this.scene.add(view.group);
   }
@@ -1482,7 +1481,8 @@ export class Game {
     }
     this.sparks.update(dt);
     this.updateDay(dt);
-    this.guides.update(this.time, this.guidesOn && !this.ended);
+    // après la fin du phare, le guide revient pour les zones de la suite (ciel, racines)
+    this.guides.update(this.time, this.guidesOn && (!this.ended || !!this.save.sky) && !this.busy);
     this.gamepad?.poll(dt, this.playing);
     if (this.playing) this.save.playTime = (this.save.playTime ?? 0) + dt;
     this.atelierUpdate(this.time);

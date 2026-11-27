@@ -81,13 +81,19 @@ export function buildCave(colliders: Colliders): Cave {
   // ── parois et voûte ──
   const wallGeo = new THREE.CylinderGeometry(1, 1, CAVE.height + 4, segs, 4, true);
   const wp = wallGeo.attributes.position!;
+  // les sommets en double (la couture du cylindre) reçoivent le même relief : sinon, une fente
+  const jitter = new Map<string, [number, number]>();
   for (let i = 0; i < wp.count; i++) {
     const a = Math.atan2(wp.getZ(i), wp.getX(i));
-    const r = caveEdge(a) + 0.6 + (rnd() - 0.3) * 1.4;
     const y = wp.getY(i);
+    // (Math.round : « -0 » et « 0 » donnent la même clé, contrairement à toFixed)
+    const key = `${Math.round(wp.getX(i) * 1000)},${Math.round(y * 1000)},${Math.round(wp.getZ(i) * 1000)}`;
+    let j = jitter.get(key);
+    if (!j) jitter.set(key, (j = [(rnd() - 0.3) * 1.4, (rnd() - 0.5) * 1.2]));
+    const r = caveEdge(a) + 0.6 + j[0];
     wp.setX(i, Math.cos(a) * r);
     wp.setZ(i, Math.sin(a) * r);
-    wp.setY(i, y + (rnd() - 0.5) * 1.2);
+    wp.setY(i, y + j[1]);
   }
   wallGeo.computeVertexNormals();
   const rockMat = new THREE.MeshStandardMaterial({ color: '#4d4452', roughness: 1, flatShading: true, side: THREE.DoubleSide });

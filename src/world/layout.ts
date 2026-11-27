@@ -202,7 +202,7 @@ export function caveEdge(a: number): number {
   return CAVE.r + 3 * Math.sin(4 * a + 0.4) + 2 * Math.sin(7 * a + 1.3) + 1.2 * Math.sin(11 * a);
 }
 /** où l'on se réveille, et la pierre qui remonte au pied du phare (et celle qui y redescend) */
-export const CAVE_ARRIVAL = { x: CAVE.x + 18, z: CAVE.z + 6, yaw: Math.PI / 2 - 0.32 };
+export const CAVE_ARRIVAL = { x: CAVE.x + 18, z: CAVE.z + 6, yaw: Math.PI / 2 + 0.28 }; // la fosse à droite, r1 à gauche
 export const CAVE_LIFT = { x: CAVE.x + 22, z: CAVE.z - 4 };
 export const DEEP_LIFT = { x: 0, z: -103.6 };
 /** six pupitres de racines en cercle, la Racine-mère au centre (au fond d'une fosse) */
