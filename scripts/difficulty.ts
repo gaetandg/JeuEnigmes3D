@@ -145,7 +145,7 @@ function tiltRow(zone: string, def: SkyPuzzleDef): Row {
 /** Valeur visible d'un état des racines : tuiles allumées, moins les fuites. */
 function rootsValue(p: RootPuzzle, s: number[]): number {
   const c = checkRoots(p, s);
-  return c.lit.filter(Boolean).length * 2 - c.leaks;
+  return c.lit.filter(Boolean).length * 2 - c.leaks - 2 * c.conflicts.length - 2 * c.wrong;
 }
 
 /** Agent glouton : tourne toujours la tuile qui améliore le plus la situation visible. */

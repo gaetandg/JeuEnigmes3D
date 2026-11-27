@@ -33,7 +33,14 @@ les **actions minimum** (quarts de tour) et le **déclic**. r1 est une leçon (t
 tourner, que les points rouges désignent ; l'agent glouton y réussit toujours). Ensuite, l'agent
 glouton échoue toujours : allumer une tuile de plus ouvre souvent une nouvelle fuite, et il faut
 raisonner par les bords (une racine ne peut pas y pointer) et par les croix, qui ne tournent pas.
-Les grilles grandissent de 3×3 à 7×6, de 3 à 49 quarts de tour (`node scripts/difficulty.ts --racines --md`).
+Les grilles grandissent de 3×3 à 7×6, de 3 à 48 quarts de tour (`node scripts/difficulty.ts --racines --md`).
+
+Première version trop facile (retour de jeu) : toutes les grilles se résolvaient **entièrement par
+déduction locale** (bords, voisines). D'où une mesure de plus, `undecided` : le nombre de tuiles que
+la déduction locale laisse indécises. Les grilles sont désormais choisies pour en laisser beaucoup
+(r2 8/15, r3 8/14, r4 11/18, r5 12/22, r6 17/25, Racine-mère 22/36) : il faut raisonner sur les
+réseaux entiers. Deux règles y aident : une **deuxième lumière** (bleue, dès r3), dont le réseau ne
+doit jamais toucher celui de l'or, chaque cristal attendant sa couleur ; et des **trous** dans la grille.
 
 | Zone | Énigme | Type | Pièces | Actions min. | Actions à l'aveugle (médiane) | Difficulté | Déclic |
 |---|---|---|---|---|---|---|---|
@@ -103,9 +110,9 @@ Les grilles grandissent de 3×3 à 7×6, de 3 à 49 quarts de tour (`node script
 | 5 Ciel | t8 | inclinaison | 4 | 9 | 864 | 9.8 ██████████ | 100 % |
 | 5 Ciel | grand-plateau | inclinaison | 4 | 12 | 15137 | 13.9 ██████████████ ⚠ saut | 100 % |
 | 6 Racines | r1 | racines | 8 | 3 | 20000 | 14.3 ██████████████ | 0 % |
-| 6 Racines | r2 | racines | 11 | 11 | 20000 | 14.3 ██████████████ | 100 % |
-| 6 Racines | r3 | racines | 15 | 17 | 20000 | 14.3 ██████████████ | 100 % |
-| 6 Racines | r4 | racines | 19 | 19 | 20000 | 14.3 ██████████████ | 100 % |
-| 6 Racines | r5 | racines | 24 | 25 | 20000 | 14.3 ██████████████ | 100 % |
-| 6 Racines | r6 | racines | 29 | 36 | 20000 | 14.3 ██████████████ | 100 % |
-| 6 Racines | racine-mere | racines | 41 | 49 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | r2 | racines | 15 | 21 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | r3 | racines | 14 | 19 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | r4 | racines | 18 | 23 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | r5 | racines | 22 | 26 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | r6 | racines | 25 | 28 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | racine-mere | racines | 36 | 48 | 20000 | 14.3 ██████████████ | 100 % |
