@@ -297,15 +297,14 @@ export class LightPanel implements PuzzleView {
         pivot.add(m);
         return m;
       });
-      mergeMeshes(cubes, pivot, mat).castShadow = true;
+      const body = mergeMeshes(cubes, pivot, mat);
+      body.castShadow = true;
       this.board.add(pivot);
-      // avec des manivelles, on agit sur les roues, pas sur les objets
+      // avec des manivelles, on agit sur les roues, pas sur les objets ; sinon on vise l'objet par
+      // ses cubes visibles (une grande boîte invisible masquait les pièces voisines, comme une lame)
       if (!puzzle.cranks) {
-        const pick = new THREE.Mesh(new THREE.BoxGeometry(c * 3, c * 3, c * 3), MAT.pick);
-        pick.position.copy(pivot.position);
-        pick.userData = { panel: this, k };
-        this.board.add(pick);
-        this.pickables.push(pick);
+        body.userData = { panel: this, k, aim: cubes[0]!.position.clone() };
+        this.pickables.push(body);
       }
       const t = this.state[k]!;
       pivot.rotation.copy(objectEuler(o.axis, t));
