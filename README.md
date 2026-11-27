@@ -54,9 +54,13 @@ une énigme puis :
 - **Valider ce qui précède** : résoudre tout ce qui vient avant dans l'ordre du jeu, portes et
   câbles compris, puis y aller ;
 - **Valider jusqu'ici** : idem, en résolvant aussi cette énigme ;
-- **Tout résoudre**.
+- **Tout résoudre** ;
+- **Voir la cinématique** : rejouer le phare qui se rallume, l'île qui surgit de la mer ou la vraie
+  fin, sans toucher à la progression.
 
-La progression est sauvegardée. « Recommencer depuis le début » (dans Réglages) remet tout à zéro.
+« Valider ce qui précède / jusqu'ici » place la progression **exactement** à ce point, en avant comme
+en arrière : si l'on est déjà plus loin, les énigmes suivantes repartent de zéro (la page se
+recharge). La progression est sauvegardée. « Recommencer depuis le début » (dans Réglages) remet tout à zéro.
 
 ## Développement
 
