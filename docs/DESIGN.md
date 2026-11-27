@@ -213,6 +213,33 @@ impasses, que l'aide signale). Le plateau penche vraiment pendant que les billes
   lanternes quittent la mer pour monter les rejoindre. Le gardien laisse sa dernière lettre : la
   lumière est passée de ses mains aux nôtres.
 
+## 6 quinquies. La bascule et les Racines du Phare
+
+On croit le jeu fini une deuxième fois : la dernière lettre du gardien s'affiche, on clique sur
+« Rester sur l'île »… et deux secondes plus tard, **l'île entière se met à pencher**, exactement
+comme les plateaux qu'on vient d'incliner. On glisse vers le bord ouest, on tombe du ciel ; pendant
+la chute, au loin, **le phare s'enfonce dans sa colline**. Noir. On se réveille allongé sur la
+terre, sous une voûte d'où pendent des racines : la grotte des Racines, sous la mer.
+(Si l'on recharge avant d'avoir cliqué, la bascule a lieu dès qu'on remet le pied sur l'île.)
+
+**Cinquième langage, les racines** : chaque pupitre est une grille de tuiles portant des bouts de
+racine (bout, coude, droit, T, croix). Un clic tourne une tuile d'un quart de tour (clic droit :
+dans l'autre sens). Depuis la graine lumineuse, la lumière suit les racines reliées et les allume
+en or ; un bout éclairé qui s'ouvre dans le vide montre un point rouge. C'est résolu quand toutes
+les tuiles sont allumées, sans aucune fuite (les cristaux, au bout des racines, s'allument avec).
+
+- Six pupitres en cercle (3×3 à 6×5), générés par `scripts/roots-gen.ts` (arbre couvrant
+  aléatoire, rotations mélangées) et gardés seulement si le solveur (retour sur trace ligne par
+  ligne) trouve **une solution unique**.
+- **La Racine-mère**, au fond d'une fosse au centre de la grotte (7×6, on la tourne de loin).
+- Trois billets (dix-huit en tout) : le gardien est passé par là, lui aussi, « la première fois ».
+- Deux **pierres de passage** relient la grotte et le pied du phare enfoncé.
+- **La fin des Racines** : la Racine-mère reliée, la lumière remonte les racines jusqu'à la voûte ;
+  dehors, le phare sort de la colline et se rallume. Le gardien ajoute un post-scriptum : sa
+  « dernière lettre » ne l'était pas tout à fait.
+- Ambiance : sous terre, plus de soleil ; une voûte violette, une lampe chaude au-dessus de la
+  fosse, une brume sombre et proche, la mer étouffée, une gamme phrygienne grave.
+
 ## 6 bis. Les Éclats (secrets)
 
 Sept énigmes cachées hors des chemins, allumées dès le départ, sans câble ni guide lumineux :
@@ -274,6 +301,7 @@ tests/
 | 5 | Zone Ombres | idem |
 | 6 | Le Phare | zone finale combinée, fin du jeu |
 
-**Bilan** : 65 énigmes (22 + 1 en zone 1, 13 + 1 en zone 2, 12 + 1 en zone 3, 6 en zone 4, 8 + 1 sur l'Île du Ciel),
+**Bilan** : 72 énigmes (22 + 1 en zone 1, 13 + 1 en zone 2, 12 + 1 en zone 3, 6 en zone 4, 8 + 1 sur l'Île du Ciel,
+6 + 1 dans les Racines du Phare),
 toutes vérifiées par les solveurs à chaque modification.
 | 7 | Mobile | contrôles tactiles, performances |

@@ -194,6 +194,31 @@ export const SKY_PANELS: PanelSpot[] = Array.from({ length: 8 }, (_, i) => {
 /** le Grand Plateau, au centre de l'île : on se tient au sud (côté +z) pour le regarder */
 export const GRAND_PLATEAU = { id: 'grand-plateau', x: SKY.x, z: SKY.z, yaw: 0, requires: ['t8'], cell: 1.6 };
 
+// ── zone 6 : les Racines du Phare (une grotte sous la mer, à l'ouest ; on s'y réveille après la bascule) ──
+/** centre, altitude du sol et rayon moyen de la grotte */
+export const CAVE = { x: -330, z: -20, y: -60, r: 30, height: 15 };
+/** Bord de la grotte selon l'angle : des alcôves irrégulières. */
+export function caveEdge(a: number): number {
+  return CAVE.r + 3 * Math.sin(4 * a + 0.4) + 2 * Math.sin(7 * a + 1.3) + 1.2 * Math.sin(11 * a);
+}
+/** où l'on se réveille, et la pierre qui remonte au pied du phare (et celle qui y redescend) */
+export const CAVE_ARRIVAL = { x: CAVE.x + 18, z: CAVE.z + 6, yaw: Math.PI / 2 - 0.32 };
+export const CAVE_LIFT = { x: CAVE.x + 22, z: CAVE.z - 4 };
+export const DEEP_LIFT = { x: 0, z: -103.6 };
+/** six pupitres de racines en cercle, la Racine-mère au centre (au fond d'une fosse) */
+export const ROOT_PANELS: PanelSpot[] = Array.from({ length: 6 }, (_, i) => {
+  const a = Math.PI * 0.25 + (i * Math.PI * 2) / 7;
+  const r = 19;
+  return {
+    id: `r${i + 1}`,
+    x: CAVE.x + Math.cos(a) * r,
+    z: CAVE.z + Math.sin(a) * r,
+    yaw: Math.atan2(Math.cos(a), Math.sin(a)),
+    requires: i === 0 ? ['grand-plateau'] : [`r${i}`],
+  };
+});
+export const RACINE_MERE = { id: 'racine-mere', x: CAVE.x, z: CAVE.z, yaw: 0, requires: ['r6'], cell: 1.25 };
+
 // ── les Éclats : énigmes secrètes ──
 export type SecretKind = 'world-light' | 'light' | 'fold-desk' | 'fold-easel' | 'shadow';
 export interface SecretSpot extends PanelSpot {

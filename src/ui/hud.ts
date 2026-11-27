@@ -21,7 +21,7 @@ export interface HudCallbacks {
   onCinematic: (which: Cinematic) => void;
 }
 
-export type Cinematic = 'phare' | 'ile' | 'vraie';
+export type Cinematic = 'phare' | 'ile' | 'vraie' | 'bascule' | 'racines';
 
 export type CheatAction = 'goto' | 'before' | 'upto' | 'all';
 /** Énigmes proposées au mode test, groupées par zone, dans l'ordre de progression. */
@@ -55,6 +55,7 @@ export class Hud {
         <span class="label"></span>
       </div>
       <div class="toast" hidden></div>
+      <div class="fade"></div>
       <div class="note-card" hidden>
         <p class="note-text"></p>
         <p class="note-meta"></p>
@@ -104,6 +105,8 @@ export class Hud {
                 <option value="phare">Le phare se rallume (fin)</option>
                 <option value="ile">L'île surgit de la mer</option>
                 <option value="vraie">La vraie fin (les lanternes)</option>
+                <option value="bascule">L'île bascule (la chute)</option>
+                <option value="racines">Les racines reliées (le phare remonte)</option>
               </select>
             </label>
             <div class="cheat-actions">
@@ -234,20 +237,29 @@ export class Hud {
 
   onContinue: (() => void) | null = null;
 
+  /** Fondu au noir (1 : noir complet ; 0 : rien), en `ms` millisecondes. */
+  fade(to: number, ms = 600): void {
+    const el = this.root.querySelector<HTMLElement>('.fade')!;
+    el.style.transition = `opacity ${ms}ms linear`;
+    el.style.opacity = String(to);
+  }
+
   /** La vraie fin : la dernière lettre du gardien. */
-  showFinale(letter: string, stats: { solved: number; total: number; minutes: number; shards: number; shardsTotal: number; notes: number; notesTotal: number }): void {
+  showFinale(letter: string, stats: { solved: number; total: number; minutes: number; shards: number; shardsTotal: number; notes: number; notesTotal: number }, subtitle = 'Les lanternes ont rejoint les étoiles.', button = 'Rester sur l\'île'): void {
     const el = document.createElement('div');
     el.className = 'overlay ending finale';
     el.innerHTML = `
       <div class="panel">
         <h1>Lueur</h1>
-        <p class="subtitle">Les lanternes ont rejoint les étoiles.</p>
+        <p class="subtitle"></p>
         <p class="story letter"></p>
         <p>${stats.solved} énigmes sur ${stats.total} · ${stats.minutes} min de jeu</p>
         <p>Éclats : ${stats.shards} / ${stats.shardsTotal} · Billets du gardien : ${stats.notes} / ${stats.notesTotal}</p>
-        <button class="primary" data-action="continue">Rester sur l'île</button>
+        <button class="primary" data-action="continue"></button>
       </div>`;
     el.querySelector('.letter')!.textContent = letter;
+    el.querySelector('.subtitle')!.textContent = subtitle;
+    el.querySelector('[data-action="continue"]')!.textContent = button;
     this.root.appendChild(el);
     document.exitPointerLock?.();
     el.querySelector('[data-action="continue"]')!.addEventListener('click', () => {

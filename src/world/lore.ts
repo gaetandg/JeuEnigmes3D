@@ -10,7 +10,7 @@
 export interface LoreNote {
   id: string;
   /** zone où on le trouve (pour le carnet) */
-  zone: 'plage' | 'jardin' | 'atelier' | 'cloître' | 'phare' | 'secret' | 'ciel';
+  zone: 'plage' | 'jardin' | 'atelier' | 'cloître' | 'phare' | 'secret' | 'ciel' | 'racines';
   x: number;
   z: number;
   text: string;
@@ -78,12 +78,27 @@ export const NOTES: LoreNote[] = [
     id: 'attendre', zone: 'ciel', x: 291, z: -4,
     text: "J'ai appris à attendre comme on incline un plateau : doucement, en sachant que chaque chose finira par trouver sa place.",
   },
+  // ── les Racines du Phare (après la bascule) ──
+  {
+    id: 'chute', zone: 'racines', x: -306, z: -8,
+    text: "Toi aussi, tu viens de faire une longue chute. Moi, c'est d'ici que tout est reparti, la première fois : d'en bas, là où le phare plonge ses racines.",
+  },
+  {
+    id: 'racines', zone: 'racines', x: -348, z: -36,
+    text: "La lumière du phare ne vient pas d'en haut. Elle remonte d'ici, par les racines, comme la sève. Il suffit qu'une seule s'ouvre dans le vide pour que tout s'éteigne.",
+  },
+  {
+    id: 'remonter', zone: 'racines', x: -341, z: -1,
+    text: "Quand tout sera relié, le phare remontera. Il ne t'attendra plus : c'est toi qu'il éclairera, où que tu ailles.",
+  },
 ];
 
 /** Mots de la fin : une lumière répond au large ; avec les sept éclats, les lanternes reviennent. */
 export const ENDING = {
   answer: 'Au large, une lumière a répondu.',
   full: 'Toutes les couleurs sont revenues. Sur la mer, des dizaines de lanternes rentrent vers l\'île.',
+  /** après la Racine-mère : le post-scriptum du gardien (la « dernière lettre » ne l'était pas) */
+  roots: "P.-S. Je t'ai écrit que je n'attendais plus. Ce n'était pas tout à fait vrai : j'attendais que tu descendes jusqu'ici. Le phare ne tenait que par sa lumière ; il tient maintenant par ses racines. Il ne s'éteindra plus.",
   /** après le Grand Plateau : la dernière lettre du gardien */
   final: "Tu as rallumé le phare, puis tu as trouvé le chemin du ciel. Je n'ai plus besoin d'attendre : la lumière est passée de mes mains aux tiennes. Garde-la allumée pour qui arrivera ensuite par la mer.",
 };

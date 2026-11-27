@@ -26,15 +26,26 @@ export interface SkyIsland {
   setBridge(k: number): void;
   /** courbe du pont de lumière, du pied du phare à l'île */
   bridgeCurve: THREE.CatmullRomCurve3;
+  /** la bascule : l'île penche comme un plateau (0 : à plat ; 1 : très penchée vers l'ouest) */
+  setTilt(k: number): void;
+  /** repère de l'île (x, z relatifs au centre, y absolu) : suit la montée et la bascule */
+  frame: THREE.Object3D;
+  /** ce qui doit basculer avec l'île s'y accroche le temps de la bascule */
+  pivot: THREE.Object3D;
   update(time: number): void;
 }
 
 export function buildSkyIsland(colliders: Colliders): SkyIsland {
   const root = new THREE.Group();
   root.name = 'île du ciel';
+  // l'île tourne autour du centre de sa surface (la bascule) : pivot, puis l'île elle-même
+  const pivot = new THREE.Group();
+  pivot.position.set(SKY.x, SKY.y, SKY.z);
+  root.add(pivot);
   const island = new THREE.Group();
-  island.position.set(SKY.x, 0, SKY.z);
-  root.add(island);
+  island.position.set(0, -SKY.y, 0);
+  pivot.add(island);
+  // (repère de l'île : x, z relatifs au centre, y absolu)
 
   // ── dessus : prairie en anneaux (relief de heightAt) ──
   const rings = 14;
@@ -201,10 +212,15 @@ export function buildSkyIsland(colliders: Colliders): SkyIsland {
   return {
     group: root,
     bridgeCurve,
+    frame: island,
+    pivot,
     setRise(k: number) {
       rise = THREE.MathUtils.clamp(k, 0, 1);
-      island.position.y = (rise - 1) * SUNK;
+      island.position.y = -SKY.y + (rise - 1) * SUNK;
       island.visible = rise > 0.001;
+    },
+    setTilt(k: number) {
+      pivot.rotation.z = THREE.MathUtils.clamp(k, 0, 1) * 0.5;
     },
     setBridge(k: number) {
       bridgeLevel = THREE.MathUtils.clamp(k, 0, 1);

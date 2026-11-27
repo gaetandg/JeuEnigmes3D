@@ -1,9 +1,10 @@
 # Lueur — jeu d'énigmes visuelles en 3D
 
-Une île silencieuse, des ruines de pierre blanche, un phare éteint. Trois langages
-d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombres.
+Une île silencieuse, des ruines de pierre blanche, un phare éteint. Des langages
+d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombres… et d'autres,
+qu'on ne découvre qu'après avoir cru finir.
 
-**Le jeu est complet** : 5 zones, 65 énigmes, deux fins.
+**Le jeu est complet** : 6 zones, 72 énigmes, trois fins.
 
 | Zone | Langage | Contenu |
 |---|---|---|
@@ -12,6 +13,7 @@ d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombr
 | Le Cloître des Ombres | Ombres | 12 théâtres d'ombres (dont 2 à manivelles couplées) + le Cadran |
 | Le Phare | Combinaisons | 6 panneaux (dont la finale à manivelles), puis le phare se rallume |
 | L'Île du Ciel *(après la fin)* | Inclinaison | 8 plateaux à billes + le Grand Plateau, puis la vraie fin |
+| Les Racines du Phare *(après la vraie fin)* | Racines | 6 pupitres de tuiles à tourner + la Racine-mère |
 
 Et **sept éclats** à trouver : des énigmes secrètes cachées hors des chemins, sans câble ni
 guide (un scintillement furtif trahit leur présence). Chaque éclat rejoint le phare ; les sept
@@ -42,7 +44,7 @@ A agir, B ou X sens inverse, Start pause.
 
 ## Le récit
 
-Quinze **billets du gardien** sont cachés près des chemins : on les vise et on clique pour les lire,
+Dix-huit **billets du gardien** sont cachés près des chemins : on les vise et on clique pour les lire,
 et le **carnet** (menu pause) les rassemble. À la fin, regardez la mer… et avec les sept éclats,
 encore plus.
 

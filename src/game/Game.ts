@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { parsePuzzle } from '../core/light/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
-import { SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL } from '../world/layout.ts';
+import { SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL, skyEdge, CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE } from '../world/layout.ts';
+import { PIT, buildCave } from '../world/cave.ts';
+import type { Cave } from '../world/cave.ts';
+import { ZONE6, ZONE6_MERE } from '../puzzles/zone6.ts';
+import { parseRoots } from '../core/roots/index.ts';
+import { RootView } from '../render/rootView.ts';
 import { BASIN, buildSkyIsland } from '../world/sky.ts';
 import type { SkyIsland } from '../world/sky.ts';
 import { ZONE5, ZONE5_GRAND } from '../puzzles/zone5.ts';
@@ -53,7 +58,15 @@ const REACH = 5;
 const HINT_DELAY = 180;
 
 /** Qui alimente quoi : panneaux + énigmes d'environnement. */
-const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU];
+const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU, ...ROOT_PANELS, RACINE_MERE];
+const SKY_IDS = [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id];
+const ROOT_IDS = [...ROOT_PANELS.map((p) => p.id), RACINE_MERE.id];
+/** de combien le phare s'enfonce dans la colline pendant la bascule (m) */
+const SINK_DEPTH = 22;
+/** lumière de la grotte : voûte violette, sol de terre, brume sombre */
+const CAVE_SKY = new THREE.Color('#a497d6');
+const CAVE_GROUND = new THREE.Color('#6a5040');
+const CAVE_FOG = new THREE.Color('#141019');
 
 /** Les énigmes qui donnent chacune un quart de lumière au phare. */
 /** dernière énigme : elle rallume le phare */
@@ -210,6 +223,8 @@ export class Game {
     this.scene.add(plaza.group);
     const lh = buildLighthouse(this.colliders);
     this.lighthouseLamp = lh.lamp;
+    this.lighthouse = lh.group;
+    this.lighthouseY = lh.group.position.y;
     this.scene.add(lh.group);
     this.scene.add(this.cables.group);
 
@@ -316,11 +331,12 @@ export class Game {
       this.beacon.add(cone);
     }
     this.beacon.visible = false;
+    this.beaconY = this.beacon.position.y;
     this.scene.add(this.beacon);
     this.shards = new Shards(this.beacon.position.clone());
     this.scene.add(this.shards.group);
     // le récit : les billets du gardien, et la réponse de la mer à la fin
-    this.notes = new LoreNotes(NOTES.filter((n) => n.zone !== 'ciel'), this.save.notes ?? []);
+    this.notes = new LoreNotes(NOTES.filter((n) => n.zone !== 'ciel' && n.zone !== 'racines'), this.save.notes ?? []);
     this.skyNotes = new LoreNotes(NOTES.filter((n) => n.zone === 'ciel'), this.save.notes ?? []);
     this.scene.add(this.skyNotes.group);
     // la suite : l'Île du Ciel, qui dort sous la mer jusqu'à la transformation
@@ -337,6 +353,24 @@ export class Game {
       this.addTiltView(grand);
     }
     this.setSkyRisen(!!this.save.sky);
+    // la suite de la suite : la grotte des Racines, sous la mer, où l'on tombe après la bascule
+    this.cave = buildCave(this.colliders);
+    this.scene.add(this.cave.group);
+    // une seule lampe chaude au-dessus de la fosse (éteinte dehors : intensité nulle, pas de recompilation)
+    this.caveLight = new THREE.PointLight('#ffc98a', 0, 75, 1.5);
+    this.caveLight.position.set(CAVE.x, CAVE.y + 7, CAVE.z);
+    this.scene.add(this.caveLight);
+    for (const spot of ROOT_PANELS) {
+      const { puzzle, start } = parseRoots(ZONE6.find((d) => d.id === spot.id)!);
+      this.addRootView(new RootView(puzzle, { x: spot.x, z: spot.z, yaw: spot.yaw, cell: 0.2, kind: 'lectern' }, start));
+      this.colliders.addCircle(spot.x, spot.z, 0.6);
+    }
+    {
+      const { puzzle, start } = parseRoots(ZONE6_MERE);
+      this.addRootView(new RootView(puzzle, { x: RACINE_MERE.x, z: RACINE_MERE.z, yaw: RACINE_MERE.yaw, cell: RACINE_MERE.cell, kind: 'pit', sink: PIT.depth }, start));
+    }
+    this.caveNotes = new LoreNotes(NOTES.filter((n) => n.zone === 'racines'), this.save.notes ?? []);
+    this.scene.add(this.caveNotes.group);
     this.scene.add(this.notes.group);
     for (const n of NOTES) this.colliders.addCircle(n.x, n.z, 0.3);
     this.answer = new SeaAnswer();
@@ -351,6 +385,8 @@ export class Game {
     this.player = new Player(this.camera, this.colliders);
     this.player.onStep = () => this.audio.step();
     this.restore();
+    this.applyDeep();
+    this.snapCave = true;
 
     window.addEventListener('resize', () => this.resize());
 
@@ -386,6 +422,7 @@ export class Game {
   /** Aides discrètes : après HINT_DELAY secondes près d'une énigme non résolue, une pièce luit. */
   /** Zone où se trouve le joueur (pour la musique). */
   private zoneAt(x: number, z: number): Zone {
+    if (Math.hypot(x - CAVE.x, z - CAVE.z) < CAVE.r + 15) return 'racines';
     if (Math.hypot(x - SKY.x, z - SKY.z) < SKY.r + 10) return 'ciel';
     if (Math.hypot(x - ATELIER.x, z - ATELIER.z) < ATELIER.r + 15) return 'atelier';
     if (Math.abs(x - CLOITRE.x) < CLOITRE.half + 12 && Math.abs(z - CLOITRE.z) < CLOITRE.half + 12) return 'cloitre';
@@ -424,6 +461,48 @@ export class Game {
 
   private applyDay(): void {
     applyDaylight(this.day, { scene: this.scene, lights: this.lights, renderer: this.renderer, sunGlow: SUN_GLOW, stars: this.stars, starBoost: this.starBoost });
+    // sous terre : plus de soleil, une voûte violette, une brume sombre et proche, la lampe de la fosse
+    const k = this.caveMix;
+    const fog = this.scene.fog as THREE.Fog;
+    fog.near = 90 + (14 - 90) * k;
+    fog.far = this.fogFar + (80 - this.fogFar) * k;
+    this.caveLight.intensity = 160 * k;
+    this.scene.environmentIntensity = 0.6 * (1 - 0.75 * k);
+    if (k <= 0) return;
+    const L = this.lights;
+    L.sun.intensity *= 1 - 0.95 * k;
+    L.hemi.intensity += (1.0 - L.hemi.intensity) * k;
+    L.hemi.color.lerp(CAVE_SKY, k);
+    L.hemi.groundColor.lerp(CAVE_GROUND, k);
+    fog.color.lerp(CAVE_FOG, k);
+    if (this.scene.background instanceof THREE.Color) this.scene.background.lerp(CAVE_FOG, k);
+    this.renderer.toneMappingExposure += (1.1 - this.renderer.toneMappingExposure) * k;
+  }
+
+  /** 0 : dehors ; 1 : dans la grotte (lumière, brume, son de la mer) */
+  private caveMix = 0;
+  /** passer d'un coup à l'ambiance du lieu (téléportation, chargement) */
+  private snapCave = false;
+  private fogFar = 420;
+  private inCave(p: THREE.Vector3): boolean {
+    return p.y < CAVE.y + 30 && Math.hypot(p.x - CAVE.x, p.z - CAVE.z) < CAVE.r + 20;
+  }
+
+  private updateCaveMix(dt: number): void {
+    const target = this.inCave(this.camera.position) ? 1 : 0;
+    const next = this.snapCave ? target : this.caveMix + Math.sign(target - this.caveMix) * Math.min(Math.abs(target - this.caveMix), dt * 1.5);
+    this.snapCave = false;
+    // l'intérieur de la grotte n'est dessiné que de près (il est sous la mer, loin à l'ouest)
+    const near = this.camera.position.x < CAVE.x + 130;
+    if (this.cave.interior.visible !== near) {
+      this.cave.interior.visible = near;
+      this.caveNotes.group.visible = near;
+      for (const id of ROOT_IDS) this.panels.get(id)!.group.visible = near;
+    }
+    if (next !== this.caveMix) {
+      this.caveMix = next;
+      this.applyDay();
+    }
   }
 
   /** Fait avancer l'heure et la séquence de fin. */
@@ -467,6 +546,25 @@ export class Game {
   lift: { t: number; up: boolean } | null = null;
   /** séquence : la vraie fin (le Grand Plateau résolu) */
   finale: { t: number } | null = null;
+  /** séquence : l'île bascule, on glisse, on tombe ; le phare s'enfonce ; réveil dans la grotte */
+  bascule: { t: number; lx: number; lz: number; last: THREE.Vector3; fall: THREE.CatmullRomCurve3 | null; switched: boolean; faded: boolean } | null = null;
+  /** passage d'une pierre à l'autre (grotte ↔ pied du phare) */
+  passage: { t: number; down: boolean; moved: boolean } | null = null;
+  /** séquence : la Racine-mère reliée, la lumière remonte, le phare sort de la colline */
+  rootsEnd: { t: number; switched: boolean; shown: boolean } | null = null;
+  cave!: Cave;
+  caveNotes!: LoreNotes;
+  private caveLight!: THREE.PointLight;
+  private lighthouse!: THREE.Group;
+  private lighthouseY = 0;
+  private beaconY = 0;
+  /** 0 : le phare à sa place ; 1 : enfoncé dans la colline */
+  private lhSink = 0;
+
+  /** une séquence est en cours (le joueur ne marche pas, pas de menu pause) */
+  get busy(): boolean {
+    return !!(this.cinematic || this.rise || this.lift || this.finale || this.bascule || this.passage || this.rootsEnd);
+  }
 
   /** La transformation : la terre tremble, l'île monte de la mer jusqu'au ciel, le pont s'allume. */
   startRise(): void {
@@ -525,7 +623,7 @@ export class Game {
 
   /** On entre dans le rai de lumière d'une pierre d'envol. */
   private checkLift(): void {
-    if (!this.save.sky || this.lift || this.rise || this.finale || this.cinematic) return;
+    if (!this.save.sky || this.busy) return;
     const p = this.player.position;
     const onSky = p.y > SKY.y - 20;
     const stone = onSky ? SKY_LIFT : LIFT;
@@ -569,6 +667,261 @@ export class Game {
     this.dayTarget = 5;
   }
 
+  // ── la bascule : ce qu'on croyait la fin n'en était pas une ──
+
+  private basculeWait = 0;
+
+  /** Grand Plateau résolu, grotte pas encore ouverte : quand on est sur l'île, elle bascule. */
+  private checkBascule(dt: number): void {
+    if (!this.hud || this.save.deep || !this.isSolved(GRAND_PLATEAU.id) || this.busy || !this.playing || this.player.position.y < SKY.y - 20) {
+      this.basculeWait = 0;
+      return;
+    }
+    this.basculeWait += dt;
+    if (this.basculeWait > 2) this.startBascule();
+  }
+
+  /** ce qui bascule avec l'île : ses énigmes et ses billets */
+  private skyGroups(): THREE.Object3D[] {
+    return [...SKY_IDS.map((id) => this.panels.get(id)!.group), this.skyNotes.group];
+  }
+
+  startBascule(): void {
+    if (this.busy) return;
+    const p = this.player.position;
+    const onSky = p.y > SKY.y - 20;
+    const lx = onSky ? p.x - SKY.x : -12;
+    const lz = onSky ? p.z - SKY.z : 6;
+    this.bascule = { t: 0, lx, lz, last: p.clone(), fall: null, switched: false, faded: false };
+    this.audio.rumble();
+    this.hud?.closeNote();
+    this.noteAt = null;
+    // les positions de référence des énigmes, avant qu'elles ne changent de repère
+    for (const id of SKY_IDS) this.anchorsOf(this.panels.get(id)!);
+    for (const g of this.skyGroups()) this.sky.pivot.attach(g);
+  }
+
+  private updateBascule(dt: number): void {
+    const b = this.bascule!;
+    b.t += dt;
+    const t = b.t;
+    const S = THREE.MathUtils.smoothstep;
+    if (!b.switched) {
+      // un frémissement, puis l'île entière penche vers l'ouest, comme un plateau
+      this.sky.setTilt(0.05 * S(t, 0, 2.5) + 0.95 * S(t, 2.5, 7));
+      this.sky.setBridge(1 - S(t, 1, 4));
+      if (t >= 2.5 && t - dt < 2.5) this.audio.rumble();
+    }
+    if (t < 7.6) {
+      // on glisse vers le bord, de plus en plus vite (en contournant le bassin)
+      const u = THREE.MathUtils.clamp((t - 3) / 4.6, 0, 1);
+      const s = u * u;
+      const edge = -skyEdge(Math.PI) + 0.6;
+      let x = b.lx + (edge - b.lx) * s;
+      let z = b.lz * (1 - 0.5 * s) + 0.01;
+      const r = Math.hypot(x, z);
+      if (r < BASIN.r + 2) {
+        x *= (BASIN.r + 2) / r;
+        z *= (BASIN.r + 2) / r;
+      }
+      const frame = this.sky.frame;
+      frame.updateWorldMatrix(true, false);
+      const g = heightAt(SKY.x + x, SKY.z + z);
+      const shake = 0.05 + 0.1 * S(t, 2, 4);
+      const j = () => (Math.random() - 0.5) * shake;
+      const pos = frame.localToWorld(new THREE.Vector3(x + j(), g + 1.5 + j(), z + j()));
+      const target = frame.localToWorld(new THREE.Vector3(x - 8, g + 1.2 - 1.5 * u, z * 0.9));
+      b.last.copy(pos);
+      this.cameraOverride = { pos, target };
+      return;
+    }
+    const lhGround = heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z);
+    if (t < 13.1) {
+      // on tombe du ciel, vers la mer ; au loin, le phare s'enfonce dans sa colline
+      if (!b.fall) {
+        const e = b.last.clone();
+        b.fall = new THREE.CatmullRomCurve3([
+          e,
+          e.clone().add(new THREE.Vector3(-14, -7, 0)),
+          new THREE.Vector3(170, 48, -55),
+          new THREE.Vector3(85, 14, -82),
+          new THREE.Vector3(48, 0.6, -94),
+        ]);
+      }
+      const u = THREE.MathUtils.clamp((t - 7.6) / 5.5, 0, 1);
+      const pos = b.fall.getPointAt(u ** 1.5);
+      const sink = S(t, 8.6, 12.4);
+      if (t >= 8.6 && t - dt < 8.6) {
+        this.audio.rumble();
+        this.beacon.visible = false;
+      }
+      this.setLighthouseSink(Math.max(this.lhSink, sink));
+      if (sink > 0.02 && sink < 0.98 && Math.random() < 0.6) {
+        const a = Math.random() * Math.PI * 2;
+        this.sparks.burst(new THREE.Vector3(LIGHTHOUSE.x + Math.cos(a) * 7.5, lhGround + 0.6, LIGHTHOUSE.z + Math.sin(a) * 7.5), new THREE.Color('#d9c7a6'), 14, 3);
+      }
+      const lh = new THREE.Vector3(LIGHTHOUSE.x, lhGround + 16 - 12 * sink, LIGHTHOUSE.z);
+      const ahead = b.fall.getPointAt(Math.min(1, u ** 1.5 + 0.05));
+      this.cameraOverride = { pos, target: ahead.lerp(lh, S(t, 7.6, 9)) };
+      if (t >= 12.5 && !b.faded) {
+        b.faded = true;
+        this.hud?.fade(1, 500);
+      }
+      return;
+    }
+    const A = CAVE_ARRIVAL;
+    if (!b.switched) {
+      b.switched = true;
+      this.sky.setTilt(0);
+      for (const g of this.skyGroups()) this.scene.attach(g);
+      this.sky.setBridge(1);
+      if (!this.replaying) {
+        this.save.deep = true;
+        this.applyDeep();
+        this.player.place(A.x, A.z, A.yaw, 0);
+        this.persist();
+      }
+      this.snapCave = true;
+    }
+    // réveil : allongé, on voit la voûte et les racines du phare ; puis on se relève
+    if (t >= 13.4 && t - dt < 13.4) this.hud?.fade(0, 2600);
+    const w = S(t, 13.8, 16.8);
+    const fwd = new THREE.Vector3(-Math.sin(A.yaw), 0, -Math.cos(A.yaw));
+    const pos = new THREE.Vector3(A.x, heightAt(A.x, A.z) + 0.35 + 1.25 * w, A.z);
+    const target = pos.clone().addScaledVector(fwd, 0.4 + 4 * w).add(new THREE.Vector3(0, 5 * (1 - w) - 0.35 * w, 0));
+    this.cameraOverride = { pos, target };
+    if (t >= 17.2) {
+      this.bascule = null;
+      this.cameraOverride = null;
+      if (this.replaying) {
+        this.endReplay();
+        return;
+      }
+      this.player.place(A.x, A.z, A.yaw, -0.08);
+    }
+  }
+
+  /** hauteur actuelle du sommet du phare (tests) */
+  lighthouseTop(): number {
+    return this.lighthouse.position.y + 32;
+  }
+
+  /** La grotte ouverte (ou non) et le phare enfoncé tant que la Racine-mère n'est pas reliée. */
+  private applyDeep(): void {
+    const deep = !!this.save.deep;
+    this.cave.setOpen(deep);
+    const mere = this.isSolved(RACINE_MERE.id);
+    this.setLighthouseSink(deep && !mere ? 1 : 0);
+    this.cave.setGlow(mere ? 1 : 0);
+  }
+
+  /** Le phare s'enfonce dans la colline (1) ou se tient à sa place (0) ; son faisceau le suit. */
+  private setLighthouseSink(k: number): void {
+    this.lhSink = k;
+    this.lighthouse.position.y = this.lighthouseY - SINK_DEPTH * k;
+    this.beacon.position.y = this.beaconY - SINK_DEPTH * k;
+    if (k > 0.05) this.beacon.visible = false;
+    else if (this.ended && !this.bascule) this.beacon.visible = true;
+    // les rais de lumière visent la lanterne : ils ne reviennent qu'avec le phare
+    for (const s of this.shafts) s.mesh.visible = k < 0.01 && this.isSolved(s.id);
+  }
+
+  /** On marche sur une pierre de passage : fondu, et l'on se retrouve à l'autre. */
+  private checkPassage(): void {
+    if (!this.save.deep || this.busy) return;
+    const p = this.player.position;
+    const down = !this.inCave(p);
+    const stone = down ? DEEP_LIFT : CAVE_LIFT;
+    if (Math.hypot(p.x - stone.x, p.z - stone.z) < 1.3) {
+      this.passage = { t: 0, down, moved: false };
+      this.audio.power();
+      this.hud?.fade(1, 700);
+    }
+  }
+
+  private updatePassage(dt: number): void {
+    const q = this.passage!;
+    q.t += dt;
+    if (!q.moved && q.t >= 0.8) {
+      q.moved = true;
+      if (q.down) this.player.place(CAVE_ARRIVAL.x, CAVE_ARRIVAL.z, CAVE_ARRIVAL.yaw, -0.08);
+      // à côté de la pierre (pas devant), face au phare enfoncé
+      else this.player.place(DEEP_LIFT.x + 4.5, DEEP_LIFT.z + 4.1, 0.33, 0.1);
+      this.snapCave = true;
+      this.hud?.fade(0, 900);
+    }
+    if (q.t >= 1.7) this.passage = null;
+  }
+
+  /** La Racine-mère est reliée : la lumière remonte les racines, le phare sort de la colline. */
+  private startRoots(): void {
+    this.rootsEnd = { t: 0, switched: false, shown: false };
+    this.audio.finale();
+    this.input?.release();
+    this.hud?.closeNote();
+    this.noteAt = null;
+  }
+
+  private updateRoots(dt: number): void {
+    const r = this.rootsEnd!;
+    r.t += dt;
+    const t = r.t;
+    const S = THREE.MathUtils.smoothstep;
+    if (t < 5.2) {
+      // la lumière part de la fosse et monte le long des racines jusqu'à la voûte
+      this.cave.setGlow(S(t, 0.3, 4));
+      const k = S(t, 0, 5.2);
+      this.cameraOverride = {
+        pos: new THREE.Vector3(CAVE.x + 15 - 3 * k, CAVE.y + 2.5 + 4 * k, CAVE.z + 9 - 2 * k),
+        target: new THREE.Vector3(CAVE.x, CAVE.y - 1.5 + 16 * k, CAVE.z),
+      };
+      if (t >= 4.4 && t - dt < 4.4) this.hud?.fade(1, 700);
+      return;
+    }
+    const ground = heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z);
+    if (!r.switched) {
+      r.switched = true;
+      this.snapCave = true;
+      this.hud?.fade(0, 1400);
+      this.setLighthouseSink(1);
+    }
+    // dehors, au lever du jour : le phare remonte de la colline
+    const k = S(t, 6, 12.5);
+    if (t >= 6 && t - dt < 6) this.audio.rumble();
+    if (t >= 9 && t - dt < 9) this.audio.rumble();
+    this.setLighthouseSink(1 - k);
+    if (k > 0.02 && k < 0.98 && Math.random() < 0.6) {
+      const a = Math.random() * Math.PI * 2;
+      this.sparks.burst(new THREE.Vector3(LIGHTHOUSE.x + Math.cos(a) * 7.5, ground + 0.6, LIGHTHOUSE.z + Math.sin(a) * 7.5), new THREE.Color('#d9c7a6'), 14, 3);
+    }
+    if (t >= 12.6 && t - dt < 12.6) {
+      this.audio.finale();
+      this.sparks.burst(this.beacon.position.clone(), new THREE.Color('#ffe9b0'), 220, 4);
+    }
+    const a = 0.45 - 0.7 * S(t, 5.2, 17);
+    const R = 40 + 8 * S(t, 11, 17);
+    this.cameraOverride = {
+      pos: new THREE.Vector3(LIGHTHOUSE.x + Math.sin(a) * R, ground + 5 + 9 * S(t, 10, 17), LIGHTHOUSE.z + Math.cos(a) * R),
+      target: new THREE.Vector3(LIGHTHOUSE.x, ground + 8 + 14 * k, LIGHTHOUSE.z),
+    };
+    if (t >= 17.5 && !r.shown) {
+      r.shown = true;
+      this.playing = false;
+      this.hud?.showFinale(ENDING.roots, this.stats(), 'Le phare est sorti de la colline.', 'Continuer');
+    }
+  }
+
+  /** Après la carte : on se retrouve au pied du phare, face à lui. */
+  private endRoots(): void {
+    this.rootsEnd = null;
+    this.cameraOverride = null;
+    this.applyDeep();
+    // face au phare, à l'écart de la pierre d'envol
+    this.player.place(LIFT.x + 5, LIFT.z + 7, 0.18, 0.12);
+    this.snapCave = true;
+    this.persist();
+  }
+
   notes!: LoreNotes;
   answer!: SeaAnswer;
   /** billet visé (lecture au clic) */
@@ -588,6 +941,7 @@ export class Game {
     if (first) notes.push(id);
     this.notes.markRead(id);
     this.skyNotes.markRead(id);
+    this.caveNotes.markRead(id);
     this.audio.click();
     this.hud?.showNote(NOTES[i]!.text, `billet ${i + 1} sur ${NOTES.length}${first ? '' : ' · déjà lu'}`);
     this.noteAt = this.player.position.clone();
@@ -603,7 +957,7 @@ export class Game {
 
   /** Vise un billet (tests). */
   aimAtNote(id: string): void {
-    const a = this.notes.anchor(id);
+    const a = this.notes.anchor(id) ?? this.skyNotes.anchor(id) ?? this.caveNotes.anchor(id);
     if (!a) throw new Error(`billet ${id} introuvable`);
     a.y += 0.25;
     const d = a.sub(this.player.position);
@@ -645,12 +999,18 @@ export class Game {
     this.scene.add(view.group);
   }
 
+  private addRootView(view: RootView): void {
+    view.onSolved = () => this.onPanelSolved(view);
+    this.panels.set(view.id, view);
+    this.scene.add(view.group);
+  }
+
   /** L'Île du Ciel à sa place (ou encore sous la mer) : île, pont de lumière, énigmes, billets. */
   private setSkyRisen(on: boolean): void {
     this.sky.setRise(on ? 1 : 0);
     this.sky.setBridge(on ? 1 : 0);
     this.skyNotes.group.visible = on;
-    for (const id of [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id]) this.panels.get(id)!.group.visible = on;
+    for (const id of SKY_IDS) this.panels.get(id)!.group.visible = on;
   }
 
   get skyRisen(): boolean {
@@ -752,6 +1112,7 @@ export class Game {
       if (this.replaying) this.endReplay();
       else if (this.ended && !this.save.sky && !this.rise) this.startRise();
       if (this.finale && this.finale.t >= 18 && !this.replaying) this.endFinale();
+      if (this.rootsEnd?.shown) this.endRoots();
       if (touchInput) {
         touchInput.enabled = true;
         this.playing = true;
@@ -761,7 +1122,7 @@ export class Game {
       this.playing = locked;
       if (locked) this.hud!.hideTitle();
       // pendant une séquence (fin, île qui monte, pont de lumière, vraie fin), pas de menu pause
-      else if (!this.cinematic && !this.finale && !this.rise && !this.lift) {
+      else if (!this.busy) {
         this.hud!.showTitle(true);
         this.persist();
       }
@@ -805,8 +1166,8 @@ export class Game {
       shadow.map?.dispose();
       shadow.map = null;
     }
-    const fog = this.scene.fog as THREE.Fog;
-    fog.far = { haute: 420, moyenne: 340, basse: 260 }[q];
+    this.fogFar = { haute: 420, moyenne: 340, basse: 260 }[q];
+    this.applyDay();
     this.resize();
   }
 
@@ -874,7 +1235,7 @@ export class Game {
     lamp.emissive.set('#ffe9b0').multiplyScalar((steps / 4) * (steps === 4 ? 2.5 : 1));
     if (this.isSolved(FINAL_ID) && !this.ended) {
       this.ended = true;
-      this.beacon.visible = true;
+      this.beacon.visible = this.lhSink < 0.05;
       if (!instant) {
         this.audio.finale();
         if (this.hud) {
@@ -890,7 +1251,7 @@ export class Game {
       if (!this.cinematic) this.answer.start(this.allSecrets(), true);
     }
     for (const s of this.shafts) {
-      if (this.isSolved(s.id) && !s.mesh.visible) {
+      if (this.isSolved(s.id) && !s.mesh.visible && this.lhSink < 0.01) {
         s.mesh.visible = true;
         s.on = instant ? 1 : 0;
       }
@@ -903,7 +1264,7 @@ export class Game {
       const c = towerCell(3, 0);
       return { at: new THREE.Vector3(c.x, heightAt(c.x, c.z) + TOWERS.beamY + 1, c.z), big: true };
     }
-    const big = (p instanceof FoldView && p.place.kind === 'easel') || (p instanceof ShadowView && p.place.voxel > 0.5);
+    const big = (p instanceof FoldView && p.place.kind === 'easel') || (p instanceof ShadowView && p.place.voxel > 0.5) || (p instanceof RootView && p.place.kind === 'pit');
     return { at: p.group.position.clone().add(new THREE.Vector3(0, big ? 5 : 1.4, 0)), big };
   }
 
@@ -919,6 +1280,8 @@ export class Game {
     }
     // le Grand Plateau : la vraie fin
     if (id === GRAND_PLATEAU.id && !this.save.solved.includes(id) && this.hud) this.startFinale();
+    // la Racine-mère : le phare remonte
+    if (id === RACINE_MERE.id && !this.save.solved.includes(id) && this.hud) this.startRoots();
     if (this.save.solved.includes(id) === false && SECRET_IDS.includes(id)) {
       this.shards.add(this.sparkAt(panel).at);
       this.audio.finale();
@@ -931,6 +1294,8 @@ export class Game {
       navigator.vibrate?.([30, 50, 70]);
     }
     if (!this.save.solved.includes(id)) this.save.solved.push(id);
+    // sans la séquence (tests) : le phare remonte aussitôt
+    if (id === RACINE_MERE.id && !this.rootsEnd) this.applyDeep();
     this.audio.solved();
     // l'ouverture des portes et l'allumage suivent le câble
     window.setTimeout(() => this.updatePower(false), 900);
@@ -1011,11 +1376,12 @@ export class Game {
       ? this.raycaster.intersectObjects(candidates, false).find((h) => h.distance <= (h.object.userData.panel as PuzzleView).reach)
       : undefined;
     // un billet du gardien, plus proche qu'une pièce d'énigme ?
-    const noteHit = this.raycaster.intersectObjects(this.save.sky ? [...this.notes.pickables, ...this.skyNotes.pickables] : this.notes.pickables, false)[0];
+    const notePicks = [...this.notes.pickables, ...(this.save.sky ? this.skyNotes.pickables : []), ...(this.save.deep ? this.caveNotes.pickables : [])];
+    const noteHit = this.raycaster.intersectObjects(notePicks, false)[0];
     const note = noteHit && noteHit.distance <= NOTE_REACH && (!hit || noteHit.distance < hit.distance) ? (noteHit.object.userData.note as string) : null;
     if (note !== this.hoveredNote) {
       this.hoveredNote = note;
-      this.notes.setHover(note);
+      for (const n of [this.notes, this.skyNotes, this.caveNotes]) n.setHover(note);
     }
     const next = hit && !note ? { panel: hit.object.userData.panel as PuzzleView, k: hit.object.userData.k as number } : null;
     if (this.hovered && (!next || next.panel !== this.hovered.panel || next.k !== this.hovered.k)) {
@@ -1051,7 +1417,7 @@ export class Game {
     this.timer.update();
     const dt = Math.min(0.05, this.timer.getDelta());
     this.time += dt;
-    if (!this.rise && !this.lift && !this.finale) this.player.update(dt);
+    if (!this.rise && !this.lift && !this.finale && !this.bascule && !this.passage && !this.rootsEnd) this.player.update(dt);
     if (this.cameraOverride) {
       this.camera.position.copy(this.cameraOverride.pos);
       this.camera.lookAt(this.cameraOverride.target);
@@ -1081,11 +1447,24 @@ export class Game {
     this.shards.update(dt);
     this.notes.update(this.time);
     this.skyNotes.update(this.time);
+    this.caveNotes.update(this.time);
     this.sky.update(this.time);
+    this.cave.update(this.time);
     if (this.rise) this.updateRise(dt);
     if (this.lift) this.updateLift(dt);
     if (this.finale) this.updateFinale(dt);
+    if (this.bascule) this.updateBascule(dt);
+    if (this.passage) this.updatePassage(dt);
+    if (this.rootsEnd) this.updateRoots(dt);
     this.checkLift();
+    this.checkPassage();
+    this.checkBascule(dt);
+    if (this.cameraOverride) {
+      // la caméra des séquences a pu bouger pendant la mise à jour
+      this.camera.position.copy(this.cameraOverride.pos);
+      this.camera.lookAt(this.cameraOverride.target);
+    }
+    this.updateCaveMix(dt);
     this.answer.update(dt, this.time);
     if (this.shards.complete) {
       const hue = (this.time * 0.05) % 1;
@@ -1112,7 +1491,7 @@ export class Game {
       (s.mesh.material as THREE.MeshBasicMaterial).opacity = 0.55 * s.on * (0.85 + 0.15 * Math.sin(this.time * 3));
     }
     this.updateHover();
-    this.audio.setSeaProximity(1 - Math.min(1, Math.max(0, (this.player.position.y - 2) / 6)));
+    this.audio.setSeaProximity(this.caveMix > 0.5 ? 0.15 : 1 - Math.min(1, Math.max(0, (this.player.position.y - 2) / 6)));
     this.stuckClock += dt;
     if (this.stuckClock >= 1) {
       this.updateStuck(this.stuckClock);
@@ -1133,6 +1512,17 @@ export class Game {
 
   /** Place le joueur devant un panneau. */
   view(id: string): void {
+    const rootSpot = ROOT_PANELS.find((p) => p.id === id);
+    if (rootSpot) {
+      const s = standPoint(rootSpot, 1.5);
+      this.player.place(s.x, s.z, rootSpot.yaw, -0.6);
+      return;
+    }
+    if (id === RACINE_MERE.id) {
+      // au bord de la fosse, on regarde la Racine-mère en contrebas
+      this.player.place(CAVE.x + 9.5, CAVE.z + 3, Math.PI / 2 - 0.305, -0.42);
+      return;
+    }
     const tiltSpot = SKY_PANELS.find((p) => p.id === id);
     if (tiltSpot) {
       const s = standPoint(tiltSpot, 1.5);
@@ -1215,7 +1605,8 @@ export class Game {
       { group: 'Zone 2 · Pliage', items: [...FOLD_PANELS.map((p) => p.id), GRAND_PLI.id].map(item) },
       { group: 'Zone 3 · Ombres', items: [...SHADOW_PANELS.map((p) => p.id), CADRAN.id].map(item) },
       { group: 'Zone 4 · Phare', items: FINAL_PANELS.map((p) => item(p.id)) },
-      { group: 'Zone 5 · Ciel', items: [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id].map((id) => ({ id, label: id === GRAND_PLATEAU.id ? 'Grand Plateau (vraie fin)' : id })) },
+      { group: 'Zone 5 · Ciel', items: SKY_IDS.map((id) => ({ id, label: id === GRAND_PLATEAU.id ? 'Grand Plateau (vraie fin ?)' : id })) },
+      { group: 'Zone 6 · Racines', items: ROOT_IDS.map((id) => ({ id, label: id === RACINE_MERE.id ? 'Racine-mère (dernière)' : id })) },
       { group: 'Éclats (secrets)', items: SECRET_IDS.map((id) => ({ id, label: `Éclat : ${id.replace('eclat-', '')}` })) },
     ];
   }
@@ -1227,7 +1618,9 @@ export class Game {
    */
   cheat(action: CheatAction, id: string): void {
     // les énigmes du ciel : l'île monte d'abord (sans la séquence)
-    const skyTarget = [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id].includes(id);
+    // … et pour les Racines, la grotte est ouverte (sans la bascule)
+    const deepTarget = action === 'all' || ROOT_IDS.includes(id);
+    const skyTarget = deepTarget || SKY_IDS.includes(id);
     // revenir en arrière : si des énigmes au-delà du point choisi sont déjà résolues, on réécrit
     // la sauvegarde exactement à ce point et on recharge (le plus sûr pour tout remettre à zéro)
     if (action === 'before' || action === 'upto') {
@@ -1237,7 +1630,7 @@ export class Game {
         const keep = order.slice(0, action === 'before' ? at : at + 1);
         const later = order.slice(keep.length);
         if (later.some((t) => this.isSolved(t))) {
-          this.rewind(keep, skyTarget, id);
+          this.rewind(keep, skyTarget, deepTarget, id);
           return;
         }
       }
@@ -1246,6 +1639,10 @@ export class Game {
       this.save.sky = true;
       this.setSkyRisen(true);
       this.dayTarget = 5;
+    }
+    if (deepTarget && !this.save.deep) {
+      this.save.deep = true;
+      this.applyDeep();
     }
     if (action !== 'goto') {
       const order = POWER.map((p) => p.id);
@@ -1266,9 +1663,11 @@ export class Game {
       }
       this.restoring = false;
       this.updatePower(true);
+      this.applyDeep();
       this.persist();
     }
     this.view(action === 'all' ? FINAL_ID : id);
+    this.snapCave = true;
   }
 
   /**
@@ -1276,7 +1675,7 @@ export class Game {
    * restent), les énigmes suivantes repartent de zéro, l'île du ciel redescend si l'on revient
    * avant la finale, et l'on se retrouve devant l'énigme choisie après rechargement.
    */
-  private rewind(keep: string[], skyTarget: boolean, id: string): void {
+  private rewind(keep: string[], skyTarget: boolean, deepTarget: boolean, id: string): void {
     const kept = new Set(keep);
     const save = this.save;
     save.solved = save.solved.filter((s) => kept.has(s) || SECRET_IDS.includes(s));
@@ -1288,6 +1687,7 @@ export class Game {
       if (sol) save.states[k] = sol;
     }
     save.sky = skyTarget || (kept.has(FINAL_ID) && !!save.sky);
+    save.deep = deepTarget || (kept.has(GRAND_PLATEAU.id) && !!save.deep);
     this.view(id);
     save.player = { x: this.player.position.x, z: this.player.position.z, yaw: this.player.yaw };
     writeSave(save);
@@ -1302,7 +1702,7 @@ export class Game {
 
   /** Rejoue une cinématique sans toucher à la progression. */
   replay(which: Cinematic): void {
-    if (this.cinematic || this.rise || this.lift || this.finale) return;
+    if (this.busy) return;
     const p = this.player.position;
     this.replaying = { which, sky: !!this.save.sky, x: p.x, z: p.z, yaw: this.player.yaw, beacon: this.beacon.visible };
     if (which === 'phare') {
@@ -1316,6 +1716,14 @@ export class Game {
       // l'île repart sous la mer, puis remonte
       this.setSkyRisen(false);
       this.startRise();
+    } else if (which === 'bascule') {
+      this.setSkyRisen(true);
+      this.startBascule();
+    } else if (which === 'racines') {
+      // la grotte éteinte et le phare enfoncé, puis tout se relie
+      this.cave.setGlow(0);
+      this.setLighthouseSink(1);
+      this.startRoots();
     } else {
       // la vraie fin : il faut l'île à sa place pour la regarder
       this.setSkyRisen(true);
@@ -1330,9 +1738,18 @@ export class Game {
     this.replaying = null;
     this.cinematic = null;
     this.finale = null;
+    this.rootsEnd = null;
+    if (this.bascule) {
+      this.bascule = null;
+      this.sky.setTilt(0);
+      for (const g of this.skyGroups()) if (g.parent !== this.scene) this.scene.attach(g);
+    }
+    this.hud?.fade(0, 300);
     this.cameraOverride = null;
     this.setSkyRisen(r.sky);
     this.beacon.visible = r.beacon;
+    this.applyDeep();
+    this.snapCave = true;
     if (!this.ended) this.answer.group.visible = false;
     this.player.place(r.x, r.z, r.yaw);
     this.starBoost = 1;
@@ -1351,7 +1768,12 @@ export class Game {
       if (this.rise) this.updateRise(0.05);
       if (this.lift) this.updateLift(0.05);
       if (this.finale) this.updateFinale(0.05);
+      if (this.bascule) this.updateBascule(0.05);
+      if (this.passage) this.updatePassage(0.05);
+      if (this.rootsEnd) this.updateRoots(0.05);
       this.checkLift();
+      this.checkPassage();
+      this.cave.update(this.time);
       this.updateDay(0.05);
       this.sparks.update(0.05);
       this.shards.update(0.05);

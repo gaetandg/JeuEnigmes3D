@@ -142,5 +142,18 @@ test('mode test : voir une cinématique sans toucher à la progression', async (
   expect(await page.evaluate(() => window.__game.sequences().finale)).toBe(false);
   expect(await page.evaluate(() => window.__game.skyRisen())).toBe(false);
   expect(await page.evaluate(() => window.__game.ended())).toBe(false);
+
+  // la bascule : l'île penche, on tombe, réveil dans la grotte… puis retour, sans rien changer
+  await page.evaluate(() => document.exitPointerLock());
+  await page.locator('details.cheat').evaluate((d) => ((d as HTMLDetailsElement).open = true));
+  await page.locator('[data-cheat="cinematic"]').selectOption('bascule');
+  await page.locator('[data-cheat="watch"]').click();
+  expect(await page.evaluate(() => window.__game.sequences().bascule)).toBe(true);
+  await page.evaluate(() => window.__game.advance(19));
+  expect(await page.evaluate(() => window.__game.sequences().bascule)).toBe(false);
+  expect(await page.evaluate(() => window.__game.deep())).toBe(false);
+  expect(await page.evaluate(() => window.__game.skyRisen())).toBe(false);
+  const back = await page.evaluate(() => window.__game.player());
+  expect(Math.hypot(back.x - before.x, back.z - before.z)).toBeLessThan(0.5);
   expect(errors).toEqual([]);
 });

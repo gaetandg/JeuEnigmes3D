@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { Colliders } from '../../src/game/colliders.ts';
-import { heightAt } from '../../src/world/terrain.ts';
+import { heightAt, walkable } from '../../src/world/terrain.ts';
 import {
   CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, PLAZA, SECRETS, SECRET_PLAGE, SHADOW_PANELS, START, standPoint, towerCell,
   LIFT, SKY, SKY_ARRIVAL, SKY_LIFT, SKY_PANELS, GRAND_PLATEAU, skyEdge,
+  CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, caveEdge,
 } from '../../src/world/layout.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../../src/world/props.ts';
 import { buildAtelier } from '../../src/world/atelier.ts';
@@ -16,6 +17,7 @@ import { ZONE1_TOWERS } from '../../src/puzzles/zone1.ts';
 import { SECRET_LIGHT } from '../../src/puzzles/secrets.ts';
 import { NOTES } from '../../src/world/lore.ts';
 import { buildSkyIsland } from '../../src/world/sky.ts';
+import { buildCave } from '../../src/world/cave.ts';
 
 /**
  * Test de navigation : on reconstruit tous les obstacles du jeu (sans rendu) et on vérifie,
@@ -43,6 +45,9 @@ function world(open: Set<string>) {
   // l'Île du Ciel : arbres, plateaux, Grand Plateau (comme dans le jeu)
   buildSkyIsland(c);
   for (const s of SKY_PANELS) c.addCircle(s.x, s.z, 0.75);
+  // la grotte des Racines : fosse de la Racine-mère, pupitres
+  buildCave(c);
+  for (const s of ROOT_PANELS) c.addCircle(s.x, s.z, 0.6);
   for (const n of NOTES) c.addCircle(n.x, n.z, 0.3);
   // index spatial des cercles
   const B = 4;
@@ -97,7 +102,7 @@ function explore(open: Set<string>, from: { x: number; z: number } = START, area
       const nk = nj * NX + ni;
       if (seen[nk]) continue;
       const h1 = H(ni, nj);
-      if (h1 < -0.3) continue;
+      if (!walkable(X0 + ni * STEP, Z0 + nj * STEP)) continue;
       if ((h1 - H(i, j)) / STEP > MAX_SLOPE) continue;
       if (!free(X0 + ni * STEP, Z0 + nj * STEP)) continue;
       seen[nk] = 1;
@@ -129,8 +134,12 @@ describe('navigation — on peut marcher jusqu\'à chaque énigme', () => {
   });
 
   it('chaque billet du gardien (lore) et la pierre d\'envol au pied du phare', () => {
-    expect(NOTES.filter((n) => n.zone !== 'ciel' && !reach(n.x, n.z)).map((n) => n.id)).toEqual([]);
+    expect(NOTES.filter((n) => n.zone !== 'ciel' && n.zone !== 'racines' && !reach(n.x, n.z)).map((n) => n.id)).toEqual([]);
     expect(reach(LIFT.x, LIFT.z)).toBe(true);
+    // et la pierre qui descend à la grotte (après la bascule)
+    expect(reach(DEEP_LIFT.x, DEEP_LIFT.z)).toBe(true);
+    expect(reach(DEEP_LIFT.x + 4.5, DEEP_LIFT.z + 4.1)).toBe(true);
+    expect(reach(LIFT.x + 5, LIFT.z + 7)).toBe(true);
   });
 
   it('chaque panneau, pupitre et théâtre d\'ombres', () => {
@@ -216,6 +225,29 @@ describe('navigation — l\'Île du Ciel', () => {
       const a = (i / 16) * Math.PI * 2;
       const r = skyEdge(a) + 3.5; // au-delà de la tolérance du test (les criques rapprochent la rive)
       expect(reach(SKY.x + Math.cos(a) * r, SKY.z + Math.sin(a) * r), `cap ${i}`).toBe(false);
+    }
+  });
+});
+
+describe('navigation — la grotte des Racines', () => {
+  const reach = explore(ALL_GATES, CAVE_ARRIVAL, { x0: CAVE.x - 42, z0: CAVE.z - 42, size: 84 });
+  it('depuis le réveil : chaque pupitre, la Racine-mère, les billets et la pierre du retour', () => {
+    const missing: string[] = [];
+    for (const s of ROOT_PANELS) {
+      const p = standPoint(s, 1.5);
+      if (!reach(p.x, p.z)) missing.push(s.id);
+    }
+    if (!reach(CAVE.x + 9.5, CAVE.z + 3)) missing.push(RACINE_MERE.id);
+    for (const n of NOTES.filter((m) => m.zone === 'racines')) if (!reach(n.x, n.z)) missing.push(n.id);
+    if (!reach(CAVE_LIFT.x, CAVE_LIFT.z)) missing.push('pierre du retour');
+    expect(missing).toEqual([]);
+  });
+  it('contrôle : ni la fosse ni le roc au-delà des parois', () => {
+    expect(reach(CAVE.x, CAVE.z)).toBe(false);
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const r = caveEdge(a) + 3;
+      expect(reach(CAVE.x + Math.cos(a) * r, CAVE.z + Math.sin(a) * r), `cap ${i}`).toBe(false);
     }
   });
 });

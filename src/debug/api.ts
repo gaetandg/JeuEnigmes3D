@@ -70,7 +70,15 @@ export function exposeDebugApi(game: Game): void {
     /** la suite : l'Île du Ciel */
     startRise: () => game.startRise(),
     skyRisen: () => game.skyRisen,
-    sequences: () => ({ rise: !!game.rise, lift: game.lift ? (game.lift.up ? 'montée' : 'descente') : null, finale: !!game.finale }),
+    sequences: () => ({
+      rise: !!game.rise, lift: game.lift ? (game.lift.up ? 'montée' : 'descente') : null, finale: !!game.finale,
+      bascule: !!game.bascule, passage: !!game.passage, roots: !!game.rootsEnd,
+    }),
+    /** la suite de la suite : la bascule et la grotte des Racines */
+    startBascule: () => game.startBascule(),
+    deep: () => !!game.save.deep,
+    cheat: (action: 'goto' | 'before' | 'upto' | 'all', id: string) => game.cheat(action, id),
+    lighthouseY: () => game.lighthouseTop(),
     answered: () => game.answer.answered,
     homecoming: () => game.answer.homecoming,
     guides: () => game.guides.mesh.count,

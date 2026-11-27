@@ -3,7 +3,7 @@
  * Le contexte audio ne démarre qu'après un geste du joueur (règle des navigateurs).
  */
 /** Zones de l'île : chacune a sa tonalité. */
-export type Zone = 'jardin' | 'atelier' | 'cloitre' | 'phare' | 'ciel';
+export type Zone = 'jardin' | 'atelier' | 'cloitre' | 'phare' | 'ciel' | 'racines';
 
 const ZONE_SCALES: Record<Zone, { root: number; steps: number[] }> = {
   jardin: { root: 261.63, steps: [0, 2, 4, 7, 9] }, // do, pentatonique majeure : lumineux
@@ -11,6 +11,7 @@ const ZONE_SCALES: Record<Zone, { root: number; steps: number[] }> = {
   cloitre: { root: 220.0, steps: [0, 3, 5, 7, 10] }, // la, pentatonique mineure : grave
   phare: { root: 349.23, steps: [0, 2, 4, 6, 9] }, // fa, lydien : ouvert
   ciel: { root: 392.0, steps: [0, 4, 7, 11, 14] }, // sol, accord majeur septième : suspendu
+  racines: { root: 146.83, steps: [0, 1, 5, 7, 8] }, // ré grave, phrygien : souterrain
 };
 
 export class Audio {
