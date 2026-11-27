@@ -183,3 +183,8 @@ input[type='checkbox'] { width: 20px; height: 20px; accent-color: var(--accent);
   font-size: 16px;
   pointer-events: auto;
 }
+
+/* mode test (triche) */
+.cheat-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.cheat-actions button { flex: 1 1 45%; }
+.cheat-note { font-size: 12px; opacity: 0.7; margin: 4px 0 0; }

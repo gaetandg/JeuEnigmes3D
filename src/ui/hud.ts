@@ -15,7 +15,13 @@ export interface HudCallbacks {
   onComfort: (patch: Partial<Settings>) => void;
   onPause: () => void;
   onReset: () => void;
+  /** mode test : aller devant une énigme, valider ce qui la précède (ou jusqu'à elle), tout valider */
+  onCheat: (action: CheatAction, id: string) => void;
 }
+
+export type CheatAction = 'goto' | 'before' | 'upto' | 'all';
+/** Énigmes proposées au mode test, groupées par zone, dans l'ordre de progression. */
+export type CheatList = { group: string; items: { id: string; label: string }[] }[];
 
 export class Hud {
   private root: HTMLElement;
@@ -26,7 +32,11 @@ export class Hud {
   private pauseBtn: HTMLButtonElement;
   private touch: boolean;
 
-  constructor(parent: HTMLElement, cb: HudCallbacks, settings: Settings, hasSave: boolean, touch: boolean) {
+  constructor(parent: HTMLElement, cb: HudCallbacks, settings: Settings, hasSave: boolean, touch: boolean, cheats: CheatList = []) {
+    const esc = (t: string) => t.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const cheatOptions = cheats
+      .map((g) => `<optgroup label="${esc(g.group)}">${g.items.map((i) => `<option value="${esc(i.id)}">${esc(i.label)}</option>`).join('')}</optgroup>`)
+      .join('');
     this.root = parent;
     this.root.innerHTML = `
       <div class="crosshair" hidden></div>
@@ -67,12 +77,30 @@ export class Hud {
             <label>Balancement de la marche <input type="checkbox" data-setting="bob" /></label>
             <button class="ghost" data-action="reset">Recommencer depuis le début</button>
           </details>
+          <details class="cheat">
+            <summary>Mode test (triche)</summary>
+            <label>Énigme <select data-cheat="target">${cheatOptions}</select></label>
+            <div class="cheat-actions">
+              <button class="ghost" data-cheat="goto" title="Se téléporter devant l'énigme">Y aller</button>
+              <button class="ghost" data-cheat="before" title="Résoudre tout ce qui vient avant, puis y aller">Valider ce qui précède</button>
+              <button class="ghost" data-cheat="upto" title="Résoudre tout ce qui vient avant et celle-ci, puis y aller">Valider jusqu'ici</button>
+              <button class="ghost" data-cheat="all" title="Résoudre toutes les énigmes principales">Tout résoudre</button>
+            </div>
+            <p class="cheat-note">Résout dans l'ordre du jeu (portes et câbles compris) et sauvegarde.</p>
+          </details>
           <p class="help">${touch
             ? 'Pouce gauche : marcher · Glisser à droite : regarder<br/>Toucher : agir · Appui long : agir en sens inverse'
             : 'Souris : regarder · ZQSD / WASD / flèches : marcher · Maj : courir<br/>Clic gauche : agir · Clic droit : agir en sens inverse · Échap : pause'}</p>
         </div>
       </div>`;
     this.title = this.root.querySelector('.overlay')!;
+    const target = this.root.querySelector<HTMLSelectElement>('[data-cheat="target"]')!;
+    for (const action of ['goto', 'before', 'upto', 'all'] as const) {
+      this.root.querySelector(`[data-cheat="${action}"]`)!.addEventListener('click', () => {
+        cb.onCheat(action, target.value);
+        cb.onStart(); // reprendre la partie tout de suite, devant l'énigme
+      });
+    }
     this.crosshair = this.root.querySelector('.crosshair')!;
     this.toast = this.root.querySelector('.toast')!;
     const vol = this.root.querySelector<HTMLInputElement>('[data-setting="volume"]')!;
