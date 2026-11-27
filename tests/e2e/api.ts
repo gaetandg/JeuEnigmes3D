@@ -19,6 +19,7 @@ export type Api = {
   ended: () => boolean;
   hint: (id: string) => number | null;
   hintMove: (id: string) => { k: number; reverse: boolean } | null;
+  lightErrors: (id: string) => number;
   notes: () => string[];
   hoveredNote: () => string | null;
   readNote: (id: string) => void;

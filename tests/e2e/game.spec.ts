@@ -252,6 +252,33 @@ test("o10 : l'objet du fond se sélectionne en visant ses cubes, même derrière
 
 const ZONE3 = ['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9', 'o10', 'o11', 'o12', 'cadran'];
 
+test("f5 : la lame entre les deux objets se sélectionne (les objets se visent par leurs cubes)", async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('f5');
+  }, [...ZONE1, ...ZONE2, ...ZONE3, 'f1', 'f2', 'f3', 'f4']);
+  // pièce 0 : la lame orientable ; 1 et 2 : l'anneau et le pont
+  for (const k of [0, 1, 2]) {
+    await page.evaluate((kk) => window.__game.aim('f5', kk), k);
+    await waitFrames(page, 3);
+    expect(await page.evaluate(() => window.__game.hovered())).toEqual({ id: 'f5', k });
+  }
+  // vue de biais, côté anneau (comme le joueur qui l'a signalé) : la lame reste sélectionnable
+  // (avant, la grande boîte invisible de l'anneau la masquait sous cet angle)
+  const yaw = -0.6286;
+  for (const deg of [-30, -45, -60]) {
+    const a = yaw + (deg * Math.PI) / 180;
+    await page.evaluate(([x, z]) => {
+      window.__game.teleport(x, z, 0);
+      window.__game.aim('f5', 0);
+    }, [-7.65 + Math.sin(a) * 1.8, -101.49 + Math.cos(a) * 1.8]);
+    await waitFrames(page, 3);
+    expect(await page.evaluate(() => window.__game.hovered())).toEqual({ id: 'f5', k: 0 });
+  }
+  expect(errors).toEqual([]);
+});
+
 test("zone finale : tourner un objet sur un panneau de lumière change l'empreinte qui arrête les rayons", async ({ page }) => {
   await boot(page);
   await page.evaluate((ids) => {
@@ -265,6 +292,26 @@ test("zone finale : tourner un objet sur un panneau de lumière change l'emprein
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'f1')!.solved).toBe(true);
   expect(await page.evaluate(() => window.__game.ended())).toBe(false);
   await page.screenshot({ path: 'test-results/f1-resolu.png' });
+  expect(errors).toEqual([]);
+});
+
+test('pochoir raté : les cases mal éclairées clignotent en rouge, puis la feuille se déplie', async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('f4');
+  }, [...ZONE1, ...ZONE2, ...ZONE3, 'f1', 'f2', 'f3']);
+  // trois plis qui ne donnent pas le motif : moitié gauche, puis moitié haute, puis moitié gauche
+  for (const k of [2, 102, 3]) {
+    expect(await page.evaluate((kk) => window.__game.interact('f4', kk), k)).toBe('ok');
+    await page.evaluate(() => window.__game.advance(0.8));
+  }
+  expect(await page.evaluate(() => window.__game.state('f4'))).toHaveLength(9);
+  expect(await page.evaluate(() => window.__game.lightErrors('f4'))).toBeGreaterThan(0);
+  await page.screenshot({ path: 'test-results/f4-erreurs.png' });
+  await page.evaluate(() => window.__game.advance(3));
+  expect(await page.evaluate(() => window.__game.state('f4'))).toEqual([]);
+  expect(await page.evaluate(() => window.__game.lightErrors('f4'))).toBe(0);
   expect(errors).toEqual([]);
 });
 

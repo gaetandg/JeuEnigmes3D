@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import {
-  applyFold, checkFold, initialFoldState, isLegal, legalFolds, solveFold,
+  applyFold, checkFold, initialFoldState, isLegal, legalFolds, litCells, solveFold,
 } from '../core/fold/index.ts';
 import type { Fold, FoldCellDef, FoldPuzzle, FoldState, Mark } from '../core/fold/index.ts';
 import { heightAt } from '../world/terrain.ts';
@@ -222,6 +222,8 @@ export class FoldView implements PuzzleView {
   private queue: Fold[] = [];
   private hovered: number | null = null;
   private failTimer = 0;
+  /** pochoir : cases fautives (éclairées à tort, ou couvertes à tort), qui clignotent en rouge */
+  private lightErrors = new THREE.InstancedMesh(UNIT_BOX, new THREE.MeshBasicMaterial({ color: '#ff5a4a', transparent: true, opacity: 0.55, depthWrite: false, toneMapped: false }), 64);
   private bad = new Set<number>();
   private time = 0;
   private solvedAt = -1;
@@ -298,6 +300,10 @@ export class FoldView implements PuzzleView {
       table.position.y = 0.001;
       this.board.add(table);
       this.lightTable = { mat, on, off };
+      this.lightErrors.count = 0;
+      this.lightErrors.renderOrder = 4;
+      this.lightErrors.frustumCulled = false;
+      this.board.add(this.lightErrors);
       const plaque = new THREE.Mesh(new THREE.PlaneGeometry(W * 0.4, H * 0.4), new THREE.MeshBasicMaterial({ map: on, toneMapped: false }));
       plaque.position.set(0, H * 0.22, -H / 2 - fw * 2);
       plaque.rotation.x = -0.25;
@@ -537,6 +543,7 @@ export class FoldView implements PuzzleView {
     this.queue = [];
     this.bad.clear();
     this.failTimer = 0;
+    this.lightErrors.count = 0;
     this.fs = initialFoldState(this.puzzle);
     for (const sh of this.sheets) sh.quat.identity();
     for (let i = 0; i + 2 < s.length; i += 3) {
@@ -643,9 +650,40 @@ export class FoldView implements PuzzleView {
     }
     if (feedback && this.fs.folds.length >= this.puzzle.maxFolds) {
       this.bad = new Set([...chk.badDots, ...chk.badStains, ...chk.badStars]);
-      this.failTimer = 1.6;
+      this.showLightErrors();
+      // un peu plus de temps pour lire le pochoir quand des cases sont fausses
+      this.failTimer = this.lightErrors.count > 0 ? 2.4 : 1.6;
       this.onFailSound?.();
     }
+  }
+
+  /** Pochoir raté : on marque les cases dont l'éclairage ne correspond pas au modèle. */
+  private showLightErrors(): void {
+    const want = this.puzzle.light;
+    if (!want) return;
+    const lit = litCells(this.puzzle, this.fs);
+    const { width: w, height: h } = this.puzzle;
+    const m = new THREE.Matrix4();
+    let n = 0;
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const k = `${x},${y}`;
+        if (lit.has(k) === want.has(k)) continue;
+        // au-dessus de la feuille, pour qu'une case couverte à tort se voie aussi
+        m.compose(
+          new THREE.Vector3((x + 0.5 - w / 2) * this.cell, this.previewY + 0.004, (y + 0.5 - h / 2) * this.cell),
+          new THREE.Quaternion(),
+          new THREE.Vector3(this.cell * 0.9, 0.002, this.cell * 0.9),
+        );
+        this.lightErrors.setMatrixAt(n++, m);
+      }
+    this.lightErrors.count = n;
+    this.lightErrors.instanceMatrix.needsUpdate = true;
+  }
+
+  /** nombre de cases du pochoir marquées fautives (tests) */
+  get lightErrorCount(): number {
+    return this.failTimer > 0 ? this.lightErrors.count : 0;
   }
 
   update(dt: number, time: number): void {
@@ -688,7 +726,10 @@ export class FoldView implements PuzzleView {
         const c = this.bad.has(i) && on ? '#ff9a8a' : '#ffffff';
         for (const m of sh.mats) m.color.set(c);
       });
+      // cases du pochoir fautives : toujours visibles, en pulsant (pas de phase éteinte)
+      (this.lightErrors.material as THREE.MeshBasicMaterial).opacity = 0.35 + 0.3 * (0.5 + 0.5 * Math.sin(time * 9));
       if (this.failTimer <= 0) {
+        this.lightErrors.count = 0;
         this.sheets.forEach((sh) => sh.mats.forEach((m) => m.color.set('#ffffff')));
         this.applyState([], true);
       }

@@ -56,6 +56,11 @@ export function exposeDebugApi(game: Game): void {
     hint: (id: string) => game.panels.get(id)?.hint() ?? null,
     /** l'aide affichée : pièce désignée et sens du geste (clic droit si reverse) */
     hintMove: (id: string) => game.panels.get(id)?.activeHint() ?? null,
+    /** pochoir raté : nombre de cases marquées en rouge */
+    lightErrors: (id: string) => {
+      const p = game.panels.get(id) as unknown as { lightErrorCount?: number } | undefined;
+      return p?.lightErrorCount ?? 0;
+    },
     /** billets du gardien : lus, survolé, lire, viser */
     notes: () => (game.save.notes ?? []).slice(),
     hoveredNote: () => game.hoveredNote,
