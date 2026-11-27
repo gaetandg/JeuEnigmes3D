@@ -114,6 +114,8 @@ export class TiltView implements PuzzleView {
   private solvedAt = -1;
   private c: number;
   private topY: number;
+  /** demi-étendue du plateau (flèches comprises), en largeur et en profondeur */
+  private half = { w: 0, d: 0 };
 
   constructor(readonly puzzle: TiltPuzzle, readonly place: TiltPlacement) {
     const c = (this.c = place.cell);
@@ -123,6 +125,7 @@ export class TiltView implements PuzzleView {
     this.state = this.encode();
     const W = puzzle.width * c;
     const D = puzzle.height * c;
+    this.half = { w: W / 2 + c * 1.5, d: D / 2 + c * 1.5 };
     this.group.name = `inclinaison ${puzzle.id}`;
     this.group.position.set(place.x, heightAt(place.x, place.z), place.z);
     this.group.rotation.y = place.yaw;
@@ -306,6 +309,7 @@ export class TiltView implements PuzzleView {
     this.s = s;
     this.state = this.encode();
     this.board.rotation.set(0, 0, 0);
+    this.board.position.y = this.topY;
     this.placeBalls(s);
     if (!this.solved && isSolved(s)) {
       this.solved = true;
@@ -333,10 +337,12 @@ export class TiltView implements PuzzleView {
       const a = this.anim;
       a.t = Math.min(a.dur, a.t + dt);
       const k = a.t / a.dur;
-      // le plateau penche vers le côté choisi, puis revient
-      const lean = Math.sin(Math.PI * Math.min(1, k * 1.2)) * 0.09;
+      // le plateau penche vers le côté choisi, puis revient ; il se soulève d'autant que son bord
+      // descend (sinon, au fond de son bassin, le Grand Plateau s'enfonçait dans le dallage)
+      const lean = Math.sin(Math.PI * Math.min(1, k * 1.2)) * (this.place.kind === 'plaza' ? 0.05 : 0.09);
       const d = DIRS[a.dir]!;
       this.board.rotation.set(d.dz * lean, 0, -d.dx * lean);
+      this.board.position.y = this.topY + Math.sin(Math.abs(lean)) * (d.dz !== 0 ? this.half.d : this.half.w);
       a.moves.forEach((m, i) => {
         const ball = this.balls[i]!;
         const steps = m.path.length - 1;
@@ -360,6 +366,7 @@ export class TiltView implements PuzzleView {
       if (a.t >= a.dur) {
         this.anim = null;
         this.board.rotation.set(0, 0, 0);
+        this.board.position.y = this.topY;
         this.s = a.next;
         this.state = this.encode();
         if (this.s.lost) {
