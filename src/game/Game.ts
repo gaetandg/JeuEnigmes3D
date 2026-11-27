@@ -333,7 +333,8 @@ export class Game {
     this.beacon.visible = false;
     this.beaconY = this.beacon.position.y;
     this.scene.add(this.beacon);
-    this.shards = new Shards(this.beacon.position.clone());
+    // la position du faisceau elle-même (pas une copie) : les éclats suivent le phare s'il s'enfonce
+    this.shards = new Shards(this.beacon.position);
     this.scene.add(this.shards.group);
     // le récit : les billets du gardien, et la réponse de la mer à la fin
     this.notes = new LoreNotes(NOTES.filter((n) => n.zone !== 'ciel' && n.zone !== 'racines'), this.save.notes ?? []);
@@ -995,7 +996,9 @@ export class Game {
 
   private addTiltView(view: TiltView): void {
     view.onSolved = () => this.onPanelSolved(view);
-    view.onRoll = () => this.audio.click();
+    const big = view.place.kind === 'plaza';
+    view.onRoll = (dur) => this.audio.roll(dur, big);
+    view.onLand = (end) => (end === 'home' ? this.audio.home() : end === 'pit' ? this.audio.pit() : this.audio.bump(big));
     view.onFail = () => this.audio.denied();
     this.panels.set(view.id, view);
     this.scene.add(view.group);

@@ -375,6 +375,73 @@ export class Audio {
     src.start();
   }
 
+  /** Les billes roulent sur la pierre : un grondement doux qui vibre, de la durée du geste. */
+  roll(dur: number, big = false): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer(dur + 0.15, true);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = big ? 240 : 480;
+    // le roulement : une vibration rapide sur le volume
+    const trem = ctx.createGain();
+    trem.gain.value = 0.7;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = big ? 11 : 19;
+    const depth = ctx.createGain();
+    depth.gain.value = 0.3;
+    lfo.connect(depth).connect(trem.gain);
+    const g = ctx.createGain();
+    const t = ctx.currentTime;
+    const peak = big ? 0.5 : 0.32;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(peak, t + 0.06);
+    g.gain.setValueAtTime(peak, t + Math.max(0.07, dur - 0.08));
+    g.gain.linearRampToValueAtTime(0, t + dur + 0.1);
+    src.connect(f).connect(trem).connect(g).connect(this.master);
+    src.start(t);
+    lfo.start(t);
+    src.stop(t + dur + 0.15);
+    lfo.stop(t + dur + 0.15);
+  }
+
+  /** Une bille bute (mur, bord, autre bille) : petit choc sourd. */
+  bump(big = false): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this.tone(big ? 95 : 150, t, 0.12, 0.09, 'triangle', false);
+    this.tone(big ? 190 : 300, t, 0.05, 0.03, 'sine', false);
+  }
+
+  /** Une bille se loge dans son creux : un « toc » de bois et une note claire. */
+  home(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    this.tone(220, t, 0.1, 0.08, 'triangle', false);
+    this.tone(880, t + 0.03, 0.9, 0.05, 'sine');
+    this.tone(1318.5, t + 0.03, 0.6, 0.02, 'sine');
+  }
+
+  /** Une bille tombe dans un puits : elle s'éloigne vers le grave. */
+  pit(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return;
+    const o = ctx.createOscillator();
+    const t = ctx.currentTime;
+    o.frequency.setValueAtTime(520, t);
+    o.frequency.exponentialRampToValueAtTime(60, t + 0.6);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.07, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.65);
+    o.connect(g).connect(this.master);
+    if (this.reverb) g.connect(this.reverb);
+    o.start(t);
+    o.stop(t + 0.7);
+  }
+
   /** Le phare se rallume : longue montée d'accords. */
   finale(): void {
     const ctx = this.ctx;
