@@ -45,14 +45,19 @@ export class Hud {
     this.root.innerHTML = `
       <div class="crosshair" hidden></div>
       <div class="mouse-hint" hidden aria-live="polite">
-        <svg viewBox="0 0 40 56" width="30" height="42" aria-hidden="true">
+        <svg class="mouse" viewBox="0 0 40 56" width="30" height="42" aria-hidden="true">
           <rect x="2" y="2" width="36" height="52" rx="18" class="body"/>
           <path d="M20 2 V22" class="seam"/>
           <path d="M2 22 H38" class="seam"/>
           <path d="M20 2 A18 18 0 0 0 2 20 V22 H20 Z" class="btn btn-left"/>
           <path d="M20 2 A18 18 0 0 1 38 20 V22 H20 Z" class="btn btn-right"/>
         </svg>
-        <span class="label"></span>
+        <!-- au tactile : un doigt qui touche (onde), ou qui reste appuyé (arc qui se remplit) -->
+        <svg class="touch-icon" viewBox="0 0 44 44" width="38" height="38" aria-hidden="true">
+          <circle cx="22" cy="22" r="15" class="ripple"/>
+          <path d="M22 4 A18 18 0 1 1 4 22" class="hold"/>
+          <circle cx="22" cy="22" r="8" class="tip"/>
+        </svg>
       </div>
       <div class="toast" hidden></div>
       <div class="fade"></div>
@@ -207,9 +212,8 @@ export class Hud {
     el.classList.toggle('left', show === 'left');
     el.classList.toggle('right', show === 'right');
     el.classList.toggle('touch', this.touch);
-    el.querySelector('.label')!.textContent = this.touch
-      ? (show === 'right' ? 'appui long' : 'toucher')
-      : (show === 'right' ? 'clic droit' : 'clic gauche');
+    // pas de texte à l'écran : le dessin suffit (le nom reste pour les lecteurs d'écran)
+    el.setAttribute('aria-label', this.touch ? (show === 'right' ? 'appui long' : 'toucher') : (show === 'right' ? 'clic droit' : 'clic gauche'));
   }
   private mouseHintShown: 'left' | 'right' | null = null;
 

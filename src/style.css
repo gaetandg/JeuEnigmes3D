@@ -49,12 +49,9 @@ html, body {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 10px;
   background: rgba(20, 28, 36, 0.62);
-  color: #dff6ff;
-  font: 600 14px/1 system-ui, sans-serif;
   animation: mouse-hint-in 0.25s ease-out;
 }
 .mouse-hint .body { fill: #f4efe6; stroke: #3a3530; stroke-width: 2.5; }
@@ -62,7 +59,15 @@ html, body {
 .mouse-hint .btn { fill: transparent; }
 .mouse-hint.left .btn-left,
 .mouse-hint.right .btn-right { fill: #4fd2ff; animation: mouse-hint-pulse 1s ease-in-out infinite; }
-.mouse-hint.touch svg { display: none; }
+.mouse-hint .touch-icon { display: none; }
+.mouse-hint.touch .mouse { display: none; }
+.mouse-hint.touch .touch-icon { display: block; }
+.mouse-hint .tip { fill: #f4efe6; stroke: #3a3530; stroke-width: 2; }
+.mouse-hint .ripple { fill: none; stroke: #4fd2ff; stroke-width: 2.5; transform-origin: 22px 22px; animation: touch-ripple 1s ease-out infinite; }
+.mouse-hint .hold { fill: none; stroke: #4fd2ff; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 85; animation: touch-hold 1.4s linear infinite; }
+.mouse-hint.touch.left .hold, .mouse-hint.touch.right .ripple { display: none; }
+@keyframes touch-ripple { from { transform: scale(0.55); opacity: 1; } to { transform: scale(1.15); opacity: 0; } }
+@keyframes touch-hold { from { stroke-dashoffset: 85; } to { stroke-dashoffset: 0; } }
 @keyframes mouse-hint-pulse { 50% { fill: #b8eeff; } }
 @keyframes mouse-hint-in { from { opacity: 0; transform: translate(-50%, 6px); } }
 
