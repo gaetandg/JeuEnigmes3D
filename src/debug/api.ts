@@ -79,6 +79,8 @@ export function exposeDebugApi(game: Game): void {
     deep: () => !!game.save.deep,
     cheat: (action: 'goto' | 'before' | 'upto' | 'all', id: string) => game.cheat(action, id),
     lighthouseY: () => game.lighthouseTop(),
+    /** la carte du gardien : états des lanternes */
+    map: () => game.mapData(),
     answered: () => game.answer.answered,
     homecoming: () => game.answer.homecoming,
     guides: () => game.guides.mesh.count,

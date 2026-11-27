@@ -14,14 +14,49 @@ const N = 0; // regarder vers le nord
 const W = Math.PI / 2; // regarder vers l'ouest
 const E = -Math.PI / 2; // regarder vers l'est
 
+/**
+ * Une condition d'allumage : une énigme précise, ou une liste dont **une seule** suffit.
+ * Une énigme s'allume quand **toutes** ses conditions sont remplies.
+ */
+export type Req = string | readonly string[];
+
 export interface PanelSpot {
   id: string;
   x: number;
   z: number;
   yaw: number;
-  /** Panneaux à résoudre pour que celui-ci s'allume (un seul suffit s'il y en a plusieurs : non, tous). */
-  requires: string[];
+  /** conditions d'allumage (toutes ; une liste interne : l'une d'elles suffit) */
+  requires: Req[];
 }
+
+/** Les conditions sont-elles remplies ? */
+export function reqMet(reqs: readonly Req[], solved: (id: string) => boolean): boolean {
+  return reqs.every((r) => (typeof r === 'string' ? solved(r) : r.some(solved)));
+}
+
+/** Toutes les énigmes citées par des conditions (pour tracer les câbles). */
+export function reqIds(reqs: readonly Req[]): string[] {
+  return reqs.flatMap((r) => (typeof r === 'string' ? [r] : [...r]));
+}
+
+/**
+ * Progression souple : dans une suite d'énigmes, les trois premières s'allument l'une après
+ * l'autre (les deux premières, des leçons, sont obligatoires) ; ensuite, chacune s'allume dès que
+ * **l'une des deux précédentes** est résolue. On peut toujours laisser une énigme de côté et
+ * continuer, mais jamais deux de suite.
+ */
+export function chainReq(ids: readonly string[], i: number, entry: Req[]): Req[] {
+  if (i === 0) return entry;
+  if (i < 3) return [ids[i - 1]!];
+  return [[ids[i - 1]!, ids[i - 2]!]];
+}
+
+/** La grande énigme d'une zone : l'une des deux dernières de la suite. */
+export function endReq(ids: readonly string[]): Req[] {
+  return [[ids[ids.length - 1]!, ids[ids.length - 2]!]];
+}
+
+const seq = (prefix: string, n: number) => Array.from({ length: n }, (_, i) => `${prefix}${i + 1}`);
 
 export interface GateSpot {
   id: string;
@@ -30,42 +65,44 @@ export interface GateSpot {
   /** Orientation du mur qui porte la porte (0 = mur est-ouest). */
   rot: number;
   width: number;
-  requires: string[];
+  requires: Req[];
 }
 
+// Les allées du jardin : trois énigmes dans l'ordre, puis l'une des deux précédentes suffit
+// (voir chainReq) ; l'allée D attend la fin des deux allées B et C.
 export const PANELS: PanelSpot[] = [
   // Allée A : de la plage au jardin
   { id: 'a1', x: 0, z: 95, yaw: N, requires: [] },
   { id: 'a2', x: -7, z: 78, yaw: N, requires: ['a1'] },
   { id: 'a3', x: 7, z: 70, yaw: N, requires: ['a2'] },
-  { id: 'a4', x: -6, z: 62, yaw: N, requires: ['a3'] },
-  { id: 'a5', x: 5, z: 55, yaw: N, requires: ['a4'] },
+  { id: 'a4', x: -6, z: 62, yaw: N, requires: [['a3', 'a2']] },
+  { id: 'a5', x: 5, z: 55, yaw: N, requires: [['a4', 'a3']] },
   // Allée B (ouest) : les couleurs
-  { id: 'b1', x: -14, z: 39, yaw: W, requires: ['a5'] },
+  { id: 'b1', x: -14, z: 39, yaw: W, requires: [['a5', 'a4']] },
   { id: 'b2', x: -22, z: 44, yaw: W, requires: ['b1'] },
   { id: 'b3', x: -30, z: 37, yaw: W, requires: ['b2'] },
-  { id: 'b4', x: -37, z: 44, yaw: W, requires: ['b3'] },
-  { id: 'b5', x: -43, z: 35, yaw: W, requires: ['b4'] },
-  { id: 'b6', x: -45, z: 45, yaw: W, requires: ['b5'] },
+  { id: 'b4', x: -37, z: 44, yaw: W, requires: [['b3', 'b2']] },
+  { id: 'b5', x: -43, z: 35, yaw: W, requires: [['b4', 'b3']] },
+  { id: 'b6', x: -45, z: 45, yaw: W, requires: [['b5', 'b4']] },
   // Allée C (est) : le verre
-  { id: 'c1', x: 14, z: 39, yaw: E, requires: ['a5'] },
+  { id: 'c1', x: 14, z: 39, yaw: E, requires: [['a5', 'a4']] },
   { id: 'c2', x: 22, z: 44, yaw: E, requires: ['c1'] },
   { id: 'c3', x: 30, z: 37, yaw: E, requires: ['c2'] },
-  { id: 'c4', x: 38, z: 43, yaw: E, requires: ['c3'] },
-  { id: 'c5', x: 44, z: 35, yaw: E, requires: ['c4'] },
+  { id: 'c4', x: 38, z: 43, yaw: E, requires: [['c3', 'c2']] },
+  { id: 'c5', x: 44, z: 35, yaw: E, requires: [['c4', 'c3']] },
   // Allée D (nord) : socles et prisme
-  { id: 'd1', x: 0, z: 19, yaw: N, requires: ['b6', 'c5'] },
+  { id: 'd1', x: 0, z: 19, yaw: N, requires: [['b6', 'b5'], ['c5', 'c4']] },
   { id: 'd2', x: -9, z: 13, yaw: N, requires: ['d1'] },
   { id: 'd3', x: 9, z: 9, yaw: N, requires: ['d2'] },
-  { id: 'd4', x: -8, z: 3, yaw: N, requires: ['d3'] },
-  { id: 'd5', x: 4, z: -4, yaw: N, requires: ['d4'] },
-  { id: 'd6', x: -12, z: -2, yaw: N, requires: ['d5'] },
+  { id: 'd4', x: -8, z: 3, yaw: N, requires: [['d3', 'd2']] },
+  { id: 'd5', x: 4, z: -4, yaw: N, requires: [['d4', 'd3']] },
+  { id: 'd6', x: -12, z: -2, yaw: N, requires: [['d5', 'd4']] },
 ];
 
 export const GATES: GateSpot[] = [
   { id: 'porte-plage', x: 0, z: 86, rot: 0, width: 4, requires: ['a1'] },
-  { id: 'porte-place', x: 0, z: 50, rot: 0, width: 4, requires: ['a5'] },
-  { id: 'porte-nord', x: 0, z: 26, rot: 0, width: 4, requires: ['b6', 'c5'] },
+  { id: 'porte-place', x: 0, z: 50, rot: 0, width: 4, requires: [['a5', 'a4']] },
+  { id: 'porte-nord', x: 0, z: 26, rot: 0, width: 4, requires: [['b6', 'b5'], ['c5', 'c4']] },
   { id: 'porte-sortie', x: 0, z: -24, rot: 0, width: 4, requires: ['tours'] },
 ];
 
@@ -73,7 +110,7 @@ export const GATES: GateSpot[] = [
  * Tours-Miroirs : la grille de l'énigme d'environnement posée sur le jardin.
  * Case (c, r) → x = x0 + c * dx, z = z0 + r * dz.
  */
-export const TOWERS = { id: 'tours', requires: ['d6'], x0: -24, dx: 8, z0: -19, dz: 6, beamY: 3.2 };
+export const TOWERS = { id: 'tours', requires: [['d6', 'd5']] as Req[], x0: -24, dx: 8, z0: -19, dz: 6, beamY: 3.2 };
 
 export function towerCell(c: number, r: number): { x: number; z: number } {
   return { x: TOWERS.x0 + c * TOWERS.dx, z: TOWERS.z0 + r * TOWERS.dz };
@@ -117,12 +154,12 @@ export const FOLD_PANELS: PanelSpot[] = Array.from({ length: 13 }, (_, i) => {
     x: ATELIER.x + Math.cos(a) * r,
     z: ATELIER.z + Math.sin(a) * r,
     yaw: Math.atan2(Math.cos(a), Math.sin(a)),
-    requires: i === 0 ? ['tours'] : [`p${i}`],
+    requires: chainReq(seq('p', 13), i, ['tours']),
   };
 });
 
 /** Le Grand Pli, sur l'estrade au centre de l'atelier. */
-export const GRAND_PLI = { id: 'grand-pli', x: ATELIER.x, z: ATELIER.z, yaw: 0, requires: ['p13'], cell: 2.6 };
+export const GRAND_PLI = { id: 'grand-pli', x: ATELIER.x, z: ATELIER.z, yaw: 0, requires: endReq(seq('p', 13)), cell: 2.6 };
 
 // ── zone 3 : le Cloître des Ombres (plateau à l'est) ──
 export const CLOITRE = { x: 50, z: -56, r: 23, half: 18 };
@@ -136,12 +173,12 @@ export const SHADOW_PANELS: PanelSpot[] = Array.from({ length: 12 }, (_, i) => {
     x: CLOITRE.x + Math.cos(a) * r,
     z: CLOITRE.z + Math.sin(a) * r,
     yaw: Math.atan2(Math.cos(a), Math.sin(a)),
-    requires: i === 0 ? ['grand-pli'] : [`o${i}`],
+    requires: chainReq(seq('o', 12), i, ['grand-pli']),
   };
 });
 
 /** Le Cadran : théâtre d'ombres monumental au centre du cloître. */
-export const CADRAN = { id: 'cadran', x: CLOITRE.x, z: CLOITRE.z - 1, yaw: 0, requires: ['o12'], voxel: 1 };
+export const CADRAN = { id: 'cadran', x: CLOITRE.x, z: CLOITRE.z - 1, yaw: 0, requires: endReq(seq('o', 12)), voxel: 1 };
 
 // ── zone 4 : le Phare (sommet de l'île) ──
 export const PHARE = { x: LIGHTHOUSE.x, z: LIGHTHOUSE.z + 6, r: 17 };
@@ -156,7 +193,7 @@ export const FINAL_PANELS: (PanelSpot & { kind: 'light' | 'fold' })[] = ['f1', '
     x: LIGHTHOUSE.x + Math.cos(a) * r,
     z: LIGHTHOUSE.z + Math.sin(a) * r,
     yaw: Math.atan2(Math.cos(a), Math.sin(a)),
-    requires: i === 0 ? ['cadran'] : [['f1', 'f2', 'f3', 'f4', 'f5'][i - 1]!],
+    requires: chainReq(seq('f', 6), i, ['cadran']),
   };
 });
 
@@ -188,11 +225,11 @@ export const SKY_PANELS: PanelSpot[] = Array.from({ length: 8 }, (_, i) => {
     x: SKY.x + Math.cos(a) * r,
     z: SKY.z + Math.sin(a) * r,
     yaw: Math.atan2(Math.cos(a), Math.sin(a)),
-    requires: i === 0 ? ['f6'] : [`t${i}`],
+    requires: chainReq(seq('t', 8), i, ['f6']),
   };
 });
 /** le Grand Plateau, au centre de l'île : on se tient au sud (côté +z) pour le regarder */
-export const GRAND_PLATEAU = { id: 'grand-plateau', x: SKY.x, z: SKY.z, yaw: 0, requires: ['t8'], cell: 1.6 };
+export const GRAND_PLATEAU = { id: 'grand-plateau', x: SKY.x, z: SKY.z, yaw: 0, requires: endReq(seq('t', 8)), cell: 1.6 };
 
 // ── zone 6 : les Racines du Phare (une grotte sous la mer, à l'ouest ; on s'y réveille après la bascule) ──
 /** centre, altitude du sol et rayon moyen de la grotte */
@@ -214,10 +251,10 @@ export const ROOT_PANELS: PanelSpot[] = Array.from({ length: 6 }, (_, i) => {
     x: CAVE.x + Math.cos(a) * r,
     z: CAVE.z + Math.sin(a) * r,
     yaw: Math.atan2(Math.cos(a), Math.sin(a)),
-    requires: i === 0 ? ['grand-plateau'] : [`r${i}`],
+    requires: chainReq(seq('r', 6), i, ['grand-plateau']),
   };
 });
-export const RACINE_MERE = { id: 'racine-mere', x: CAVE.x, z: CAVE.z, yaw: 0, requires: ['r6'], cell: 1.25 };
+export const RACINE_MERE = { id: 'racine-mere', x: CAVE.x, z: CAVE.z, yaw: 0, requires: endReq(seq('r', 6)), cell: 1.25 };
 
 // ── les Éclats : énigmes secrètes ──
 export type SecretKind = 'world-light' | 'light' | 'fold-desk' | 'fold-easel' | 'shadow';

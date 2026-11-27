@@ -3,6 +3,8 @@
  * Le monde du jeu reste sans texte ; seuls les menus en contiennent.
  */
 import type { Quality, Settings } from '../game/progress.ts';
+import { ZONE_NAMES, drawMap, prepareMap } from './map.ts';
+import type { MapData, MapZone } from './map.ts';
 
 export interface HudCallbacks {
   onStart: () => void;
@@ -93,6 +95,12 @@ export class Hud {
             <label>Balancement de la marche <input type="checkbox" data-setting="bob" /></label>
             <button class="ghost" data-action="reset">Recommencer depuis le début</button>
           </details>
+          <details class="carte">
+            <summary>Carte du gardien <span class="carte-pct"></span></summary>
+            <canvas class="carte-canvas" aria-label="Carte de l'île : les énigmes résolues, à faire et encore verrouillées"></canvas>
+            <p class="carte-legende"><span class="l-solved"></span> résolue <span class="l-open"></span> à faire <span class="l-locked"></span> pas encore accessible <span class="l-shard">✦</span> éclat</p>
+            <p class="carte-zones"></p>
+          </details>
           <details class="journal">
             <summary>Carnet du gardien <span class="journal-count"></span></summary>
             <ol class="journal-list"></ol>
@@ -130,6 +138,8 @@ export class Hud {
         </div>
       </div>`;
     this.title = this.root.querySelector('.overlay')!;
+    this.root.querySelector('details.carte')!.addEventListener('toggle', () => this.animateMap());
+    prepareMap();
     const target = this.root.querySelector<HTMLSelectElement>('[data-cheat="target"]')!;
     const cine = this.root.querySelector<HTMLSelectElement>('[data-cheat="cinematic"]')!;
     this.root.querySelector('[data-cheat="watch"]')!.addEventListener('click', () => {
@@ -189,8 +199,48 @@ export class Hud {
     });
   }
 
+  private mapData: MapData | null = null;
+  private mapRaf = 0;
+
+  /** La carte du gardien : résumé (pourcentage, zones) et dessin si elle est ouverte. */
+  setMap(data: MapData): void {
+    this.mapData = data;
+    const main = data.marks;
+    const solved = main.filter((m) => m.state === 'solved').length;
+    const pct = Math.floor((100 * (solved + data.shards.length)) / (main.length + data.shardsTotal));
+    this.root.querySelector('.carte-pct')!.textContent = `(${pct} %)`;
+    const zones = (Object.keys(ZONE_NAMES) as MapZone[]).filter((z) => (z !== 'ciel' || data.sky) && (z !== 'racines' || data.deep));
+    const parts = zones.map((z) => {
+      const ms = main.filter((m) => m.zone === z);
+      const n = ms.filter((m) => m.state === 'solved').length;
+      return `${ZONE_NAMES[z]} ${n}/${ms.length}${n === ms.length ? ' ✓' : ''}`;
+    });
+    this.root.querySelector('.carte-zones')!.textContent =
+      `${parts.join(' · ')} — énigmes ${solved}/${main.length} · éclats ${data.shards.length}/${data.shardsTotal} · billets ${data.notes}/${data.notesTotal}`;
+    this.drawMapNow();
+  }
+
+  private drawMapNow(): void {
+    const det = this.root.querySelector<HTMLDetailsElement>('details.carte')!;
+    if (!this.mapData || !det.open || this.title.hidden) return;
+    drawMap(this.root.querySelector<HTMLCanvasElement>('.carte-canvas')!, this.mapData, performance.now() / 1000);
+  }
+
+  /** Tant que la carte est ouverte, les lanternes à faire palpitent. */
+  private animateMap(): void {
+    cancelAnimationFrame(this.mapRaf);
+    const det = this.root.querySelector<HTMLDetailsElement>('details.carte')!;
+    const tick = () => {
+      if (!det.open || this.title.hidden) return;
+      this.drawMapNow();
+      this.mapRaf = requestAnimationFrame(tick);
+    };
+    tick();
+  }
+
   showTitle(paused: boolean): void {
     this.title.hidden = false;
+    this.animateMap();
     this.crosshair.hidden = true;
     this.setMouseHint(null);
     this.pauseBtn.hidden = true;

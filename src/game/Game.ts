@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { parsePuzzle } from '../core/light/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
-import { PLAZA, SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL, skyEdge, CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE } from '../world/layout.ts';
+import { PLAZA, SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL, skyEdge, CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, reqIds, reqMet } from '../world/layout.ts';
+import type { Req } from '../world/layout.ts';
 import { PIT, buildCave } from '../world/cave.ts';
 import type { Cave } from '../world/cave.ts';
 import { ZONE6, ZONE6_MERE } from '../puzzles/zone6.ts';
@@ -52,13 +53,14 @@ import { ENDING, NOTES } from '../world/lore.ts';
 import { LoreNotes, NOTE_REACH } from '../render/notes.ts';
 import { SeaAnswer } from '../render/ending.ts';
 import type { CheatAction, CheatList, Cinematic } from '../ui/hud.ts';
+import type { MapData, MapMark, MapZone, MarkState } from '../ui/map.ts';
 
 const REACH = 5;
 /** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
 const HINT_DELAY = 180;
 
 /** Qui alimente quoi : panneaux + énigmes d'environnement. */
-const POWER: { id: string; requires: string[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU, ...ROOT_PANELS, RACINE_MERE];
+const POWER: { id: string; requires: Req[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU, ...ROOT_PANELS, RACINE_MERE];
 const SKY_IDS = [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id];
 const ROOT_IDS = [...ROOT_PANELS.map((p) => p.id), RACINE_MERE.id];
 /** de combien le phare s'enfonce dans la colline pendant la bascule (m) */
@@ -103,13 +105,14 @@ function cableLinks(): { from: string; ax: number; az: number; bx: number; bz: n
     [TOWERS.id, { x: towerSrc.x + 1.5, z: towerSrc.z }],
   ]);
   const links: { from: string; ax: number; az: number; bx: number; bz: number }[] = [];
-  const targets: { id: string; requires: string[]; pos: { x: number; z: number } | undefined }[] = [
+  const targets: { id: string; requires: Req[]; pos: { x: number; z: number } | undefined }[] = [
     ...POWER.map((p) => ({ id: p.id, requires: p.requires, pos: inPos.get(p.id) })),
     ...GATES.map((g) => ({ id: g.id, requires: g.requires, pos: { x: g.x, z: g.z } })),
   ];
   for (const t of targets) {
     const to = t.pos;
-    for (const r of t.requires) {
+    // une condition « l'une ou l'autre » : un câble depuis chacune (la première allumée suffit)
+    for (const r of reqIds(t.requires)) {
       const from = outPos.get(r);
       if (from && to) links.push({ from: r, ax: from.x, az: from.z, bx: to.x, bz: to.z });
     }
@@ -980,6 +983,39 @@ export class Game {
   }
   private noteAt: THREE.Vector3 | null = null;
 
+  /** Données de la carte du gardien : chaque énigme principale et son état, éclats, billets, nous. */
+  mapData(): MapData {
+    const towers = towerCell(1.5, 1);
+    const zones: [MapZone, { id: string; x: number; z: number }[], string | null][] = [
+      ['jardin', [...PANELS, { id: TOWERS.id, ...towers }], TOWERS.id],
+      ['atelier', [...FOLD_PANELS, GRAND_PLI], GRAND_PLI.id],
+      ['cloitre', [...SHADOW_PANELS, CADRAN], CADRAN.id],
+      ['phare', FINAL_PANELS, FINAL_ID],
+      ['ciel', [...SKY_PANELS, GRAND_PLATEAU], GRAND_PLATEAU.id],
+      ['racines', [...ROOT_PANELS, RACINE_MERE], RACINE_MERE.id],
+    ];
+    const marks: MapMark[] = zones.flatMap(([zone, spots, big]) => spots.map((p) => {
+      const v = this.panels.get(p.id)!;
+      const state: MarkState = this.isSolved(p.id) ? 'solved' : v.powered ? 'open' : 'locked';
+      return { id: p.id, x: p.x, z: p.z, zone, state, big: p.id === big };
+    }));
+    const pos = this.player.position;
+    return {
+      marks,
+      shards: SECRETS.filter((s) => this.isSolved(s.id)).map((s) => (s.kind === 'world-light' ? { x: SECRET_PLAGE.x0 + 8, z: SECRET_PLAGE.z0 + 6 } : { x: s.x, z: s.z })),
+      shardsTotal: SECRETS.length,
+      notes: new Set(this.save.notes ?? []).size,
+      notesTotal: NOTES.length,
+      player: { x: pos.x, y: pos.y, z: pos.z, yaw: this.player.yaw },
+      sky: !!this.save.sky,
+      deep: !!this.save.deep,
+    };
+  }
+
+  private refreshMap(): void {
+    this.hud?.setMap(this.mapData());
+  }
+
   private refreshJournal(): void {
     const read = new Set(this.save.notes ?? []);
     this.hud?.setJournal(NOTES.map((n) => ({ zone: n.zone, text: read.has(n.id) ? n.text : null })));
@@ -1097,6 +1133,7 @@ export class Game {
       onPause: () => {
         if (touchInput) touchInput.enabled = false;
         this.playing = false;
+        this.refreshMap();
         this.hud!.showTitle(true);
         this.persist();
       },
@@ -1134,6 +1171,7 @@ export class Game {
       onTeleport: (place) => this.teleportTo(place),
     }, settings, this.save.solved.length > 0, touch, this.cheatList(), PLACES.map((p) => ({ id: p.id, label: p.label })));
     this.refreshJournal();
+    this.refreshMap();
     if (touch) {
       touchInput = new TouchInput(this.opts.canvas, this.opts.ui, this.player);
       touchInput.onTap = (reverse) => this.click(reverse);
@@ -1157,6 +1195,7 @@ export class Game {
       if (locked) this.hud!.hideTitle();
       // pendant une séquence (fin, île qui monte, pont de lumière, vraie fin), pas de menu pause
       else if (!this.busy) {
+        this.refreshMap();
         this.hud!.showTitle(true);
         this.persist();
       }
@@ -1168,6 +1207,7 @@ export class Game {
     this.gamepad.onStart = () => {
       if (this.playing) {
         this.playing = false;
+        this.refreshMap();
         this.hud!.showTitle(true);
         this.persist();
       } else {
@@ -1235,7 +1275,7 @@ export class Game {
   private updatePower(instant: boolean): void {
     for (const spot of POWER) {
       const panel = this.panels.get(spot.id)!;
-      const on = spot.requires.every((r) => this.isSolved(r));
+      const on = reqMet(spot.requires, (r) => this.isSolved(r));
       if (on && !panel.powered) {
         panel.setPowered(true);
         if (!instant) this.audio.power();
@@ -1243,7 +1283,7 @@ export class Game {
     }
     for (const g of GATES) {
       const gv = this.gates.get(g.id)!;
-      if (!gv.opening && g.requires.every((r) => this.isSolved(r))) {
+      if (!gv.opening && reqMet(g.requires, (r) => this.isSolved(r))) {
         gv.opening = true;
         if (instant) {
           gv.open = 1;

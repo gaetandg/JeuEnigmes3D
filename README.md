@@ -21,6 +21,10 @@ réunis l'irisent de toutes les couleurs.
 
 **▶ Jouer : https://gaetandg.github.io/JeuEnigmes3D/** (PC ou mobile, navigateur récent)
 
+**Jamais bloqué** : au-delà des premières leçons, chaque énigme s'allume dès que l'une des deux
+précédentes est résolue ; on peut laisser une énigme de côté et revenir plus tard. La **carte du
+gardien** (menu pause) montre ce qui est résolu, ce qui reste à faire et le pourcentage.
+
 ## Contrôles
 
 | Action | Touche |
@@ -37,7 +41,8 @@ bouton ❚❚ = pause. La qualité graphique passe en « basse » automatiquemen
 
 **Réglages** : volume, musique (générée, une tonalité par zone), sensibilité, qualité graphique (haute / moyenne / basse),
 symboles des couleurs pour les personnes daltoniennes (▲ rouge, ■ vert, ● bleu),
-aides discrètes (après 3 minutes bloqué devant une énigme, une pièce à changer luit doucement),
+aides discrètes (après 3 minutes bloqué devant une énigme, une pièce à changer luit doucement ; la souris
+dessinée montre le bon bouton),
 guide lumineux (colonnes au-dessus des énigmes en attente), champ de vision, inversion de l'axe
 vertical, balancement de la marche. **Manette** : stick gauche marcher, stick droit regarder,
 A agir, B ou X sens inverse, Start pause.
