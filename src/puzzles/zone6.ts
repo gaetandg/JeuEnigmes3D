@@ -8,11 +8,12 @@ import type { RootPuzzleDef } from '../core/roots/parse.ts';
  */
 export const ZONE6: RootPuzzleDef[] = [
   {
+    // leçon : presque tout est déjà en place, trois tuiles à tourner (les points rouges les désignent)
     id: 'r1', note: 'Tourner les racines pour que la lumière de la graine atteigne les cristaux.',
     grid: `
-      L3   T0   oc0
-      |*0  T1   oc2
-      oc2  L1   oc1
+      L1   T1   oc0
+      |*0  T1   oc3
+      oc3  L0   oc3
     `,
   },
   {

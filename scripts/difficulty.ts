@@ -21,6 +21,9 @@ import type { TiltDir } from '../src/core/tilt/index.ts';
 import { ZONE5, ZONE5_GRAND } from '../src/puzzles/zone5.ts';
 import type { SkyPuzzleDef } from '../src/puzzles/zone5.ts';
 import { greedyTilt } from './tilt-gen.ts';
+import { checkRoots, distinctTurns, parseRoots, rotateMask, solveRoots } from '../src/core/roots/index.ts';
+import type { RootPuzzle, RootPuzzleDef } from '../src/core/roots/index.ts';
+import { ZONE6, ZONE6_MERE } from '../src/puzzles/zone6.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../src/puzzles/zone2.ts';
 import { ZONE3, ZONE3_CADRAN } from '../src/puzzles/zone3.ts';
 import { ZONE4_FOLD, ZONE4_LIGHT } from '../src/puzzles/zone4.ts';
@@ -139,6 +142,71 @@ function tiltRow(zone: string, def: SkyPuzzleDef): Row {
   return { zone, id: def.id, kind: 'inclinaison', pieces: p.balls.length, minActions: r.minMoves ?? Infinity, space: r.reachable, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyTilt(p)) * 100) };
 }
 
+/** Valeur visible d'un état des racines : tuiles allumées, moins les fuites. */
+function rootsValue(p: RootPuzzle, s: number[]): number {
+  const c = checkRoots(p, s);
+  return c.lit.filter(Boolean).length * 2 - c.leaks;
+}
+
+/** Agent glouton : tourne toujours la tuile qui améliore le plus la situation visible. */
+function greedyRoots(p: RootPuzzle, start: number[], runs = 30): number {
+  const free = p.tiles.map((t, i) => (t.seed || t.fixed ? -1 : i)).filter((i) => i >= 0);
+  let ok = 0;
+  for (let run = 0; run < runs; run++) {
+    const s = start.slice();
+    for (let step = 0; step < 300; step++) {
+      if (checkRoots(p, s).solved) break;
+      const v0 = rootsValue(p, s);
+      let best = -Infinity;
+      let moves: [number, number][] = [];
+      for (const i of free) {
+        for (const d of [1, 3]) {
+          const old = s[i]!;
+          s[i] = (old + d) % 4;
+          const v = rootsValue(p, s);
+          s[i] = old;
+          if (v > best) {
+            best = v;
+            moves = [[i, d]];
+          } else if (v === best) moves.push([i, d]);
+        }
+      }
+      if (best <= v0) break;
+      const [i, d] = moves[Math.floor(rnd() * moves.length)]!;
+      s[i] = (s[i]! + d) % 4;
+    }
+    if (checkRoots(p, s).solved) ok++;
+  }
+  return ok / runs;
+}
+
+function rootsRow(zone: string, def: RootPuzzleDef): Row {
+  const { puzzle: p, start } = parseRoots(def);
+  const sol = solveRoots(p, 1).solution!;
+  const free = p.tiles.map((t, i) => (t.seed || t.fixed ? -1 : i)).filter((i) => i >= 0);
+  // gestes minimum : pour chaque tuile, le plus court (un sens ou l'autre) jusqu'à la bonne forme
+  let minActions = 0;
+  for (const i of free) {
+    const t = p.tiles[i]!;
+    const want = rotateMask(t.mask, sol[i]!);
+    minActions += [0, 1, 2].find((k) => rotateMask(t.mask, start[i]! + k) === want || rotateMask(t.mask, start[i]! - k) === want)!;
+  }
+  const space = free.reduce((a, i) => a * distinctTurns(p.tiles[i]!.mask), 1);
+  const runs: number[] = [];
+  for (let run = 0; run < RUNS; run++) {
+    const s = start.slice();
+    let steps = 0;
+    while (!checkRoots(p, s).solved && steps < CAP) {
+      const i = free[Math.floor(rnd() * free.length)]!;
+      s[i] = (s[i]! + 1) % 4;
+      steps++;
+    }
+    runs.push(steps);
+  }
+  const blind = median(runs);
+  return { zone, id: def.id, kind: 'racines', pieces: free.length, minActions, space, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyRoots(p, start)) * 100) };
+}
+
 export function allRows(): Row[] {
   return [
     ...[...ZONE1, ZONE1_TOWERS].map((d) => lightRow('1 Lumière', d)),
@@ -149,11 +217,17 @@ export function allRows(): Row[] {
       return l ? lightRow('4 Phare', l) : foldRow('4 Phare', ZONE4_FOLD.find((d) => d.id === id)!);
     }),
     ...[...ZONE5, ZONE5_GRAND].map((d) => tiltRow('5 Ciel', d)),
+    ...[...ZONE6, ZONE6_MERE].map((d) => rootsRow('6 Racines', d)),
   ];
 }
 
+/** Seulement les Racines (plus rapide : `node scripts/difficulty.ts --racines --md`). */
+export function rootRows(): Row[] {
+  return [...ZONE6, ZONE6_MERE].map((d) => rootsRow('6 Racines', d));
+}
+
 if (process.argv[1]?.endsWith('difficulty.ts')) {
-  const rows = allRows();
+  const rows = process.argv.includes('--racines') ? rootRows() : allRows();
   const md = process.argv.includes('--md');
   if (md) {
     console.log('| Zone | Énigme | Type | Pièces | Actions min. | Actions à l\'aveugle (médiane) | Difficulté | Déclic |');
