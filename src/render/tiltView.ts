@@ -212,16 +212,25 @@ export class TiltView implements PuzzleView {
     return new THREE.Vector3((x + 0.5 - w / 2) * this.c, h, (y + 0.5 - hh / 2) * this.c);
   }
 
+  /**
+   * Hauteur du centre d'une bille. Logée, elle s'enfonce et affleure le plateau (une perle sertie,
+   * aplatie) : une autre bille peut rouler par-dessus et s'y poser sans la traverser.
+   */
   private ballY(home: boolean): number {
-    return home ? this.c * 0.1 : this.c * 0.36;
+    return home ? this.c * 0.03 : this.c * 0.36;
   }
+
+  private static readonly FLUSH = 0.16;
 
   private placeBalls(s: TiltState): void {
     s.balls.forEach((b, i) => {
       const m = this.balls[i]!;
       m.visible = b.x >= 0;
-      if (b.x >= 0) m.position.copy(this.cellPos(b.x, b.y, this.ballY(b.home)));
-      m.scale.setScalar(1);
+      // posée sur un creux déjà plein : juste au-dessus de la perle sertie
+      const onFilled = !b.home && s.balls.some((o) => o.home && o.x === b.x && o.y === b.y);
+      if (b.x >= 0) m.position.copy(this.cellPos(b.x, b.y, this.ballY(b.home) + (onFilled ? this.c * 0.07 : 0)));
+      if (b.home) m.scale.set(1, TiltView.FLUSH, 1);
+      else m.scale.setScalar(1);
       this.ballMats[i]!.emissiveIntensity = b.home ? 0.6 : 0.12;
     });
   }
@@ -337,6 +346,7 @@ export class TiltView implements PuzzleView {
         const h = done && m.end === 'home' ? this.ballY(true) : done && m.end === 'pit' ? -this.c * 0.4 : this.ballY(false);
         ball.position.copy(this.cellPos(p0.x + (p1.x - p0.x) * f, p0.y + (p1.y - p0.y) * f, h));
         if (done && m.end === 'pit') ball.scale.setScalar(0.5);
+        if (done && m.end === 'home') ball.scale.set(1, TiltView.FLUSH, 1);
       });
       if (a.t >= a.dur) {
         this.anim = null;

@@ -71,3 +71,76 @@ test('mode test : valider ce qui précède une énigme, puis jusqu\'à une autre
   await expect(page.locator('.journal-list')).toContainText('regarde la mer');
   expect(errors).toEqual([]);
 });
+
+test("mode test : revenir en arrière remet la progression exactement à ce point", async ({ page }) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('keep')) localStorage.clear();
+  });
+  await page.goto('./?debug');
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60_000 });
+  await page.evaluate(() => sessionStorage.setItem('keep', '1'));
+  // on avance jusqu'au ciel…
+  await page.locator('details.cheat summary').click();
+  await page.locator('[data-cheat="target"]').selectOption('t3');
+  await page.locator('[data-cheat="before"]').click();
+  expect(await page.evaluate(() => window.__game.skyRisen())).toBe(true);
+  // … puis on revient avant p6 : la page se recharge à ce point exact
+  await page.evaluate(() => document.exitPointerLock());
+  await expect(page.locator('.overlay')).toBeVisible();
+  await page.locator('details.cheat').evaluate((d) => ((d as HTMLDetailsElement).open = true));
+  await page.locator('[data-cheat="target"]').selectOption('p6');
+  await Promise.all([page.waitForEvent('load'), page.locator('[data-cheat="before"]').click()]);
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60_000 });
+  const panels = await page.evaluate(() => window.__game.panels());
+  const st = (id: string) => panels.find((p) => p.id === id)!;
+  expect(st('p5').solved).toBe(true);
+  expect(st('p6').solved).toBe(false);
+  expect(st('p6').powered).toBe(true);
+  expect(st('cadran').solved).toBe(false);
+  expect(st('t1').solved).toBe(false);
+  expect(await page.evaluate(() => window.__game.ended())).toBe(false);
+  expect(await page.evaluate(() => window.__game.skyRisen())).toBe(false);
+  // devant p6 (atelier)
+  const pos = await page.evaluate(() => window.__game.player());
+  expect(Math.hypot(pos.x - -50, pos.z - -56)).toBeLessThan(25);
+  expect(errors).toEqual([]);
+});
+
+test('mode test : voir une cinématique sans toucher à la progression', async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => localStorage.clear());
+  await page.goto('./?debug');
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60_000 });
+  const before = await page.evaluate(() => window.__game.player());
+  await page.locator('details.cheat summary').click();
+  await page.locator('[data-cheat="cinematic"]').selectOption('ile');
+  await page.locator('[data-cheat="watch"]').click();
+  expect(await page.evaluate(() => window.__game.sequences().rise)).toBe(true);
+  await page.evaluate(() => window.__game.advance(16));
+  // la séquence est finie : rien n'a changé
+  expect(await page.evaluate(() => window.__game.sequences().rise)).toBe(false);
+  expect(await page.evaluate(() => window.__game.skyRisen())).toBe(false);
+  expect((await page.evaluate(() => window.__game.panels())).filter((p) => p.solved)).toHaveLength(0);
+  const after = await page.evaluate(() => window.__game.player());
+  expect(Math.hypot(after.x - before.x, after.z - before.z)).toBeLessThan(0.5);
+
+  // la vraie fin : l'île monte le temps de la séquence, la lettre s'affiche, puis tout redevient comme avant
+  await page.evaluate(() => document.exitPointerLock());
+  await expect(page.locator('.overlay').first()).toBeVisible();
+  await page.locator('details.cheat').evaluate((d) => ((d as HTMLDetailsElement).open = true));
+  await page.locator('[data-cheat="cinematic"]').selectOption('vraie');
+  await page.locator('[data-cheat="watch"]').click();
+  expect(await page.evaluate(() => window.__game.sequences().finale)).toBe(true);
+  await page.evaluate(() => window.__game.advance(19));
+  await expect(page.locator('.finale')).toBeVisible();
+  await page.locator('.finale [data-action="continue"]').click();
+  expect(await page.evaluate(() => window.__game.sequences().finale)).toBe(false);
+  expect(await page.evaluate(() => window.__game.skyRisen())).toBe(false);
+  expect(await page.evaluate(() => window.__game.ended())).toBe(false);
+  expect(errors).toEqual([]);
+});

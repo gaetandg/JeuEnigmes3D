@@ -46,7 +46,7 @@ import { Hud } from '../ui/hud.ts';
 import { ENDING, NOTES } from '../world/lore.ts';
 import { LoreNotes, NOTE_REACH } from '../render/notes.ts';
 import { SeaAnswer } from '../render/ending.ts';
-import type { CheatAction, CheatList } from '../ui/hud.ts';
+import type { CheatAction, CheatList, Cinematic } from '../ui/hud.ts';
 
 const REACH = 5;
 /** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
@@ -447,7 +447,7 @@ export class Game {
         target: new THREE.Vector3(LIGHTHOUSE.x, heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z) + 22 - e * 18, LIGHTHOUSE.z + e * 40),
       };
       // la mer répond, au loin, dans l'axe du dernier plan
-      if (c.t >= 7 && !this.answer.answered) this.answer.start(this.allSecrets());
+      if (c.t >= 7 && !this.answer.answered && this.ended) this.answer.start(this.allSecrets());
       if (c.t >= 18 && !this.hudEndingShown) {
         this.hudEndingShown = true;
         this.playing = false;
@@ -495,6 +495,10 @@ export class Game {
     if (r.t >= 14.5) {
       this.rise = null;
       this.cameraOverride = null;
+      if (this.replaying) {
+        this.endReplay();
+        return;
+      }
       this.save.sky = true;
       this.setSkyRisen(true);
       this.dayTarget = 5;
@@ -733,6 +737,7 @@ export class Game {
       },
       onReset: () => this.reset(),
       onCheat: (action, id) => this.cheat(action, id),
+      onCinematic: (which) => this.replay(which),
     }, settings, this.save.solved.length > 0, touch, this.cheatList());
     this.refreshJournal();
     if (touch) {
@@ -744,8 +749,9 @@ export class Game {
       this.cinematic = null;
       this.cameraOverride = null;
       // … mais la lumière ne s'arrête pas là : l'Île du Ciel surgit de la mer
-      if (this.ended && !this.save.sky && !this.rise) this.startRise();
-      if (this.finale && this.finale.t >= 18) this.endFinale();
+      if (this.replaying) this.endReplay();
+      else if (this.ended && !this.save.sky && !this.rise) this.startRise();
+      if (this.finale && this.finale.t >= 18 && !this.replaying) this.endFinale();
       if (touchInput) {
         touchInput.enabled = true;
         this.playing = true;
@@ -932,6 +938,7 @@ export class Game {
   }
 
   private persist(): void {
+    if (this.rewinding) return;
     for (const [id, panel] of this.panels) this.save.states[id] = panel.state;
     this.save.player = { x: this.player.position.x, z: this.player.position.z, yaw: this.player.yaw };
     writeSave(this.save);
@@ -1221,6 +1228,20 @@ export class Game {
   cheat(action: CheatAction, id: string): void {
     // les énigmes du ciel : l'île monte d'abord (sans la séquence)
     const skyTarget = [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id].includes(id);
+    // revenir en arrière : si des énigmes au-delà du point choisi sont déjà résolues, on réécrit
+    // la sauvegarde exactement à ce point et on recharge (le plus sûr pour tout remettre à zéro)
+    if (action === 'before' || action === 'upto') {
+      const order = POWER.map((p) => p.id);
+      const at = order.indexOf(id);
+      if (at >= 0) {
+        const keep = order.slice(0, action === 'before' ? at : at + 1);
+        const later = order.slice(keep.length);
+        if (later.some((t) => this.isSolved(t))) {
+          this.rewind(keep, skyTarget, id);
+          return;
+        }
+      }
+    }
     if (skyTarget && !this.save.sky) {
       this.save.sky = true;
       this.setSkyRisen(true);
@@ -1248,6 +1269,74 @@ export class Game {
       this.persist();
     }
     this.view(action === 'all' ? FINAL_ID : id);
+  }
+
+  /**
+   * Mode test, retour en arrière : la progression devient exactement `keep` (les Éclats trouvés
+   * restent), les énigmes suivantes repartent de zéro, l'île du ciel redescend si l'on revient
+   * avant la finale, et l'on se retrouve devant l'énigme choisie après rechargement.
+   */
+  private rewind(keep: string[], skyTarget: boolean, id: string): void {
+    const kept = new Set(keep);
+    const save = this.save;
+    save.solved = save.solved.filter((s) => kept.has(s) || SECRET_IDS.includes(s));
+    for (const k of keep) if (!save.solved.includes(k)) save.solved.push(k);
+    for (const sid of Object.keys(save.states)) if (!kept.has(sid) && !SECRET_IDS.includes(sid)) delete save.states[sid];
+    // les énigmes gardées : on enregistre leur état résolu
+    for (const k of keep) {
+      const sol = this.panels.get(k)?.solution();
+      if (sol) save.states[k] = sol;
+    }
+    save.sky = skyTarget || (kept.has(FINAL_ID) && !!save.sky);
+    this.view(id);
+    save.player = { x: this.player.position.x, z: this.player.position.z, yaw: this.player.yaw };
+    writeSave(save);
+    this.rewinding = true;
+    window.location.reload();
+  }
+  /** un retour en arrière recharge la page : plus de sauvegarde automatique d'ici là */
+  private rewinding = false;
+
+  /** Mode test : une séquence rejouée, et de quoi tout remettre comme avant. */
+  replaying: { which: Cinematic; sky: boolean; x: number; z: number; yaw: number; beacon: boolean } | null = null;
+
+  /** Rejoue une cinématique sans toucher à la progression. */
+  replay(which: Cinematic): void {
+    if (this.cinematic || this.rise || this.lift || this.finale) return;
+    const p = this.player.position;
+    this.replaying = { which, sky: !!this.save.sky, x: p.x, z: p.z, yaw: this.player.yaw, beacon: this.beacon.visible };
+    if (which === 'phare') {
+      // le phare se rallume : faisceau, caméra qui s'élève, carte de fin
+      this.beacon.visible = true;
+      this.hudEndingShown = false;
+      this.cinematic = { t: 0, a0: Math.atan2(p.z - LIGHTHOUSE.z, p.x - LIGHTHOUSE.x) };
+      this.audio.finale();
+      this.input?.release();
+    } else if (which === 'ile') {
+      // l'île repart sous la mer, puis remonte
+      this.setSkyRisen(false);
+      this.startRise();
+    } else {
+      // la vraie fin : il faut l'île à sa place pour la regarder
+      this.setSkyRisen(true);
+      this.finaleShown = false;
+      this.startFinale();
+    }
+  }
+
+  /** Fin d'une séquence rejouée : île, phare, joueur et heure du jour comme avant. */
+  private endReplay(): void {
+    const r = this.replaying!;
+    this.replaying = null;
+    this.cinematic = null;
+    this.finale = null;
+    this.cameraOverride = null;
+    this.setSkyRisen(r.sky);
+    this.beacon.visible = r.beacon;
+    if (!this.ended) this.answer.group.visible = false;
+    this.player.place(r.x, r.z, r.yaw);
+    this.starBoost = 1;
+    this.updatePower(true);
   }
 
   /** Avance la simulation sans rendu (pour les tests). */

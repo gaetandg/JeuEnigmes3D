@@ -17,7 +17,11 @@ export interface HudCallbacks {
   onReset: () => void;
   /** mode test : aller devant une énigme, valider ce qui la précède (ou jusqu'à elle), tout valider */
   onCheat: (action: CheatAction, id: string) => void;
+  /** mode test : rejouer une cinématique (sans toucher à la progression) */
+  onCinematic: (which: Cinematic) => void;
 }
+
+export type Cinematic = 'phare' | 'ile' | 'vraie';
 
 export type CheatAction = 'goto' | 'before' | 'upto' | 'all';
 /** Énigmes proposées au mode test, groupées par zone, dans l'ordre de progression. */
@@ -94,7 +98,17 @@ export class Hud {
               <button class="ghost" data-cheat="upto" title="Résoudre tout ce qui vient avant et celle-ci, puis y aller">Valider jusqu'ici</button>
               <button class="ghost" data-cheat="all" title="Résoudre toutes les énigmes principales">Tout résoudre</button>
             </div>
-            <p class="cheat-note">Résout dans l'ordre du jeu (portes et câbles compris) et sauvegarde.</p>
+            <p class="cheat-note">Place la progression exactement à ce point (en avant comme en arrière), portes et câbles compris, et sauvegarde.</p>
+            <label>Cinématique
+              <select data-cheat="cinematic">
+                <option value="phare">Le phare se rallume (fin)</option>
+                <option value="ile">L'île surgit de la mer</option>
+                <option value="vraie">La vraie fin (les lanternes)</option>
+              </select>
+            </label>
+            <div class="cheat-actions">
+              <button class="ghost" data-cheat="watch">Voir la cinématique</button>
+            </div>
           </details>
           <p class="help">${touch
             ? 'Pouce gauche : marcher · Glisser à droite : regarder<br/>Toucher : agir · Appui long : agir en sens inverse'
@@ -103,6 +117,11 @@ export class Hud {
       </div>`;
     this.title = this.root.querySelector('.overlay')!;
     const target = this.root.querySelector<HTMLSelectElement>('[data-cheat="target"]')!;
+    const cine = this.root.querySelector<HTMLSelectElement>('[data-cheat="cinematic"]')!;
+    this.root.querySelector('[data-cheat="watch"]')!.addEventListener('click', () => {
+      cb.onStart(); // la souris se libère d'elle-même pendant la séquence
+      cb.onCinematic(cine.value as Cinematic);
+    });
     for (const action of ['goto', 'before', 'upto', 'all'] as const) {
       this.root.querySelector(`[data-cheat="${action}"]`)!.addEventListener('click', () => {
         cb.onCheat(action, target.value);
