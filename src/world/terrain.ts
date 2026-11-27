@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Perlin2D, clamp, lerp, smoothstep } from './noise.ts';
-import { FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS } from './layout.ts';
+import { FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS, SKY } from './layout.ts';
 
 const noise = new Perlin2D(7);
 const ISLAND_CENTER = { x: 0, z: -15 };
@@ -89,6 +89,10 @@ function plateauHeight(pl: { x: number; z: number }): number {
 
 /** Altitude du sol en (x, z), aménagements compris. Utilisée par le rendu ET par le joueur. */
 export function heightAt(x: number, z: number): number {
+  // l'Île du Ciel : un sol presque plat, très haut ; hors de son disque, c'est le vide
+  // (la mer en dessous), où le joueur ne peut pas avancer, comme au bord de l'eau
+  const ds = Math.hypot(x - SKY.x, z - SKY.z);
+  if (ds < SKY.r) return skyHeight(x, z, ds);
   let h = baseHeight(x, z);
   // chemins : légèrement adoucis
   const dp = distToPath(x, z);
@@ -102,6 +106,12 @@ export function heightAt(x: number, z: number): number {
     }
   }
   return h;
+}
+
+/** Sol de l'Île du Ciel : une place plate au centre (le Grand Plateau), de douces ondulations autour. */
+function skyHeight(x: number, z: number, ds: number): number {
+  const wave = noise.noise(x * 0.07, z * 0.07) * 0.6 + noise.noise(x * 0.2, z * 0.2) * 0.12;
+  return SKY.y + wave * smoothstep(11, 16, ds);
 }
 
 const flatCache = new Map<string, number>();

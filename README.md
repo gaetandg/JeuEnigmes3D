@@ -3,7 +3,7 @@
 Une île silencieuse, des ruines de pierre blanche, un phare éteint. Trois langages
 d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombres.
 
-**Le jeu est complet** : 4 zones, 56 énigmes, une fin.
+**Le jeu est complet** : 5 zones, 65 énigmes, deux fins.
 
 | Zone | Langage | Contenu |
 |---|---|---|
@@ -11,6 +11,7 @@ d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombr
 | L'Atelier de Papier | Pliage | 13 pupitres + le Grand Pli |
 | Le Cloître des Ombres | Ombres | 12 théâtres d'ombres (dont 2 à manivelles couplées) + le Cadran |
 | Le Phare | Combinaisons | 6 panneaux (dont la finale à manivelles), puis le phare se rallume |
+| L'Île du Ciel *(après la fin)* | Inclinaison | 8 plateaux à billes + le Grand Plateau, puis la vraie fin |
 
 Et **sept éclats** à trouver : des énigmes secrètes cachées hors des chemins, sans câble ni
 guide (un scintillement furtif trahit leur présence). Chaque éclat rejoint le phare ; les sept
@@ -41,7 +42,7 @@ A agir, B ou X sens inverse, Start pause.
 
 ## Le récit
 
-Douze **billets du gardien** sont cachés près des chemins : on les vise et on clique pour les lire,
+Quinze **billets du gardien** sont cachés près des chemins : on les vise et on clique pour les lire,
 et le **carnet** (menu pause) les rassemble. À la fin, regardez la mer… et avec les sept éclats,
 encore plus.
 

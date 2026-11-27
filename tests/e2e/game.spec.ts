@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(63);
+  expect(panels).toHaveLength(72);
   expect(panels.filter((p) => p.powered && !p.id.startsWith('eclat-')).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -75,7 +75,7 @@ test('toutes les énigmes (zones 1 à 4) se résolvent dans l\'ordre et ouvrent 
   test.setTimeout(360_000);
   await boot(page);
   const solved = await page.evaluate(() => window.__game.solveAll());
-  expect(solved).toHaveLength(56);
+  expect(solved).toHaveLength(56); // zones 1 à 4 (le ciel vient après la fin)
   await page.evaluate(() => window.__game.advance(4));
   for (const gate of ['porte-plage', 'porte-place', 'porte-nord', 'porte-sortie']) {
     expect(await page.evaluate((g) => window.__game.gateOpen(g), gate)).toBe(1);
@@ -508,6 +508,74 @@ test('la fin : la mer répond ; avec les sept éclats, les lanternes rentrent', 
     window.__game.advance(3);
   });
   expect(await page.evaluate(() => window.__game.homecoming())).toBe(true);
+  expect(errors).toEqual([]);
+});
+
+test("la suite : l'Île du Ciel surgit de la mer, le pont de lumière y mène, on y résout t1", async ({ page }) => {
+  test.setTimeout(240_000);
+  await boot(page);
+  await page.evaluate(() => {
+    sessionStorage.setItem('keep', '1');
+    window.__game.solveAll();
+    window.__game.advance(2);
+  });
+  expect(await page.evaluate(() => window.__game.ended())).toBe(true);
+  expect(await page.evaluate(() => window.__game.skyRisen())).toBe(false);
+  // la transformation : l'île monte, le pont s'allume, on revient au pied du phare
+  await page.evaluate(() => {
+    window.__game.startRise();
+    window.__game.advance(16);
+  });
+  expect(await page.evaluate(() => window.__game.skyRisen())).toBe(true);
+  expect(await page.evaluate(() => window.__game.sequences().rise)).toBe(false);
+  // la pierre d'envol : on entre dans le rai de lumière, le pont nous emporte sur l'île
+  await page.evaluate(() => {
+    window.__game.teleport(0, -91, 0);
+    window.__game.advance(0.2);
+  });
+  expect(await page.evaluate(() => window.__game.sequences().lift)).toBe('montée');
+  await page.evaluate(() => window.__game.advance(7));
+  const p = await page.evaluate(() => window.__game.player());
+  expect(p.y).toBeGreaterThan(100);
+  // t1 (allumée par f6) : ouest, puis sud
+  await page.evaluate(() => window.__game.view('t1'));
+  expect((await page.evaluate(() => window.__game.panels())).find((q) => q.id === 't1')!.powered).toBe(true);
+  expect(await page.evaluate(() => window.__game.hint('t1'))).toBe(3);
+  expect(await page.evaluate(() => window.__game.interact('t1', 3))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(1));
+  expect(await page.evaluate(() => window.__game.interact('t1', 2))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(1));
+  expect((await page.evaluate(() => window.__game.panels())).find((q) => q.id === 't1')!.solved).toBe(true);
+  await page.screenshot({ path: 'test-results/ciel-t1.png' });
+  // l'île reste montée après rechargement
+  await page.reload();
+  await page.waitForFunction(() => window.__game?.ready === true);
+  expect(await page.evaluate(() => window.__game.skyRisen())).toBe(true);
+  // et le pont ramène au phare
+  await page.evaluate(() => {
+    window.__game.teleport(263, -20, 0);
+    window.__game.advance(0.2);
+  });
+  expect(await page.evaluate(() => window.__game.sequences().lift)).toBe('descente');
+  await page.evaluate(() => window.__game.advance(7));
+  expect((await page.evaluate(() => window.__game.player())).y).toBeLessThan(80);
+  expect(errors).toEqual([]);
+});
+
+test('une bille tombée dans un puits : le plateau revient à son départ', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    window.__game.solveAll();
+    window.__game.startRise();
+    window.__game.advance(16);
+    window.__game.solve('t1');
+    window.__game.view('t2');
+  });
+  // t2 : la bille (à droite, 3e rangée) roule vers l'ouest… droit dans le puits du milieu
+  const start = await page.evaluate(() => window.__game.state('t2'));
+  expect(await page.evaluate(() => window.__game.interact('t2', 3))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(3));
+  expect(await page.evaluate(() => window.__game.state('t2'))).toEqual(start);
   expect(errors).toEqual([]);
 });
 

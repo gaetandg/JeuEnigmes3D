@@ -3,6 +3,7 @@ import { Colliders } from '../../src/game/colliders.ts';
 import { heightAt } from '../../src/world/terrain.ts';
 import {
   CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, PLAZA, SECRETS, SECRET_PLAGE, SHADOW_PANELS, START, standPoint, towerCell,
+  LIFT, SKY, SKY_ARRIVAL, SKY_LIFT, SKY_PANELS, GRAND_PLATEAU,
 } from '../../src/world/layout.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../../src/world/props.ts';
 import { buildAtelier } from '../../src/world/atelier.ts';
@@ -14,6 +15,7 @@ import { parsePuzzle } from '../../src/core/light/index.ts';
 import { ZONE1_TOWERS } from '../../src/puzzles/zone1.ts';
 import { SECRET_LIGHT } from '../../src/puzzles/secrets.ts';
 import { NOTES } from '../../src/world/lore.ts';
+import { buildSkyIsland } from '../../src/world/sky.ts';
 
 /**
  * Test de navigation : on reconstruit tous les obstacles du jeu (sans rendu) et on vérifie,
@@ -38,6 +40,10 @@ function world(open: Set<string>) {
   new WorldLightPuzzle(parsePuzzle(ZONE1_TOWERS), c);
   new WorldLightPuzzle(parsePuzzle(SECRET_LIGHT[0]!), c, SECRET_PLAGE);
   addPuzzleColliders(c);
+  // l'Île du Ciel : arbres, plateaux, Grand Plateau (comme dans le jeu)
+  buildSkyIsland(c);
+  for (const s of SKY_PANELS) c.addCircle(s.x, s.z, 0.75);
+  for (const n of NOTES) c.addCircle(n.x, n.z, 0.3);
   // index spatial des cercles
   const B = 4;
   const buckets = new Map<string, { x: number; z: number; r: number }[]>();
@@ -66,9 +72,9 @@ function world(open: Set<string>) {
 }
 
 /** Parcours en largeur depuis le départ ; renvoie une fonction « atteignable ? ». */
-function explore(open: Set<string>) {
+function explore(open: Set<string>, from: { x: number; z: number } = START, area = { x0: -160, z0: -175, size: 320 }) {
   const { free } = world(open);
-  const X0 = -160, Z0 = -175, NX = Math.ceil(320 / STEP), NZ = Math.ceil(320 / STEP);
+  const X0 = area.x0, Z0 = area.z0, NX = Math.ceil(area.size / STEP), NZ = Math.ceil(area.size / STEP);
   const seen = new Uint8Array(NX * NZ);
   const hts = new Float32Array(NX * NZ).fill(NaN);
   const H = (i: number, j: number) => {
@@ -76,8 +82,8 @@ function explore(open: Set<string>) {
     if (Number.isNaN(hts[k]!)) hts[k] = heightAt(X0 + i * STEP, Z0 + j * STEP);
     return hts[k]!;
   };
-  const si = Math.round((START.x - X0) / STEP);
-  const sj = Math.round((START.z - Z0) / STEP);
+  const si = Math.round((from.x - X0) / STEP);
+  const sj = Math.round((from.z - Z0) / STEP);
   const queue = [sj * NX + si];
   seen[sj * NX + si] = 1;
   while (queue.length) {
@@ -122,8 +128,9 @@ describe('navigation — on peut marcher jusqu\'à chaque énigme', () => {
     expect(reach(0, -112)).toBe(false);
   });
 
-  it('chaque billet du gardien (lore)', () => {
-    expect(NOTES.filter((n) => !reach(n.x, n.z)).map((n) => n.id)).toEqual([]);
+  it('chaque billet du gardien (lore) et la pierre d\'envol au pied du phare', () => {
+    expect(NOTES.filter((n) => n.zone !== 'ciel' && !reach(n.x, n.z)).map((n) => n.id)).toEqual([]);
+    expect(reach(LIFT.x, LIFT.z)).toBe(true);
   });
 
   it('chaque panneau, pupitre et théâtre d\'ombres', () => {
@@ -188,5 +195,23 @@ describe('navigation — les portes fermées bloquent le passage', () => {
       expect(reach(p.x, p.z), s.id).toBe(true);
     }
     expect(reach(PLAZA.x, PLAZA.z + 5)).toBe(false);
+  });
+});
+
+describe('navigation — l\'Île du Ciel', () => {
+  const reach = explore(ALL_GATES, SKY_ARRIVAL, { x0: SKY.x - SKY.r - 2, z0: SKY.z - SKY.r - 2, size: SKY.r * 2 + 4 });
+  it('depuis l\'arrivée : chaque plateau, le Grand Plateau, les billets et la pierre du retour', () => {
+    const missing: string[] = [];
+    for (const s of SKY_PANELS) {
+      const p = standPoint(s, 1.5);
+      if (!reach(p.x, p.z)) missing.push(s.id);
+    }
+    if (!reach(GRAND_PLATEAU.x, GRAND_PLATEAU.z + 11)) missing.push(GRAND_PLATEAU.id);
+    for (const n of NOTES.filter((m) => m.zone === 'ciel')) if (!reach(n.x, n.z)) missing.push(n.id);
+    if (!reach(SKY_LIFT.x, SKY_LIFT.z)) missing.push('pierre du retour');
+    expect(missing).toEqual([]);
+  });
+  it('contrôle : on ne peut pas sortir de l\'île (le vide)', () => {
+    expect(reach(SKY.x + SKY.r + 1, SKY.z)).toBe(false);
   });
 });

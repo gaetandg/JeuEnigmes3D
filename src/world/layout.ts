@@ -160,6 +160,30 @@ export const FINAL_PANELS: (PanelSpot & { kind: 'light' | 'fold' })[] = ['f1', '
   };
 });
 
+// ── zone 5 : l'Île du Ciel (elle surgit de la mer et monte dans le ciel après la fin) ──
+/** centre, altitude du sol et rayon de l'île ; elle flotte au-dessus de la mer, à l'est */
+export const SKY = { x: 300, z: -20, y: 110, r: 44 };
+/** pierre d'envol au pied du phare, et son pendant sur l'île (côté ouest, face à l'archipel) */
+export const LIFT = { x: 0, z: -91 };
+export const SKY_LIFT = { x: SKY.x - 37, z: SKY.z };
+/** où l'on arrive sur l'île (quelques pas après la pierre, tourné vers le centre) */
+export const SKY_ARRIVAL = { x: SKY.x - 33, z: SKY.z, yaw: -Math.PI / 2 };
+
+/** Huit plateaux d'inclinaison en cercle (l'ouest, où l'on arrive, reste libre). */
+export const SKY_PANELS: PanelSpot[] = Array.from({ length: 8 }, (_, i) => {
+  const a = Math.PI + ((i + 1) * Math.PI * 2) / 9;
+  const r = 25;
+  return {
+    id: `t${i + 1}`,
+    x: SKY.x + Math.cos(a) * r,
+    z: SKY.z + Math.sin(a) * r,
+    yaw: Math.atan2(Math.cos(a), Math.sin(a)),
+    requires: i === 0 ? ['f6'] : [`t${i}`],
+  };
+});
+/** le Grand Plateau, au centre de l'île : on se tient au sud (côté +z) pour le regarder */
+export const GRAND_PLATEAU = { id: 'grand-plateau', x: SKY.x, z: SKY.z, yaw: 0, requires: ['t8'], cell: 1.6 };
+
 // ── les Éclats : énigmes secrètes ──
 export type SecretKind = 'world-light' | 'light' | 'fold-desk' | 'fold-easel' | 'shadow';
 export interface SecretSpot extends PanelSpot {

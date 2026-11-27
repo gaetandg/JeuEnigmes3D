@@ -10,7 +10,7 @@
 export interface LoreNote {
   id: string;
   /** zone où on le trouve (pour le carnet) */
-  zone: 'plage' | 'jardin' | 'atelier' | 'cloître' | 'phare' | 'secret';
+  zone: 'plage' | 'jardin' | 'atelier' | 'cloître' | 'phare' | 'secret' | 'ciel';
   x: number;
   z: number;
   text: string;
@@ -65,10 +65,25 @@ export const NOTES: LoreNote[] = [
     id: 'eclats', zone: 'secret', x: -66, z: 22,
     text: "Quand la lumière s'est éteinte, sept éclats sont tombés du phare et se sont cachés dans l'île. Réunis-les : elle retrouvera toutes ses couleurs.",
   },
+  // ── l'Île du Ciel (après la fin) ──
+  {
+    id: 'envol', zone: 'ciel', x: 271, z: -15,
+    text: "Cette île dormait sous la mer. Je l'ai fait monter, un soir, pour voir plus loin. D'ici, on voit toutes les côtes du monde.",
+  },
+  {
+    id: 'pencher', zone: 'ciel', x: 314, z: -32,
+    text: "Ici, rien ne bouge seul. On penche le monde et tout glisse ensemble. Tout l'art est de savoir où les choses s'arrêteront.",
+  },
+  {
+    id: 'attendre', zone: 'ciel', x: 291, z: -4,
+    text: "J'ai appris à attendre comme on incline un plateau : doucement, en sachant que chaque chose finira par trouver sa place.",
+  },
 ];
 
 /** Mots de la fin : une lumière répond au large ; avec les sept éclats, les lanternes reviennent. */
 export const ENDING = {
   answer: 'Au large, une lumière a répondu.',
   full: 'Toutes les couleurs sont revenues. Sur la mer, des dizaines de lanternes rentrent vers l\'île.',
+  /** après le Grand Plateau : la dernière lettre du gardien */
+  final: "Tu as rallumé le phare, puis tu as trouvé le chemin du ciel. Je n'ai plus besoin d'attendre : la lumière est passée de mes mains aux tiennes. Garde-la allumée pour qui arrivera ensuite par la mer.",
 };

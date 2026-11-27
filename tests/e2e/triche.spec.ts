@@ -58,7 +58,16 @@ test('mode test : valider ce qui précède une énigme, puis jusqu\'à une autre
   await page.mouse.up();
   await expect(page.locator('.note-card')).toBeHidden();
   await page.evaluate(() => document.exitPointerLock());
-  await expect(page.locator('.journal-count')).toHaveText('(1 / 12)');
+  await expect(page.locator('.journal-count')).toHaveText('(1 / 15)');
+
+  // la vraie fin : « valider ce qui précède » le Grand Plateau (l'île monte sans séquence),
+  // puis on le résout : les lanternes montent aux étoiles
+  await page.locator('[data-cheat="target"]').selectOption('grand-plateau');
+  await page.locator('[data-cheat="before"]').click();
+  expect(await page.evaluate(() => window.__game.skyRisen())).toBe(true);
+  expect((await page.evaluate(() => window.__game.player())).y).toBeGreaterThan(100);
+  await page.evaluate(() => window.__game.solve('grand-plateau'));
+  expect(await page.evaluate(() => window.__game.sequences().finale)).toBe(true);
   await expect(page.locator('.journal-list')).toContainText('regarde la mer');
   expect(errors).toEqual([]);
 });

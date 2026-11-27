@@ -30,6 +30,8 @@ export interface SaveData {
   playTime?: number;
   /** billets du gardien déjà lus */
   notes?: string[];
+  /** l'Île du Ciel est montée (la suite après la fin) */
+  sky?: boolean;
   settings?: Settings;
 }
 
@@ -46,7 +48,7 @@ export function loadSave(): SaveData {
       const settings = d?.settings && typeof d.settings === 'object' ? d.settings : undefined;
       const playTime = Number.isFinite(d?.playTime) ? d!.playTime : undefined;
       const notes = Array.isArray(d?.notes) ? d.notes.filter((x): x is string => typeof x === 'string') : [];
-      return { solved, states, player, settings, playTime, notes };
+      return { solved, states, player, settings, playTime, notes, sky: d?.sky === true };
     }
   } catch {
     /* stockage indisponible */

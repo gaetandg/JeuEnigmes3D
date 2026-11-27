@@ -16,6 +16,11 @@ import { checkShadow, parseShadow, shadowLevers, shadowSearch, startState, turnS
 import type { ShadowPuzzleDef } from '../src/core/shadow/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../src/puzzles/zone1.ts';
 import { greedyFold, greedyLight, greedyShadow } from './greedy.ts';
+import { parseTilt, solveTilt, startTilt, tilt } from '../src/core/tilt/index.ts';
+import type { TiltDir } from '../src/core/tilt/index.ts';
+import { ZONE5, ZONE5_GRAND } from '../src/puzzles/zone5.ts';
+import type { SkyPuzzleDef } from '../src/puzzles/zone5.ts';
+import { greedyTilt } from './tilt-gen.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../src/puzzles/zone2.ts';
 import { ZONE3, ZONE3_CADRAN } from '../src/puzzles/zone3.ts';
 import { ZONE4_FOLD, ZONE4_LIGHT } from '../src/puzzles/zone4.ts';
@@ -115,6 +120,25 @@ function shadowRow(zone: string, def: ShadowPuzzleDef): Row {
   return { zone, id: def.id, kind, pieces: levers, minActions, space: search.reachable, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyShadow(p, start)) * 100) };
 }
 
+function tiltRow(zone: string, def: SkyPuzzleDef): Row {
+  const p = parseTilt(def);
+  const r = solveTilt(p);
+  const runs: number[] = [];
+  for (let run = 0; run < RUNS; run++) {
+    let s = startTilt(p);
+    let steps = 0;
+    while (!s.balls.every((b) => b.home) && steps < CAP) {
+      s = tilt(p, s, Math.floor(rnd() * 4) as TiltDir).state;
+      steps++;
+      // une bille perdue, ou coincé depuis longtemps (impasse) : on recommence, comme un joueur
+      if (s.lost || steps % 40 === 0) s = startTilt(p);
+    }
+    runs.push(steps);
+  }
+  const blind = median(runs);
+  return { zone, id: def.id, kind: 'inclinaison', pieces: p.balls.length, minActions: r.minMoves ?? Infinity, space: r.reachable, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyTilt(p)) * 100) };
+}
+
 export function allRows(): Row[] {
   return [
     ...[...ZONE1, ZONE1_TOWERS].map((d) => lightRow('1 Lumière', d)),
@@ -124,6 +148,7 @@ export function allRows(): Row[] {
       const l = ZONE4_LIGHT.find((d) => d.id === id);
       return l ? lightRow('4 Phare', l) : foldRow('4 Phare', ZONE4_FOLD.find((d) => d.id === id)!);
     }),
+    ...[...ZONE5, ZONE5_GRAND].map((d) => tiltRow('5 Ciel', d)),
   ];
 }
 

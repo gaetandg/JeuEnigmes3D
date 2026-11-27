@@ -27,6 +27,8 @@ const KEYS: Key[] = [
   { elev: 13, sun: '#ffd398', sunI: 1.85, hemiSky: '#c4d5f2', hemiGround: '#a88a64', hemiI: 0.8, zenith: '#5181c2', horizon: '#f8bb8a', glow: '#ffd59a', exposure: 0.92 },
   { elev: 5, sun: '#ffac6c', sunI: 1.5, hemiSky: '#b6bfe2', hemiGround: '#8c6e5a', hemiI: 0.68, zenith: '#475fa6', horizon: '#f5956a', glow: '#ffae70', exposure: 0.95 },
   { elev: -3, sun: '#ff9070', sunI: 0.55, hemiSky: '#8f9bd2', hemiGround: '#4e4258', hemiI: 0.5, zenith: '#232c5c', horizon: '#d9786a', glow: '#ff8a66', exposure: 1.05 },
+  // 5 : l'aube sur l'Île du Ciel, après la transformation
+  { elev: 9, sun: '#ffd7a8', sunI: 1.7, hemiSky: '#d6c9f0', hemiGround: '#a58f86', hemiI: 0.85, zenith: '#6f86c9', horizon: '#ffc9b0', glow: '#ffe0c0', exposure: 0.95 },
 ];
 
 const AZIMUTH = new THREE.Vector2(SUN_DIR.x, SUN_DIR.z).normalize();
@@ -44,6 +46,8 @@ export interface DaylightRefs {
   /** couleur du halo du soleil dans le ciel (uniforme partagé) */
   sunGlow: THREE.Color;
   stars: THREE.Points;
+  /** éclat des étoiles (la vraie fin les rallume : 1 → 3) */
+  starBoost: number;
 }
 
 export function applyDaylight(t: number, r: DaylightRefs): void {
@@ -70,7 +74,9 @@ export function applyDaylight(t: number, r: DaylightRefs): void {
   r.renderer.toneMappingExposure = lerp(a.exposure, b.exposure);
   // étoiles au crépuscule
   const m = r.stars.material as THREE.PointsMaterial;
-  m.opacity = THREE.MathUtils.smoothstep(t, 3.2, 4) * 0.9;
+  // étoiles au crépuscule, qui pâlissent à l'aube (au-delà, la vraie fin les rallume)
+  m.opacity = THREE.MathUtils.smoothstep(t, 3.2, 4) * (1 - THREE.MathUtils.smoothstep(t, 4.2, 5) * 0.8) * 0.9 * r.starBoost;
+  m.opacity = Math.min(1, m.opacity);
   r.stars.visible = m.opacity > 0.01;
 }
 
