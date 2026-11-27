@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Perlin2D, clamp, lerp, smoothstep } from './noise.ts';
-import { FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS, SKY, skyEdge } from './layout.ts';
+import { CAVE, FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS, SKY, caveEdge, skyEdge } from './layout.ts';
 
 const noise = new Perlin2D(7);
 const ISLAND_CENTER = { x: 0, z: -15 };
@@ -89,10 +89,30 @@ function plateauHeight(pl: { x: number; z: number }): number {
 
 /** Altitude du sol en (x, z), aménagements compris. Utilisée par le rendu ET par le joueur. */
 export function heightAt(x: number, z: number): number {
+  return groundHeight(x, z);
+}
+
+/** Dans le sol de la grotte des Racines (sous le niveau de la mer, mais à pied sec). */
+export function inCave(x: number, z: number): boolean {
+  const dc = Math.hypot(x - CAVE.x, z - CAVE.z);
+  return dc < CAVE.r + 8 && dc < caveEdge(Math.atan2(z - CAVE.z, x - CAVE.x));
+}
+
+/** Peut-on poser le pied ici ? Pas dans la mer (la grotte, elle, est de la terre ferme). */
+export function walkable(x: number, z: number): boolean {
+  return inCave(x, z) || heightAt(x, z) >= -0.3;
+}
+
+function groundHeight(x: number, z: number): number {
   // l'Île du Ciel : un sol presque plat, très haut ; hors de son disque, c'est le vide
   // (la mer en dessous), où le joueur ne peut pas avancer, comme au bord de l'eau
   const ds = Math.hypot(x - SKY.x, z - SKY.z);
   if (ds < SKY.r + 14 && ds < skyEdge(Math.atan2(z - SKY.z, x - SKY.x))) return skyHeight(x, z, ds);
+  // la grotte des Racines : un sol de terre sous la mer ; au-delà de ses parois, le roc
+  if (inCave(x, z)) {
+    const dc = Math.hypot(x - CAVE.x, z - CAVE.z);
+    return CAVE.y + noise.noise(x * 0.09, z * 0.09) * 0.5 * smoothstep(9, 13, dc);
+  }
   let h = baseHeight(x, z);
   // chemins : légèrement adoucis
   const dp = distToPath(x, z);

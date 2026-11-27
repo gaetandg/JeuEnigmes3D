@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { heightAt } from '../world/terrain.ts';
+import { heightAt, walkable } from '../world/terrain.ts';
 import type { Colliders } from './colliders.ts';
 
 const EYE = 1.65;
@@ -68,7 +68,7 @@ export class Player {
     let nx = this.position.x + this.velocity.x * dt;
     let nz = this.position.z + this.velocity.y * dt;
     // pas de baignade : on reste sur la terre ferme
-    if (heightAt(nx, nz) < -0.3) {
+    if (!walkable(nx, nz)) {
       nx = this.position.x;
       nz = this.position.z;
     }

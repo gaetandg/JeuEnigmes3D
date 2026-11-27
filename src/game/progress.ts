@@ -32,6 +32,8 @@ export interface SaveData {
   notes?: string[];
   /** l'Île du Ciel est montée (la suite après la fin) */
   sky?: boolean;
+  /** la bascule a eu lieu : la grotte des Racines est ouverte, le phare s'est enfoncé */
+  deep?: boolean;
   settings?: Settings;
 }
 
@@ -48,7 +50,7 @@ export function loadSave(): SaveData {
       const settings = d?.settings && typeof d.settings === 'object' ? d.settings : undefined;
       const playTime = Number.isFinite(d?.playTime) ? d!.playTime : undefined;
       const notes = Array.isArray(d?.notes) ? d.notes.filter((x): x is string => typeof x === 'string') : [];
-      return { solved, states, player, settings, playTime, notes, sky: d?.sky === true };
+      return { solved, states, player, settings, playTime, notes, sky: d?.sky === true, deep: d?.deep === true };
     }
   } catch {
     /* stockage indisponible */

@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(72);
+  expect(panels).toHaveLength(79);
   expect(panels.filter((p) => p.powered && !p.id.startsWith('eclat-')).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -559,6 +559,87 @@ test("la suite : l'Île du Ciel surgit de la mer, le pont de lumière y mène, o
   expect(await page.evaluate(() => window.__game.sequences().lift)).toBe('descente');
   await page.evaluate(() => window.__game.advance(7));
   expect((await page.evaluate(() => window.__game.player())).y).toBeLessThan(80);
+  expect(errors).toEqual([]);
+});
+
+test("la bascule : l'île penche, on tombe, le phare s'enfonce ; réveil dans la grotte des Racines", async ({ page }) => {
+  test.setTimeout(300_000);
+  await boot(page);
+  await page.evaluate(() => {
+    sessionStorage.setItem('keep', '1');
+    window.__game.cheat('upto', 'grand-plateau');
+    window.__game.advance(1);
+  });
+  expect(await page.evaluate(() => window.__game.deep())).toBe(false);
+  const top = await page.evaluate(() => window.__game.lighthouseY());
+  // l'île bascule : on glisse vers le bord…
+  await page.evaluate(() => {
+    window.__game.startBascule();
+    window.__game.advance(6);
+  });
+  expect((await page.evaluate(() => window.__game.sequences())).bascule).toBe(true);
+  await page.screenshot({ path: 'test-results/bascule.png' });
+  // … on tombe, le phare s'enfonce dans sa colline, on se réveille sous la mer
+  await page.evaluate(() => window.__game.advance(13));
+  expect((await page.evaluate(() => window.__game.sequences())).bascule).toBe(false);
+  expect(await page.evaluate(() => window.__game.deep())).toBe(true);
+  expect(await page.evaluate(() => window.__game.lighthouseY())).toBeLessThan(top - 20);
+  const p = await page.evaluate(() => window.__game.player());
+  expect(p.y).toBeLessThan(-50);
+  // sous le niveau de la mer, mais à pied sec : on marche
+  await page.evaluate(() => window.__game.move(1, 0, 1));
+  const q = await page.evaluate(() => window.__game.player());
+  expect(Math.hypot(q.x - p.x, q.z - p.z)).toBeGreaterThan(1.5);
+  // r1 (allumé par le Grand Plateau) : on tourne les tuiles en suivant les aides
+  await page.evaluate(() => window.__game.view('r1'));
+  expect((await page.evaluate(() => window.__game.panels())).find((x) => x.id === 'r1')!.powered).toBe(true);
+  const turns = await page.evaluate(() => {
+    const g = window.__game;
+    let n = 0;
+    for (; n < 40; n++) {
+      const k = g.hint('r1');
+      if (k === null) break;
+      g.interact('r1', k, g.hintMove('r1')!.reverse);
+      g.advance(0.3);
+    }
+    return n;
+  });
+  expect(turns).toBeGreaterThan(0);
+  expect((await page.evaluate(() => window.__game.panels())).find((x) => x.id === 'r1')!.solved).toBe(true);
+  await page.waitForFunction(() => window.__game.panels().find((x) => x.id === 'r2')!.powered);
+  await page.screenshot({ path: 'test-results/racines-r1.png' });
+  // la grotte reste ouverte (et le phare enfoncé) après rechargement
+  await page.reload();
+  await page.waitForFunction(() => window.__game?.ready === true);
+  expect(await page.evaluate(() => window.__game.deep())).toBe(true);
+  expect((await page.evaluate(() => window.__game.player())).y).toBeLessThan(-50);
+  expect(await page.evaluate(() => window.__game.lighthouseY())).toBeLessThan(top - 20);
+  // la pierre de passage remonte au pied du phare…
+  await page.evaluate(() => {
+    window.__game.teleport(-308, -24, 0);
+    window.__game.advance(0.1);
+  });
+  expect((await page.evaluate(() => window.__game.sequences())).passage).toBe(true);
+  await page.evaluate(() => window.__game.advance(2));
+  const up = await page.evaluate(() => window.__game.player());
+  expect(up.y).toBeGreaterThan(5);
+  expect(Math.hypot(up.x, up.z + 103.6)).toBeLessThan(8);
+  await page.screenshot({ path: 'test-results/phare-enfonce.png' });
+  // … et sa sœur, au pied du phare, redescend
+  await page.evaluate(() => {
+    window.__game.teleport(0, -103.6, 0);
+    window.__game.advance(0.1);
+    window.__game.advance(2);
+  });
+  expect((await page.evaluate(() => window.__game.player())).y).toBeLessThan(-50);
+  // la Racine-mère reliée : le phare remonte
+  await page.evaluate(() => {
+    window.__game.cheat('before', 'racine-mere');
+    window.__game.solve('racine-mere');
+    window.__game.advance(1);
+  });
+  expect(await page.evaluate(() => window.__game.lighthouseY())).toBeCloseTo(top, 3);
+  await page.screenshot({ path: 'test-results/racine-mere.png' });
   expect(errors).toEqual([]);
 });
 

@@ -27,6 +27,14 @@ chemin. Plusieurs plateaux ont des impasses (une bille mal logée bloque l'autre
 remise à zéro est là pour ça, et l'aide la désigne quand plus aucun chemin ne mène à la solution.
 L'agent au hasard recommence tous les 40 coups, comme un joueur coincé.
 
+**Les Racines du Phare** : ici, la mesure « à l'aveugle » sature (20 000 actions, le plafond) dès
+la première grille, car chaque tuile a quatre orientations et l'espace explose ; seules comptent
+les **actions minimum** (quarts de tour) et le **déclic**. r1 est une leçon (trois tuiles à
+tourner, que les points rouges désignent ; l'agent glouton y réussit toujours). Ensuite, l'agent
+glouton échoue toujours : allumer une tuile de plus ouvre souvent une nouvelle fuite, et il faut
+raisonner par les bords (une racine ne peut pas y pointer) et par les croix, qui ne tournent pas.
+Les grilles grandissent de 3×3 à 7×6, de 3 à 49 quarts de tour (`node scripts/difficulty.ts --racines --md`).
+
 | Zone | Énigme | Type | Pièces | Actions min. | Actions à l'aveugle (médiane) | Difficulté | Déclic |
 |---|---|---|---|---|---|---|---|
 | 1 Lumière | a1 | lumière | 1 | 1 | 1 | 1.0 █ | 0 % |
@@ -94,3 +102,10 @@ L'agent au hasard recommence tous les 40 coups, comme un joueur coincé.
 | 5 Ciel | t7 | inclinaison | 3 | 8 | 336 | 8.4 ████████ | 100 % |
 | 5 Ciel | t8 | inclinaison | 4 | 9 | 864 | 9.8 ██████████ | 100 % |
 | 5 Ciel | grand-plateau | inclinaison | 4 | 12 | 15137 | 13.9 ██████████████ ⚠ saut | 100 % |
+| 6 Racines | r1 | racines | 8 | 3 | 20000 | 14.3 ██████████████ | 0 % |
+| 6 Racines | r2 | racines | 11 | 11 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | r3 | racines | 15 | 17 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | r4 | racines | 19 | 19 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | r5 | racines | 24 | 25 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | r6 | racines | 29 | 36 | 20000 | 14.3 ██████████████ | 100 % |
+| 6 Racines | racine-mere | racines | 41 | 49 | 20000 | 14.3 ██████████████ | 100 % |
