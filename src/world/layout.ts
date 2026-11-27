@@ -257,7 +257,7 @@ export const ROOT_PANELS: PanelSpot[] = Array.from({ length: 6 }, (_, i) => {
 export const RACINE_MERE = { id: 'racine-mere', x: CAVE.x, z: CAVE.z, yaw: 0, requires: endReq(seq('r', 6)), cell: 1.25 };
 
 // ── les Éclats : énigmes secrètes ──
-export type SecretKind = 'world-light' | 'light' | 'fold-desk' | 'fold-easel' | 'shadow';
+export type SecretKind = 'world-light' | 'light' | 'fold-desk' | 'fold-easel' | 'shadow' | 'tilt' | 'roots';
 export interface SecretSpot extends PanelSpot {
   kind: SecretKind;
 }
@@ -270,6 +270,9 @@ export const SECRETS: SecretSpot[] = [
   { id: 'eclat-belvedere', kind: 'light', x: -16, z: -104, yaw: W, requires: [] },
   { id: 'eclat-dunes', kind: 'fold-desk', x: 38, z: 102, yaw: N, requires: [] },
   { id: 'eclat-gardiens', kind: 'shadow', x: 8, z: -121, yaw: Math.PI, requires: [] },
+  // la suite : un plateau caché au bord est de l'Île du Ciel, un pupitre au fond d'une alcôve de la grotte
+  { id: 'eclat-nuages', kind: 'tilt', x: 340.67, z: -11.76, yaw: -1.7708, requires: [] },
+  { id: 'eclat-alcove', kind: 'roots', x: -357.52, z: -34.27, yaw: 1.0924, requires: [] },
 ];
 
 /** Le jardin des lanternes (grille d'environnement de la plage ouest). */
@@ -300,7 +303,7 @@ export const FLATS: { x: number; z: number; r: number }[] = [
   ...FOLD_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...SHADOW_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...FINAL_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
-  ...SECRETS.filter((s) => s.kind !== 'world-light').map((s) => ({ x: s.x, z: s.z, r: s.kind === 'fold-easel' ? 5 : 3 })),
+  ...SECRETS.filter((s) => s.kind !== 'world-light' && s.kind !== 'tilt' && s.kind !== 'roots').map((s) => ({ x: s.x, z: s.z, r: s.kind === 'fold-easel' ? 5 : 3 })),
   ...[0, 1, 2].flatMap((r) => [0, 1, 2, 3, 4].map((c) => ({ x: SECRET_PLAGE.x0 + c * SECRET_PLAGE.dx, z: SECRET_PLAGE.z0 + r * SECRET_PLAGE.dz, r: 1.5 }))),
   ...GATES.map((g) => ({ x: g.x, z: g.z, r: 4 })),
   PLAZA,

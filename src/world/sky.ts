@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GRAND_PLATEAU, LIFT, SKY, SKY_LIFT, SKY_PANELS, skyEdge } from './layout.ts';
+import { GRAND_PLATEAU, LIFT, SKY, SKY_LIFT, SKY_PANELS, skyEdge, SECRETS } from './layout.ts';
 import { addWind } from '../render/wind.ts';
 import { heightAt } from './terrain.ts';
 import { stoneMaterial } from './props.ts';
@@ -152,7 +152,7 @@ export function buildSkyIsland(colliders: Colliders): SkyIsland {
   const crown = new THREE.IcosahedronGeometry(1.6, 0);
   const trunkMat = new THREE.MeshStandardMaterial({ color: '#6b4a2e', roughness: 1, flatShading: true });
   const crownMats = ['#f0a8c8', '#f6d27a', '#a7d98a'].map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.9, flatShading: true }));
-  const spots = [...SKY_PANELS, GRAND_PLATEAU, ...NOTES.filter((n) => n.zone === 'ciel')].map((p) => ({ x: p.x - SKY.x, z: p.z - SKY.z }));
+  const spots = [...SKY_PANELS, GRAND_PLATEAU, ...NOTES.filter((n) => n.zone === 'ciel'), ...SECRETS.filter((q) => q.kind === 'tilt')].map((p) => ({ x: p.x - SKY.x, z: p.z - SKY.z }));
   let placed = 0;
   for (let t = 0; t < 600 && placed < 30; t++) {
     const a = rnd() * Math.PI * 2;
