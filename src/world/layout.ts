@@ -163,6 +163,16 @@ export const FINAL_PANELS: (PanelSpot & { kind: 'light' | 'fold' })[] = ['f1', '
 // ── zone 5 : l'Île du Ciel (elle surgit de la mer et monte dans le ciel après la fin) ──
 /** centre, altitude du sol et rayon de l'île ; elle flotte au-dessus de la mer, à l'est */
 export const SKY = { x: 300, z: -20, y: 110, r: 44 };
+/**
+ * Bord de l'Île du Ciel selon l'angle (radians, autour de son centre) : des caps et des criques,
+ * et un cap plus avancé à l'ouest, qui porte la pierre du retour. Jamais à moins de 33 m du centre
+ * (les plateaux sont à 25 m).
+ */
+export function skyEdge(a: number): number {
+  const west = Math.max(0, Math.cos(a - Math.PI)) ** 4;
+  return SKY.r - 3 + 4 * Math.sin(3 * a + 0.7) + 2.5 * Math.sin(5 * a + 2.1) + 1.5 * Math.sin(9 * a + 0.3) + 6 * west;
+}
+
 /** pierre d'envol au pied du phare, et son pendant sur l'île (côté ouest, face à l'archipel) */
 export const LIFT = { x: 0, z: -91 };
 export const SKY_LIFT = { x: SKY.x - 37, z: SKY.z };

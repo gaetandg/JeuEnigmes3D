@@ -3,7 +3,7 @@ import { Colliders } from '../../src/game/colliders.ts';
 import { heightAt } from '../../src/world/terrain.ts';
 import {
   CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, PLAZA, SECRETS, SECRET_PLAGE, SHADOW_PANELS, START, standPoint, towerCell,
-  LIFT, SKY, SKY_ARRIVAL, SKY_LIFT, SKY_PANELS, GRAND_PLATEAU,
+  LIFT, SKY, SKY_ARRIVAL, SKY_LIFT, SKY_PANELS, GRAND_PLATEAU, skyEdge,
 } from '../../src/world/layout.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../../src/world/props.ts';
 import { buildAtelier } from '../../src/world/atelier.ts';
@@ -199,7 +199,7 @@ describe('navigation — les portes fermées bloquent le passage', () => {
 });
 
 describe('navigation — l\'Île du Ciel', () => {
-  const reach = explore(ALL_GATES, SKY_ARRIVAL, { x0: SKY.x - SKY.r - 2, z0: SKY.z - SKY.r - 2, size: SKY.r * 2 + 4 });
+  const reach = explore(ALL_GATES, SKY_ARRIVAL, { x0: SKY.x - 54, z0: SKY.z - 54, size: 108 });
   it('depuis l\'arrivée : chaque plateau, le Grand Plateau, les billets et la pierre du retour', () => {
     const missing: string[] = [];
     for (const s of SKY_PANELS) {
@@ -211,7 +211,11 @@ describe('navigation — l\'Île du Ciel', () => {
     if (!reach(SKY_LIFT.x, SKY_LIFT.z)) missing.push('pierre du retour');
     expect(missing).toEqual([]);
   });
-  it('contrôle : on ne peut pas sortir de l\'île (le vide)', () => {
-    expect(reach(SKY.x + SKY.r + 1, SKY.z)).toBe(false);
+  it('contrôle : on ne peut pas sortir de l\'île (le vide), quel que soit le cap', () => {
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      const r = skyEdge(a) + 3.5; // au-delà de la tolérance du test (les criques rapprochent la rive)
+      expect(reach(SKY.x + Math.cos(a) * r, SKY.z + Math.sin(a) * r), `cap ${i}`).toBe(false);
+    }
   });
 });

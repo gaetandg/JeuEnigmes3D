@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Perlin2D, clamp, lerp, smoothstep } from './noise.ts';
-import { FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS, SKY } from './layout.ts';
+import { FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS, SKY, skyEdge } from './layout.ts';
 
 const noise = new Perlin2D(7);
 const ISLAND_CENTER = { x: 0, z: -15 };
@@ -92,7 +92,7 @@ export function heightAt(x: number, z: number): number {
   // l'Île du Ciel : un sol presque plat, très haut ; hors de son disque, c'est le vide
   // (la mer en dessous), où le joueur ne peut pas avancer, comme au bord de l'eau
   const ds = Math.hypot(x - SKY.x, z - SKY.z);
-  if (ds < SKY.r) return skyHeight(x, z, ds);
+  if (ds < SKY.r + 14 && ds < skyEdge(Math.atan2(z - SKY.z, x - SKY.x))) return skyHeight(x, z, ds);
   let h = baseHeight(x, z);
   // chemins : légèrement adoucis
   const dp = distToPath(x, z);
