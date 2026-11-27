@@ -296,6 +296,8 @@ export const PATHS: [number, number][][] = [
 
 /** Place centrale du jardin. */
 export const PLAZA = { x: 0, z: 38, r: 9 };
+/** la table d'orientation (la carte du gardien), au nord-ouest de la place, entre deux colonnes */
+export const MAP_TABLE = { x: PLAZA.x - 3.7, z: PLAZA.z - 3.7, yaw: Math.PI / 4 };
 
 /** Zones à aplanir (cercles) : autour des panneaux, de la place, des portes. */
 export const FLATS: { x: number; z: number; r: number }[] = [
@@ -304,7 +306,9 @@ export const FLATS: { x: number; z: number; r: number }[] = [
   ...SHADOW_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...FINAL_PANELS.map((p) => ({ x: p.x, z: p.z, r: 3 })),
   ...SECRETS.filter((s) => s.kind !== 'world-light' && s.kind !== 'tilt' && s.kind !== 'roots').map((s) => ({ x: s.x, z: s.z, r: s.kind === 'fold-easel' ? 5 : 3 })),
-  ...[0, 1, 2].flatMap((r) => [0, 1, 2, 3, 4].map((c) => ({ x: SECRET_PLAGE.x0 + c * SECRET_PLAGE.dx, z: SECRET_PLAGE.z0 + r * SECRET_PLAGE.dz, r: 1.5 }))),
+  // le jardin des lanternes, d'un seul tenant : ses rayons sont horizontaux, tous ses socles
+  // doivent être à la même hauteur (sinon les rayons passent au-dessus ou en dessous des miroirs)
+  { x: SECRET_PLAGE.x0 + 2 * SECRET_PLAGE.dx, z: SECRET_PLAGE.z0 + SECRET_PLAGE.dz, r: 10.5 },
   ...GATES.map((g) => ({ x: g.x, z: g.z, r: 4 })),
   PLAZA,
   // dalles des tours

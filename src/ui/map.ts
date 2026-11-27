@@ -47,11 +47,11 @@ interface Frame {
 }
 
 let island: { frame: Frame; image: HTMLCanvasElement } | null = null;
+let bounds: Frame | null = null;
 
-/** Le relief de l'île principale, une fois pour toutes (petite image adoucie à l'agrandissement). */
-function islandImage(): { frame: Frame; image: HTMLCanvasElement } {
-  if (island) return island;
-  // emprise des terres
+/** Emprise des terres de l'île principale (rapide : un sondage tous les 4 m). */
+function islandFrame(): Frame {
+  if (bounds) return bounds;
   let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
   for (let x = -160; x <= 160; x += 4) {
     for (let z = -160; z <= 160; z += 4) {
@@ -63,7 +63,20 @@ function islandImage(): { frame: Frame; image: HTMLCanvasElement } {
     }
   }
   const pad = 14;
-  const frame = { x0: x0 - pad, x1: x1 + pad, z0: z0 - pad, z1: z1 + pad };
+  bounds = { x0: x0 - pad, x1: x1 + pad, z0: z0 - pad, z1: z1 + pad };
+  return bounds;
+}
+
+/** Hauteur / largeur de la carte (pour dimensionner son support). */
+export function mapAspect(): number {
+  const f = islandFrame();
+  return (f.z1 - f.z0) / (f.x1 - f.x0);
+}
+
+/** Le relief de l'île principale, une fois pour toutes (petite image adoucie à l'agrandissement). */
+function islandImage(): { frame: Frame; image: HTMLCanvasElement } {
+  if (island) return island;
+  const frame = islandFrame();
   const step = 1.0;
   const w = Math.ceil((frame.x1 - frame.x0) / step);
   const h = Math.ceil((frame.z1 - frame.z0) / step);
@@ -186,7 +199,27 @@ function arrow(g: CanvasRenderingContext2D, x: number, y: number, yaw: number, s
   g.restore();
 }
 
-function compass(g: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+/**
+ * La rose des vents, entourée d'un anneau d'or qui se remplit avec la progression (énigmes et
+ * éclats) : pas de chiffre, l'anneau complet, c'est le 100 %.
+ */
+function compass(g: CanvasRenderingContext2D, x: number, y: number, r: number, progress: number): void {
+  g.save();
+  g.lineCap = 'round';
+  g.strokeStyle = 'rgba(91, 74, 56, 0.35)';
+  g.lineWidth = r * 0.22;
+  g.beginPath();
+  g.arc(x, y, r * 1.45, 0, Math.PI * 2);
+  g.stroke();
+  if (progress > 0) {
+    g.strokeStyle = '#e2a634';
+    g.shadowColor = '#ffc860';
+    g.shadowBlur = r * 0.5;
+    g.beginPath();
+    g.arc(x, y, r * 1.45, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, progress));
+    g.stroke();
+  }
+  g.restore();
   g.save();
   g.strokeStyle = INK;
   g.fillStyle = INK;
@@ -202,9 +235,6 @@ function compass(g: CanvasRenderingContext2D, x: number, y: number, r: number): 
     if (i === 0) g.fill();
     else g.stroke();
   }
-  g.font = `italic ${Math.round(r * 0.55)}px Georgia, serif`;
-  g.textAlign = 'center';
-  g.fillText('N', x, y - r * 1.15);
   g.restore();
 }
 
@@ -235,16 +265,16 @@ function medallion(g: CanvasRenderingContext2D, cx: number, cy: number, R: numbe
 }
 
 /** Dessine la carte. `t` : temps (s), pour faire palpiter les lanternes à faire. */
-export function drawMap(canvas: HTMLCanvasElement, data: MapData, t: number): void {
+export function drawMap(canvas: HTMLCanvasElement, data: MapData, t: number, size?: { width: number; dpr: number }): void {
   const { frame, image } = islandImage();
-  const cssW = canvas.clientWidth || 380;
+  const cssW = size?.width ?? (canvas.clientWidth || 380);
   const aspect = (frame.z1 - frame.z0) / (frame.x1 - frame.x0);
   const cssH = Math.round(cssW * aspect);
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const dpr = size?.dpr ?? Math.min(2, window.devicePixelRatio || 1);
   if (canvas.width !== Math.round(cssW * dpr)) {
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
-    canvas.style.height = `${cssH}px`;
+    if (!size) canvas.style.height = `${cssH}px`;
   }
   const g = canvas.getContext('2d')!;
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -269,7 +299,8 @@ export function drawMap(canvas: HTMLCanvasElement, data: MapData, t: number): vo
   g.closePath();
   g.fill();
   g.restore();
-  compass(g, cssW - 28 * s, cssH - 30 * s, 13 * s);
+  const solvedCount = data.marks.filter((m) => m.state === 'solved').length;
+  compass(g, cssW - 30 * s, cssH - 32 * s, 13 * s, (solvedCount + data.shards.length) / (data.marks.length + data.shardsTotal));
 
   // médaillons des lieux découverts, reliés à l'île par un pointillé
   const R = 50 * s;

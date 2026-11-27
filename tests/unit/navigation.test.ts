@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { Colliders } from '../../src/game/colliders.ts';
 import { heightAt, walkable } from '../../src/world/terrain.ts';
 import {
-  CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, PLAZA, SECRETS, SECRET_PLAGE, SHADOW_PANELS, START, standPoint, towerCell,
+  CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, PLAZA, SECRETS, SECRET_PLAGE, SHADOW_PANELS, START, standPoint, towerCell, towerCells,
   LIFT, SKY, SKY_ARRIVAL, SKY_LIFT, SKY_PANELS, GRAND_PLATEAU, skyEdge,
-  CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, caveEdge,
+  CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, caveEdge, MAP_TABLE,
 } from '../../src/world/layout.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../../src/world/props.ts';
 import { buildAtelier } from '../../src/world/atelier.ts';
@@ -36,6 +36,7 @@ function world(open: Set<string>) {
   buildWalls(c);
   buildGates(c, (id) => open.has(id));
   buildPlaza(c);
+  c.addCircle(MAP_TABLE.x, MAP_TABLE.z, 0.65);
   buildLighthouse(c);
   buildAtelier(c);
   buildCloitre(c);
@@ -140,6 +141,9 @@ describe('navigation — on peut marcher jusqu\'à chaque énigme', () => {
     expect(reach(DEEP_LIFT.x, DEEP_LIFT.z)).toBe(true);
     expect(reach(DEEP_LIFT.x + 4.5, DEEP_LIFT.z + 4.1)).toBe(true);
     expect(reach(LIFT.x + 5, LIFT.z + 7)).toBe(true);
+    // la table d'orientation, sur la place
+    const t = standPoint({ ...MAP_TABLE, id: 'carte', requires: [] }, 1.2);
+    expect(reach(t.x, t.z)).toBe(true);
   });
 
   it('chaque panneau, pupitre et théâtre d\'ombres', () => {
@@ -257,5 +261,15 @@ describe('navigation — la grotte des Racines', () => {
       const r = caveEdge(a) + 3;
       expect(reach(CAVE.x + Math.cos(a) * r, CAVE.z + Math.sin(a) * r), `cap ${i}`).toBe(false);
     }
+  });
+});
+
+describe('énigmes d\'environnement : rayons horizontaux', () => {
+  it('tous les socles d\'une même grille sont à la même hauteur (le jardin des lanternes, les Tours-Miroirs)', () => {
+    const beach: number[] = [];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 5; c++) beach.push(heightAt(SECRET_PLAGE.x0 + c * SECRET_PLAGE.dx, SECRET_PLAGE.z0 + r * SECRET_PLAGE.dz));
+    expect(Math.max(...beach) - Math.min(...beach)).toBeLessThan(0.05);
+    const towers = towerCells().map(([c, r]) => { const t = towerCell(c, r); return heightAt(t.x, t.z); });
+    expect(Math.max(...towers) - Math.min(...towers)).toBeLessThan(0.4); // grandes tours : les rayons suivent le sol
   });
 });

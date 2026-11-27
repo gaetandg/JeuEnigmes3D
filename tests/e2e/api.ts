@@ -32,6 +32,7 @@ export type Api = {
   cheat: (action: 'goto' | 'before' | 'upto' | 'all', id: string) => void;
   lighthouseY: () => number;
   requestHelp: () => void;
+  mapTable: () => number;
   goalRings: () => boolean;
   help: (id: string, addStuck?: number) => { level: number; gesture: boolean; stuck: number };
   map: () => { marks: { id: string; zone: string; state: 'solved' | 'open' | 'locked' }[]; shards: unknown[]; sky: boolean; deep: boolean };

@@ -85,6 +85,8 @@ export function exposeDebugApi(game: Game): void {
     lighthouseY: () => game.lighthouseTop(),
     /** la carte du gardien : états des lanternes */
     map: () => game.mapData(),
+    /** la table d'orientation : 0 enfouie, 1 sortie */
+    mapTable: () => game.mapRaise,
     answered: () => game.answer.answered,
     homecoming: () => game.answer.homecoming,
     guides: () => game.guides.mesh.count,

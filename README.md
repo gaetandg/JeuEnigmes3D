@@ -23,7 +23,8 @@ réunis l'irisent de toutes les couleurs.
 
 **Jamais bloqué** : au-delà des premières leçons, chaque énigme s'allume dès que l'une des deux
 précédentes est résolue ; on peut laisser une énigme de côté et revenir plus tard. La **carte du
-gardien** (menu pause) montre ce qui est résolu, ce qui reste à faire et le pourcentage.
+gardien**, une table de pierre qui sort du sol sur la place quand le jardin est fini, montre ce qui
+est résolu et ce qui reste à faire (sans un mot : des lanternes, et un anneau qui se remplit).
 
 ## Contrôles
 

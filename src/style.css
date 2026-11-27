@@ -101,6 +101,10 @@ html, body {
   padding: 32px 36px;
   max-width: 460px;
   width: 100%;
+  /* un menu trop long défile (sinon « Reprendre » sort de l'écran quand on ouvre une section) */
+  max-height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
   text-align: center;
   box-shadow: 0 20px 60px rgba(60, 40, 20, 0.25);
 }
@@ -222,15 +226,6 @@ input[type='checkbox'] { width: 20px; height: 20px; accent-color: var(--accent);
 /* fondu au noir (passages, bascule) */
 .fade { position: absolute; inset: 0; background: #07060a; opacity: 0; pointer-events: none; }
 
-/* carte du gardien */
-.carte-canvas { display: block; width: 100%; margin: 10px 0 4px; border-radius: 6px; box-shadow: 0 2px 8px rgba(60, 40, 20, 0.25); }
-.carte-legende { font-size: 12px; opacity: 0.8; margin: 4px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
-.carte-legende span { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
-.carte-legende .l-solved { background: #eaa83a; box-shadow: 0 0 5px #ffc860; border: 1px solid #5b4a38; }
-.carte-legende .l-open { border: 2px solid #d65c28; background: #fff7e6; }
-.carte-legende .l-locked { width: 5px; height: 5px; background: rgba(120, 106, 88, 0.6); }
-.carte-legende .l-shard { width: auto; height: auto; border-radius: 0; color: #a77fd6; }
-.carte-zones { font-size: 12px; line-height: 1.5; margin: 4px 0 0; opacity: 0.85; }
 
 /* lanterne d'aide (à la demande) */
 .help-lamp {

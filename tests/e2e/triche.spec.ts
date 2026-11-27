@@ -195,18 +195,21 @@ test('mode test : se téléporter sans rien changer à la progression, et ressor
   expect(errors).toEqual([]);
 });
 
-test('la carte du gardien : énigmes résolues, à faire et verrouillées, pourcentage et zones', async ({ page }) => {
+test("la carte du gardien : une table qui sort du sol à la fin du jardin, des lanternes sans texte", async ({ page }) => {
   test.setTimeout(180_000);
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.addInitScript(() => localStorage.clear());
-  await page.goto('./?debug');
+  await page.goto('./?test');
   await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60_000 });
+  // au départ, la table est enfouie
+  expect(await page.evaluate(() => window.__game.mapTable())).toBe(0);
   // on avance jusqu'à p5, puis on laisse p5 de côté : p6 et p7 s'allument quand même
   await page.evaluate(() => {
     window.__game.cheat('before', 'p5');
     window.__game.solve('p6');
   });
+  expect(await page.evaluate(() => window.__game.mapTable())).toBe(1);
   const marks = await page.evaluate(() => window.__game.map().marks);
   const st = (id: string) => marks.find((m) => m.id === id)!.state;
   expect(st('a1')).toBe('solved');
@@ -216,17 +219,15 @@ test('la carte du gardien : énigmes résolues, à faire et verrouillées, pourc
   expect(st('p8')).toBe('open');
   expect(st('p9')).toBe('locked');
   expect(marks.filter((m) => m.zone === 'ciel')).toHaveLength(9);
-  // la carte dans le menu pause
-  await page.locator('[data-action="start"]').click();
-  await page.evaluate(() => document.exitPointerLock());
-  await expect(page.locator('.overlay').first()).toBeVisible();
-  await page.locator('details.carte summary').click();
-  await expect(page.locator('.carte-pct')).toHaveText(/\(\d+ %\)/);
-  await expect(page.locator('.carte-zones')).toContainText('Jardin 23/23 ✓');
-  await expect(page.locator('.carte-zones')).toContainText('Atelier 5/14');
-  await expect(page.locator('.carte-zones')).not.toContainText('Ciel');
-  const drawn = await page.locator('canvas.carte-canvas').evaluate((c) => (c as HTMLCanvasElement).width > 0);
-  expect(drawn).toBe(true);
-  await page.locator('canvas.carte-canvas').screenshot({ path: 'test-results/carte.png' });
+  // devant la table, sur la place
+  await page.evaluate(() => {
+    window.__game.teleport(-3.7 + 1.1, 38 - 3.7 + 1.1, Math.PI / 4, -0.55);
+    window.__game.advance(0.5);
+  });
+  const f0 = await page.evaluate(() => window.__game.frames());
+  await page.waitForFunction((f) => window.__game.frames() > f + 3, f0);
+  await page.screenshot({ path: 'test-results/carte-table.png' });
+  // plus de carte dans le menu
+  expect(await page.locator('details.carte').count()).toBe(0);
   expect(errors).toEqual([]);
 });

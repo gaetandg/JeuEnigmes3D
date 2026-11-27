@@ -33,11 +33,13 @@ Au sommet se dresse un **phare éteint**. Pour le rallumer, il faut comprendre t
    ensuite, chacune s'allume dès que *l'une des deux précédentes* est résolue. Bloqué sur une
    énigme, on la laisse de côté et l'on continue (jamais deux de suite) ; seules les grandes
    énigmes de zone sont obligatoires. Les câbles le montrent : deux câbles arrivent à chaque
-   énigme, le premier allumé suffit. Le 100 % reste à aller chercher : la **carte du gardien**
-   (menu pause) dessine l'île d'après son relief, chaque énigme y est une lanterne (allumée :
-   résolue ; qui palpite : à faire ; éteinte : pas encore accessible), avec les éclats trouvés,
-   notre position, l'Île du Ciel et la grotte en médaillons une fois découvertes, et le compte
-   par zone. Vérifié par `tests/unit/progression.test.ts`.
+   énigme, le premier allumé suffit. Le 100 % reste à aller chercher : la **carte du gardien**,
+   une table d'orientation en pierre qui **sort du sol sur la place quand le jardin est fini**
+   (il faut revenir la consulter), dessine l'île d'après son relief ; chaque énigme y est une
+   lanterne (allumée : résolue ; qui palpite : à faire ; éteinte : pas encore accessible), avec
+   les éclats trouvés (étoiles), notre position (flèche), l'Île du Ciel et la grotte en médaillons
+   une fois découvertes. **Aucun texte** : la progression totale est un anneau d'or qui se remplit
+   autour de la rose des vents. Vérifié par `tests/unit/progression.test.ts`.
    **Aide graduée, demandée** : rien ne s'impose. Après 45 s devant une énigme, une petite
    lanterne apparaît (elle palpite doucement après 2 min 30) ; la touche H (bouton Y, ou toucher
    la lanterne) donne un palier de plus à chaque demande, une toutes les 8 s : **où regarder**

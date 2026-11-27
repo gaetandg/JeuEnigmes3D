@@ -55,6 +55,9 @@ import { LoreNotes, NOTE_REACH } from '../render/notes.ts';
 import { SeaAnswer } from '../render/ending.ts';
 import type { CheatAction, CheatList, Cinematic } from '../ui/hud.ts';
 import type { MapData, MapMark, MapZone, MarkState } from '../ui/map.ts';
+import { prepareMap } from '../ui/map.ts';
+import { buildMapTable } from '../world/mapTable.ts';
+import type { MapTable } from '../world/mapTable.ts';
 
 const REACH = 5;
 /** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
@@ -261,6 +264,9 @@ export class Game {
     const plaza = buildPlaza(this.colliders);
     this.plazaCrystal = plaza.crystal;
     this.scene.add(plaza.group);
+    // la carte du gardien : une table d'orientation qui sort du sol quand le jardin est fini
+    this.mapTable = buildMapTable(this.colliders);
+    this.scene.add(this.mapTable.group);
     const lh = buildLighthouse(this.colliders);
     this.lighthouseLamp = lh.lamp;
     this.lighthouse = lh.group;
@@ -451,7 +457,10 @@ export class Game {
 
     window.addEventListener('resize', () => this.resize());
 
-    if (!opts.test) this.setupInput();
+    if (!opts.test) {
+      this.setupInput();
+      prepareMap(); // le relief de la carte, calculé quand le jeu ne fait rien
+    }
     // en test (rendu logiciel lent) : ombres plus légères
     if (opts.test) this.lights.sun.shadow.mapSize.set(1024, 1024);
   }
@@ -1109,6 +1118,31 @@ export class Game {
   }
   private noteAt: THREE.Vector3 | null = null;
 
+  mapTable!: MapTable;
+  /** 0 : enfouie ; 1 : sortie (la table d'orientation) */
+  mapRaise = 0;
+  private mapRaiseTarget = 0;
+  private mapDrawClock = 0;
+
+  /** La table sort du sol (4 s), puis sa carte se redessine quand on est assez près pour la lire. */
+  private updateMapTable(dt: number): void {
+    if (this.mapRaise < this.mapRaiseTarget) {
+      this.mapRaise = Math.min(1, this.mapRaise + dt / 4);
+      this.mapTable.setRaise(THREE.MathUtils.smoothstep(this.mapRaise, 0, 1));
+      if (Math.random() < 0.4) {
+        const a = Math.random() * Math.PI * 2;
+        const c = this.mapTable.center;
+        this.sparks.burst(new THREE.Vector3(c.x + Math.cos(a) * 1.1, c.y - 1, c.z + Math.sin(a) * 1.1), new THREE.Color('#d9c7a6'), 8, 1.5);
+      }
+    }
+    if (this.mapRaise <= 0) return;
+    this.mapDrawClock -= dt;
+    if (this.mapDrawClock <= 0 && this.camera.position.distanceTo(this.mapTable.center) < 16) {
+      this.mapDrawClock = 0.15;
+      this.mapTable.redraw(this.mapData(), this.time);
+    }
+  }
+
   /** Données de la carte du gardien : chaque énigme principale et son état, éclats, billets, nous. */
   mapData(): MapData {
     const towers = towerCell(1.5, 1);
@@ -1139,10 +1173,6 @@ export class Game {
       sky: !!this.save.sky,
       deep: !!this.save.deep,
     };
-  }
-
-  private refreshMap(): void {
-    this.hud?.setMap(this.mapData());
   }
 
   private refreshJournal(): void {
@@ -1262,7 +1292,6 @@ export class Game {
       onPause: () => {
         if (touchInput) touchInput.enabled = false;
         this.playing = false;
-        this.refreshMap();
         this.hud!.showTitle(true);
         this.persist();
       },
@@ -1301,7 +1330,6 @@ export class Game {
       onHelp: () => this.requestHelp(),
     }, settings, this.save.solved.length > 0, touch, this.cheatList(), PLACES.map((p) => ({ id: p.id, label: p.label })));
     this.refreshJournal();
-    this.refreshMap();
     if (touch) {
       touchInput = new TouchInput(this.opts.canvas, this.opts.ui, this.player);
       touchInput.onTap = (reverse) => this.click(reverse);
@@ -1325,7 +1353,6 @@ export class Game {
       if (locked) this.hud!.hideTitle();
       // pendant une séquence (fin, île qui monte, pont de lumière, vraie fin), pas de menu pause
       else if (!this.busy) {
-        this.refreshMap();
         this.hud!.showTitle(true);
         this.persist();
       }
@@ -1339,7 +1366,6 @@ export class Game {
     this.gamepad.onStart = () => {
       if (this.playing) {
         this.playing = false;
-        this.refreshMap();
         this.hud!.showTitle(true);
         this.persist();
       } else {
@@ -1426,6 +1452,14 @@ export class Game {
     let newCable = false;
     for (const id of this.save.solved) newCable = this.cables.light(id, instant) || newCable;
     if (newCable && !instant) this.audio.cable();
+    // le jardin fini : la table d'orientation sort du sol
+    if (this.isSolved(TOWERS.id) && this.mapRaiseTarget < 1) {
+      this.mapRaiseTarget = 1;
+      if (instant) {
+        this.mapRaise = 1;
+        this.mapTable.setRaise(1);
+      } else this.audio.rumble();
+    }
     const allees = ['a5', 'b6', 'c5', 'd6', 'tours'].filter((id) => this.isSolved(id)).length;
     const m = this.plazaCrystal.material as THREE.MeshStandardMaterial;
     m.emissive.set('#ffd98a').multiplyScalar(allees * 0.25);
@@ -1696,6 +1730,7 @@ export class Game {
     this.sparks.update(dt);
     this.goalRings.update(this.time);
     this.updateLures(this.time);
+    this.updateMapTable(dt);
     this.updateDay(dt);
     // après la fin du phare, le guide revient pour les zones de la suite (ciel, racines)
     this.guides.update(this.time, this.guidesOn && (!this.ended || !!this.save.sky) && !this.busy);
@@ -2021,6 +2056,7 @@ export class Game {
       this.updateDay(0.05);
       this.sparks.update(0.05);
       this.shards.update(0.05);
+      this.updateMapTable(0.05);
       for (const g of this.gates.values()) {
         if (g.opening && g.open < 1) {
           g.open = Math.min(1, g.open + 0.05 / 2.5);
