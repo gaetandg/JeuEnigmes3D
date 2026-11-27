@@ -1003,6 +1003,7 @@ export class Game {
 
   private addRootView(view: RootView): void {
     view.onSolved = () => this.onPanelSolved(view);
+    view.onCrystal = (n) => this.audio.crystal(((n - 1) % 7) + 1);
     this.panels.set(view.id, view);
     this.scene.add(view.group);
   }
