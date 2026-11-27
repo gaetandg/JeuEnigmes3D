@@ -68,7 +68,8 @@ test('sur téléphone : joystick pour marcher, toucher pour agir', async ({ page
     window.__game.aim('p6', 2);
   });
   await expect(page.locator('.mouse-hint')).toBeVisible({ timeout: 15_000 });
-  await expect(page.locator('.mouse-hint')).toContainText('appui long');
+  await expect(page.locator('.mouse-hint')).toHaveAttribute('aria-label', 'appui long');
+  await expect(page.locator('.mouse-hint')).toHaveClass(/right/);
   expect(await page.evaluate(() => window.__game.interact('p6', 2, true))).toBe('ok');
   await expect(page.locator('.mouse-hint')).toBeHidden({ timeout: 15_000 });
   expect(errors).toEqual([]);
