@@ -30,6 +30,12 @@ export interface PuzzleView {
    * ou null. Le HUD montre alors la souris avec le bon bouton quand on vise cette pièce.
    */
   activeHint(): { k: number; reverse: boolean } | null;
+  /**
+   * Aide, premier palier : où regarder (ce qui n'est pas encore comme il faut : cristaux non
+   * éclairés, creux sans leur bille, fuites…). Positions dans le monde et rayon des anneaux.
+   * Sans cette méthode, l'aide montre l'énigme entière.
+   */
+  goalPoints?(): { pos: THREE.Vector3; r: number }[];
   markSolved(): void;
   setDetail(visible: boolean): void;
   update(dt: number, time: number): void;

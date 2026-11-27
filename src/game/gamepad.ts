@@ -9,6 +9,8 @@ export class GamepadInput {
   private prev: boolean[] = [];
   onAct: ((reverse: boolean) => void) | null = null;
   onStart: (() => void) | null = null;
+  /** bouton Y : demander de l'aide */
+  onHelp: (() => void) | null = null;
   active = false;
 
   constructor(private player: Player) {}
@@ -52,6 +54,7 @@ export class GamepadInput {
       // le stick droit tourne le regard à vitesse constante (indépendante de la souris)
       if (rx || ry) this.player.lookRadians(-rx * 2.4 * dt, -ry * 1.8 * dt);
       if (edge(0)) this.onAct?.(false);
+      if (edge(3)) this.onHelp?.();
       if (edge(1) || edge(2)) this.onAct?.(true);
       this.active = true;
     }

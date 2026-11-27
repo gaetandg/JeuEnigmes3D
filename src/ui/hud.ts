@@ -23,6 +23,8 @@ export interface HudCallbacks {
   onCinematic: (which: Cinematic) => void;
   /** mode test : se téléporter à un lieu (sans toucher à la progression) */
   onTeleport: (place: string) => void;
+  /** le joueur demande de l'aide (lanterne touchée) */
+  onHelp: () => void;
 }
 
 export type Cinematic = 'phare' | 'ile' | 'vraie' | 'bascule' | 'racines';
@@ -63,6 +65,16 @@ export class Hud {
           <circle cx="22" cy="22" r="8" class="tip"/>
         </svg>
       </div>
+      <!-- l'aide : une lanterne, quand on est depuis un moment devant une énigme ; touche H -->
+      <button class="help-lamp" hidden aria-label="Aide (touche H)">
+        <svg viewBox="0 0 40 52" width="30" height="39" aria-hidden="true">
+          <path d="M14 8 H26 M20 3 V8" class="lamp-frame"/>
+          <rect x="9" y="8" width="22" height="30" rx="7" class="lamp-glass"/>
+          <path d="M20 16 C16 22 16 28 20 31 C24 28 24 22 20 16 Z" class="lamp-flame"/>
+          <path d="M11 38 H29 L26 44 H14 Z" class="lamp-frame"/>
+        </svg>
+        <span class="lamp-key" aria-hidden="true">${touch ? '' : 'H'}</span>
+      </button>
       <div class="toast" hidden></div>
       <div class="fade"></div>
       <div class="note-card" hidden>
@@ -88,7 +100,7 @@ export class Hud {
               </select>
             </label>
             <label>Symboles des couleurs (daltonisme) <input type="checkbox" data-setting="symbols" /></label>
-            <label>Aides discrètes si l'on bloque longtemps <input type="checkbox" data-setting="hints" /></label>
+            <label>Aide à la demande (lanterne, touche H) <input type="checkbox" data-setting="hints" /></label>
             <label>Guide lumineux vers les énigmes en attente <input type="checkbox" data-setting="guides" /></label>
             <label>Champ de vision <input type="range" min="55" max="100" step="1" data-setting="fov" /></label>
             <label>Inverser l'axe vertical <input type="checkbox" data-setting="invertY" /></label>
@@ -134,7 +146,7 @@ export class Hud {
           </details>
           <p class="help">${touch
             ? 'Pouce gauche : marcher · Glisser à droite : regarder<br/>Toucher : agir · Appui long : agir en sens inverse'
-            : 'Souris : regarder · ZQSD / WASD / flèches : marcher · Maj : courir<br/>Clic gauche : agir · Clic droit : agir en sens inverse · Échap : pause'}</p>
+            : 'Souris : regarder · ZQSD / WASD / flèches : marcher · Maj : courir<br/>Clic gauche : agir · Clic droit : agir en sens inverse · H : aide · Échap : pause'}</p>
         </div>
       </div>`;
     this.title = this.root.querySelector('.overlay')!;
@@ -146,6 +158,8 @@ export class Hud {
       cb.onStart(); // la souris se libère d'elle-même pendant la séquence
       cb.onCinematic(cine.value as Cinematic);
     });
+    this.helpLamp = this.root.querySelector<HTMLButtonElement>('.help-lamp')!;
+    this.helpLamp.addEventListener('click', () => cb.onHelp());
     const place = this.root.querySelector<HTMLSelectElement>('[data-cheat="place"]')!;
     this.root.querySelector('[data-cheat="tp"]')!.addEventListener('click', () => {
       cb.onTeleport(place.value);
@@ -197,6 +211,18 @@ export class Hud {
     this.root.querySelector('[data-action="reset"]')!.addEventListener('click', () => {
       if (confirm('Effacer la progression et recommencer ?')) cb.onReset();
     });
+  }
+
+  private helpLamp: HTMLButtonElement;
+  private helpState: 'none' | 'ready' | 'offer' = 'none';
+
+  /** La lanterne d'aide : absente, disponible, ou qui palpite (on bloque depuis longtemps). */
+  setHelp(state: 'none' | 'ready' | 'offer'): void {
+    const st = this.title.hidden ? state : 'none';
+    if (st === this.helpState) return;
+    this.helpState = st;
+    this.helpLamp.hidden = st === 'none';
+    this.helpLamp.classList.toggle('offer', st === 'offer');
   }
 
   private mapData: MapData | null = null;

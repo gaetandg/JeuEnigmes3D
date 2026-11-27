@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ringAround } from './goalRings.ts';
 import { N, checkShadow, shadowLevers, shadowOn, shadowSearch, solveShadow } from '../core/shadow/index.ts';
 import type { ShadowPuzzle, Wall } from '../core/shadow/index.ts';
 import { heightAt } from '../world/terrain.ts';
@@ -69,6 +70,7 @@ export class ShadowView implements PuzzleView {
   private levers: number[][];
   private shadows = new Map<Wall, THREE.InstancedMesh>();
   private wallGlow = new Map<Wall, THREE.MeshStandardMaterial>();
+  private wallPlanes = new Map<Wall, THREE.Mesh>();
   private lamps: { mat: THREE.MeshBasicMaterial; cone: THREE.MeshBasicMaterial }[] = [];
   private hovered: number | null = null;
   private hintK: number | null = null;
@@ -237,6 +239,7 @@ export class ShadowView implements PuzzleView {
     }
     plane.castShadow = plane.receiveShadow = this.v > 0.5;
     this.stage.add(plane);
+    this.wallPlanes.set(wall, plane);
     // ombres : carrés sombres juste devant le mur
     const q = new THREE.PlaneGeometry(v * this.S * 0.98, v * this.S * 0.98);
     const sm = new THREE.InstancedMesh(q, new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.82, depthWrite: false }), cols * this.puzzle.height);
@@ -384,6 +387,13 @@ export class ShadowView implements PuzzleView {
   }
 
   /** Aide : le premier levier du plus court chemin vers la solution. */
+  goalPoints(): { pos: THREE.Vector3; r: number }[] {
+    const chk = checkShadow(this.puzzle, this.state);
+    const out: { pos: THREE.Vector3; r: number }[] = [];
+    for (const [w, plane] of this.wallPlanes) if (!chk.walls[w]) out.push(ringAround(plane, 0.75));
+    return out;
+  }
+
   hint(): number | null {
     if (!this.powered || this.solved) return null;
     const first = shadowSearch(this.puzzle, this.state).path?.[0];

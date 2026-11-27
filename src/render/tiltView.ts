@@ -261,6 +261,21 @@ export class TiltView implements PuzzleView {
     this.hovered = this.powered && !this.solved ? k : null;
   }
 
+  goalPoints(): { pos: THREE.Vector3; r: number }[] {
+    const p = this.puzzle;
+    this.board.updateWorldMatrix(true, false);
+    const out: { pos: THREE.Vector3; r: number }[] = [];
+    const filled = new Set(this.s.balls.filter((b) => b.home).map((b) => `${b.x},${b.y}`));
+    p.cells.forEach((cell, i) => {
+      if (cell.kind !== 'hole') return;
+      const x = i % p.width;
+      const y = Math.floor(i / p.width);
+      if (filled.has(`${x},${y}`)) return;
+      out.push({ pos: this.board.localToWorld(this.cellPos(x, y, this.c * 0.05)), r: this.c * 0.55 });
+    });
+    return out;
+  }
+
   hint(): number | null {
     if (!this.powered || this.solved || this.anim || this.failTimer > 0) return null;
     const r = solveTilt(this.puzzle, this.s);
