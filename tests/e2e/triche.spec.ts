@@ -38,5 +38,23 @@ test('mode test : valider ce qui précède une énigme, puis jusqu\'à une autre
   expect(s2).toContain('grand-pli');
   expect(s2).not.toContain('f1');
   expect((await page.evaluate(() => window.__game.panels())).find((p) => p.id === 'f1')!.powered).toBe(true);
+
+  // un billet du gardien, lu d'un vrai clic : la carte s'affiche, le carnet le garde
+  await page.evaluate(() => {
+    window.__game.teleport(9, -93, 3.14);
+    window.__game.aimNote('mer');
+  });
+  await page.waitForFunction(() => window.__game.hoveredNote() === 'mer', null, { timeout: 15_000 });
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(page.locator('.note-card')).toBeVisible();
+  await expect(page.locator('.note-card')).toContainText('regarde la mer');
+  await page.screenshot({ path: 'test-results/billet-carte.png' });
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(page.locator('.note-card')).toBeHidden();
+  await page.evaluate(() => document.exitPointerLock());
+  await expect(page.locator('.journal-count')).toHaveText('(1 / 12)');
+  await expect(page.locator('.journal-list')).toContainText('regarde la mer');
   expect(errors).toEqual([]);
 });

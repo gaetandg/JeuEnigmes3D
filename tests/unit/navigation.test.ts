@@ -13,6 +13,7 @@ import { WorldLightPuzzle } from '../../src/render/worldPuzzle.ts';
 import { parsePuzzle } from '../../src/core/light/index.ts';
 import { ZONE1_TOWERS } from '../../src/puzzles/zone1.ts';
 import { SECRET_LIGHT } from '../../src/puzzles/secrets.ts';
+import { NOTES } from '../../src/world/lore.ts';
 
 /**
  * Test de navigation : on reconstruit tous les obstacles du jeu (sans rendu) et on vérifie,
@@ -119,6 +120,10 @@ describe('navigation — on peut marcher jusqu\'à chaque énigme', () => {
   it('contrôle : la pleine mer et l\'intérieur du phare sont inaccessibles', () => {
     expect(reach(0, 160)).toBe(false);
     expect(reach(0, -112)).toBe(false);
+  });
+
+  it('chaque billet du gardien (lore)', () => {
+    expect(NOTES.filter((n) => !reach(n.x, n.z)).map((n) => n.id)).toEqual([]);
   });
 
   it('chaque panneau, pupitre et théâtre d\'ombres', () => {

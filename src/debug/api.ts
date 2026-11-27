@@ -56,6 +56,14 @@ export function exposeDebugApi(game: Game): void {
     hint: (id: string) => game.panels.get(id)?.hint() ?? null,
     /** l'aide affichée : pièce désignée et sens du geste (clic droit si reverse) */
     hintMove: (id: string) => game.panels.get(id)?.activeHint() ?? null,
+    /** billets du gardien : lus, survolé, lire, viser */
+    notes: () => (game.save.notes ?? []).slice(),
+    hoveredNote: () => game.hoveredNote,
+    readNote: (id: string) => game.readNote(id),
+    aimNote: (id: string) => game.aimAtNote(id),
+    /** la fin : la mer a répondu ? les lanternes rentrent ? */
+    answered: () => game.answer.answered,
+    homecoming: () => game.answer.homecoming,
     guides: () => game.guides.mesh.count,
     shards: () => game.stats().shards,
     memory: () => ({ ...game.renderer.info.memory }),

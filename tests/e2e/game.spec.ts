@@ -429,6 +429,41 @@ test('un pliage en cours est sauvegardé et restauré', async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test('un billet du gardien se vise, se lit et reste lu après rechargement', async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    sessionStorage.setItem('keep', '1');
+    window.__game.teleport(4, 103, 0);
+    window.__game.aimNote('arrivee');
+  });
+  await waitFrames(page, 3);
+  expect(await page.evaluate(() => window.__game.hoveredNote())).toBe('arrivee');
+  await page.evaluate(() => window.__game.readNote('arrivee'));
+  expect(await page.evaluate(() => window.__game.notes())).toEqual(['arrivee']);
+  await page.screenshot({ path: 'test-results/billet.png' });
+  await page.reload();
+  await page.waitForFunction(() => window.__game?.ready === true);
+  expect(await page.evaluate(() => window.__game.notes())).toEqual(['arrivee']);
+  expect(errors).toEqual([]);
+});
+
+test('la fin : la mer répond ; avec les sept éclats, les lanternes rentrent', async ({ page }) => {
+  test.setTimeout(240_000);
+  await boot(page);
+  await page.evaluate(() => window.__game.solveAll());
+  await page.evaluate(() => window.__game.advance(2));
+  expect(await page.evaluate(() => window.__game.ended())).toBe(true);
+  expect(await page.evaluate(() => window.__game.answered())).toBe(true);
+  expect(await page.evaluate(() => window.__game.homecoming())).toBe(false);
+  // les éclats trouvés après la fin : les lanternes partent à leur tour
+  await page.evaluate(() => {
+    for (const id of ['eclat-plage', 'eclat-bosquet', 'eclat-voile', 'eclat-statues', 'eclat-belvedere', 'eclat-dunes', 'eclat-gardiens']) window.__game.solve(id);
+    window.__game.advance(3);
+  });
+  expect(await page.evaluate(() => window.__game.homecoming())).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test('la progression est sauvegardée et restaurée', async ({ page }) => {
   await boot(page);
   await page.evaluate(() => {

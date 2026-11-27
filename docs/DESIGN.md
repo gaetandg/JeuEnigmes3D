@@ -171,6 +171,24 @@ Chaque zone terminée envoie un rai de lumière colorée au phare (un quart de s
 le dernier panneau l'allume entièrement : son faisceau se met à tourner sur la mer et un
 écran de fin s'affiche (énigmes résolues, temps de jeu). On peut ensuite continuer à explorer.
 
+## 6 ter. Le récit et la fin
+
+Les énigmes restent sans un mot ; le récit est facultatif. **Douze billets pliés**, laissés par le
+dernier gardien du phare à quelqu'un parti en mer, attendent près des chemins (2 ou 3 par zone,
+un caché près de la voile). Ils luisent tant qu'on ne les a pas lus ; on les vise et on clique
+pour les lire, et le **carnet** du menu pause les rassemble dans l'ordre du récit.
+
+L'histoire : l'île parlait à la mer de trois façons, la lumière (les signaux), le papier plié (les
+messages confiés aux bateaux de papier) et les ombres (les histoires jouées le soir). Le phare ne
+brûle pas d'huile : il brûle de ce qu'on a compris ; il s'est éteint quand plus personne ne venait
+comprendre avec le gardien.
+
+**La fin** : quand le phare se rallume, la caméra s'élève et, au large, **une petite lumière
+répond** (deux éclats, une pause). Avec les **sept éclats**, le faisceau retrouve toutes ses
+couleurs et des dizaines de **lanternes** apparaissent sur la mer et rentrent vers l'île. Si l'on
+trouve le dernier éclat après la fin, les lanternes partent à ce moment-là. Elles restent au
+large de la côte quand on continue d'explorer.
+
 ## 6 bis. Les Éclats (secrets)
 
 Sept énigmes cachées hors des chemins, allumées dès le départ, sans câble ni guide lumineux :
