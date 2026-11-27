@@ -125,7 +125,8 @@ export class ShadowView implements PuzzleView {
         return m;
       });
       // un seul maillage par objet (il tourne d'un bloc)
-      mergeMeshes(cubes, pivot, mat).castShadow = place.voxel > 0.5;
+      const body = mergeMeshes(cubes, pivot, mat);
+      body.castShadow = place.voxel > 0.5;
       this.stage.add(pivot);
       // support : plateau tournant (axe vertical) ou berceau (axe est-ouest)
       const base: THREE.Mesh[] = [];
@@ -145,12 +146,17 @@ export class ShadowView implements PuzzleView {
           base.push(arc);
         }
       }
-      const pick = new THREE.Mesh(new THREE.BoxGeometry(v * 3.1, v * 3.1, v * 3.1), new THREE.MeshBasicMaterial({ visible: false }));
-      pick.position.copy(pivot.position);
-      pick.userData = { panel: this, k: i };
-      this.stage.add(pick);
-      // avec des manivelles, on agit sur les roues, pas sur les objets
-      if (!puzzle.cranks) this.pickables.push(pick);
+      // on vise l'objet par ses cubes visibles ou par son support : ce qu'on voit est ce qu'on
+      // clique (une grande boîte invisible par objet masquait les objets placés derrière)
+      // — avec des manivelles, on agit sur les roues, pas sur les objets
+      if (!puzzle.cranks) {
+        for (const m of [body, ...base]) {
+          m.userData = { panel: this, k: i };
+          this.pickables.push(m);
+        }
+        // point à viser pour les tests (le centre d'un cube : le centre de la boîte peut être vide)
+        body.userData.aim = cubes[0]!.position.clone();
+      }
       this.objs.push({ pivot, turns: this.state[i]!, target: this.state[i]!, current: this.state[i]!, axis: o.axis, base, paint: mat });
       this.applyRotation(i, this.state[i]!);
     });

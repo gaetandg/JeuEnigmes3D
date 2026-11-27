@@ -234,6 +234,22 @@ test('une manivelle entraîne deux objets ; on rattrape le voisin avec la second
   expect(errors).toEqual([]);
 });
 
+test("o10 : l'objet du fond se sélectionne en visant ses cubes, même derrière un autre objet", async ({ page }) => {
+  await boot(page);
+  await page.evaluate((ids) => {
+    for (const id of ids) window.__game.solve(id);
+    window.__game.view('o10');
+  }, [...ZONE1, ...ZONE2, 'o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9']);
+  // les trois objets, dont le T bleu (n° 2) placé derrière le T vert (n° 1)
+  for (const k of [0, 1, 2]) {
+    await page.evaluate((kk) => window.__game.aim('o10', kk), k);
+    await waitFrames(page, 3);
+    expect(await page.evaluate(() => window.__game.hovered())).toEqual({ id: 'o10', k });
+  }
+  await page.screenshot({ path: 'test-results/o10-bleu.png' });
+  expect(errors).toEqual([]);
+});
+
 const ZONE3 = ['o1', 'o2', 'o3', 'o4', 'o5', 'o6', 'o7', 'o8', 'o9', 'o10', 'o11', 'o12', 'cadran'];
 
 test("zone finale : tourner un objet sur un panneau de lumière change l'empreinte qui arrête les rayons", async ({ page }) => {

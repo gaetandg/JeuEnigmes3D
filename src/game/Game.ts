@@ -747,7 +747,8 @@ export class Game {
     const pick = panel?.pickables.find((p) => p.userData.k === k);
     if (!pick) throw new Error(`pièce ${id}/${k} introuvable`);
     panel!.group.updateMatrixWorld(true);
-    const target = pick.getWorldPosition(new THREE.Vector3());
+    const aim = pick.userData.aim as THREE.Vector3 | undefined;
+    const target = aim ? pick.localToWorld(aim.clone()) : pick.getWorldPosition(new THREE.Vector3());
     const d = target.sub(this.player.position);
     const yaw = Math.atan2(-d.x, -d.z);
     const pitch = Math.atan2(d.y, Math.hypot(d.x, d.z));
