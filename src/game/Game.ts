@@ -356,8 +356,11 @@ export class Game {
     // la suite de la suite : la grotte des Racines, sous la mer, où l'on tombe après la bascule
     this.cave = buildCave(this.colliders);
     this.scene.add(this.cave.group);
-    // une seule lampe chaude au-dessus de la fosse (éteinte dehors : intensité nulle, pas de recompilation)
+    // une seule lampe chaude au-dessus de la fosse ; dehors, elle n'existe pas pour le rendu (sinon
+    // chaque pixel de l'île la calculerait). On n'entre et ne sort de la grotte que pendant un fondu
+    // au noir : le changement de nombre de lumières (recompilation des matériaux) ne se voit pas.
     this.caveLight = new THREE.PointLight('#ffc98a', 0, 75, 1.5);
+    this.caveLight.visible = false;
     this.caveLight.position.set(CAVE.x, CAVE.y + 7, CAVE.z);
     this.scene.add(this.caveLight);
     for (const spot of ROOT_PANELS) {
@@ -467,6 +470,7 @@ export class Game {
     fog.near = 90 + (14 - 90) * k;
     fog.far = this.fogFar + (80 - this.fogFar) * k;
     this.caveLight.intensity = 160 * k;
+    this.caveLight.visible = k > 0;
     this.scene.environmentIntensity = 0.6 * (1 - 0.75 * k);
     if (k <= 0) return;
     const L = this.lights;
