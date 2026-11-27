@@ -73,6 +73,8 @@ interface Anim {
   dir: TiltDir;
   moves: BallMove[];
   next: TiltState;
+  /** billes déjà arrivées (pour ne jouer leur son qu'une fois) */
+  landed: Set<number>;
 }
 
 /**
@@ -89,7 +91,10 @@ export class TiltView implements PuzzleView {
   powered = false;
   onSolved: (() => void) | null = null;
   /** les billes roulent (son) */
-  onRoll: (() => void) | null = null;
+  /** le geste part : durée du roulement (s) */
+  onRoll: ((dur: number) => void) | null = null;
+  /** une bille s'arrête : contre un mur ou une bille, dans son creux, ou dans un puits */
+  onLand: ((end: 'stop' | 'home' | 'pit') => void) | null = null;
   /** une bille est tombée dans un puits (son) */
   onFail: (() => void) | null = null;
 
@@ -277,8 +282,8 @@ export class TiltView implements PuzzleView {
     const r = tilt(this.puzzle, this.s, k as TiltDir);
     const longest = Math.max(0, ...r.moves.map((m) => m.path.length - 1));
     if (longest === 0) return 'denied'; // rien ne bouge
-    this.anim = { t: 0, dur: 0.2 + longest * 0.09, dir: k as TiltDir, moves: r.moves, next: r.state };
-    this.onRoll?.();
+    this.anim = { t: 0, dur: 0.2 + longest * 0.09, dir: k as TiltDir, moves: r.moves, next: r.state, landed: new Set() };
+    this.onRoll?.(this.anim.dur);
     return 'ok';
   }
 
@@ -345,6 +350,10 @@ export class TiltView implements PuzzleView {
         const done = u >= steps;
         const h = done && m.end === 'home' ? this.ballY(true) : done && m.end === 'pit' ? -this.c * 0.4 : this.ballY(false);
         ball.position.copy(this.cellPos(p0.x + (p1.x - p0.x) * f, p0.y + (p1.y - p0.y) * f, h));
+        if (done && !a.landed.has(i)) {
+          a.landed.add(i);
+          this.onLand?.(m.end);
+        }
         if (done && m.end === 'pit') ball.scale.setScalar(0.5);
         if (done && m.end === 'home') ball.scale.set(1, TiltView.FLUSH, 1);
       });
