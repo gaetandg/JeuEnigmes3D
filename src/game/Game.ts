@@ -2285,7 +2285,7 @@ export class Game {
         const keep = order.slice(0, action === 'before' ? at : at + 1);
         const later = order.slice(keep.length);
         if (later.some((t) => this.isSolved(t))) {
-          this.rewind(keep, skyTarget, deepTarget, id);
+          this.rewind(keep, skyTarget, deepTarget, bubbleTarget, id);
           return;
         }
       }
@@ -2341,7 +2341,7 @@ export class Game {
    * restent), les énigmes suivantes repartent de zéro, l'île du ciel redescend si l'on revient
    * avant la finale, et l'on se retrouve devant l'énigme choisie après rechargement.
    */
-  private rewind(keep: string[], skyTarget: boolean, deepTarget: boolean, id: string): void {
+  private rewind(keep: string[], skyTarget: boolean, deepTarget: boolean, bubbleTarget: boolean, id: string): void {
     const kept = new Set(keep);
     const save = this.save;
     save.solved = save.solved.filter((s) => kept.has(s) || SECRET_IDS.includes(s));
@@ -2354,6 +2354,9 @@ export class Game {
     }
     save.sky = skyTarget || (kept.has(FINAL_ID) && !!save.sky);
     save.deep = deepTarget || (kept.has(GRAND_PLATEAU.id) && !!save.deep);
+    // la Bulle ne reste « visitée » que si l'on revient après la Racine-mère ; la barque repart à zéro
+    save.bubble = bubbleTarget || (kept.has(RACINE_MERE.id) && !!save.bubble);
+    save.departed = false;
     this.view(id);
     save.player = { x: this.player.position.x, z: this.player.position.z, yaw: this.player.yaw };
     writeSave(save);

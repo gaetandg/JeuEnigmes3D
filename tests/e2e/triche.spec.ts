@@ -281,5 +281,13 @@ test("le 100 % : une barque de papier attend sur la plage, on la pousse au large
   const kept = await page.evaluate(() => window.__game.boat());
   expect(kept.departed).toBe(true);
   expect(kept.waiting).toBe(false);
+  // revenir en arrière (avant r3, dans la grotte) : la barque n'est plus partie, la Bulle plus visitée
+  await Promise.all([page.waitForEvent('load'), page.evaluate(() => window.__game.cheat('before', 'r3'))]);
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60_000 });
+  const back = await page.evaluate(() => window.__game.boat());
+  expect(back.departed).toBe(false);
+  expect(back.everything).toBe(false);
+  expect((await page.evaluate(() => window.__game.bubble())).visited).toBe(false);
+  expect(await page.evaluate(() => window.__game.deep())).toBe(true);
   expect(errors).toEqual([]);
 });
