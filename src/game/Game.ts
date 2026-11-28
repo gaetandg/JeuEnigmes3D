@@ -546,6 +546,8 @@ export class Game {
   private zoneAt(x: number, z: number): Zone {
     if (Math.hypot(x - BUBBLE.x, z - BUBBLE.z) < BUBBLE.r + 30) return 'bulle';
     if (Math.hypot(x - CAVE.x, z - CAVE.z) < CAVE.r + 15) return 'racines';
+    // la Grotte des Échos : la voix des grottes
+    if (Math.hypot(x - ECHO.x, z - ECHO.z) < ECHO.r + 15) return 'racines';
     if (Math.hypot(x - SKY.x, z - SKY.z) < SKY.r + 10) return 'ciel';
     if (Math.hypot(x - ATELIER.x, z - ATELIER.z) < ATELIER.r + 15) return 'atelier';
     if (Math.abs(x - CLOITRE.x) < CLOITRE.half + 12 && Math.abs(z - CLOITRE.z) < CLOITRE.half + 12) return 'cloitre';
