@@ -6,6 +6,7 @@ import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { pulse } from './hints.ts';
 import { ringAround } from './goalRings.ts';
+import { mergeMeshes, mergeStatic } from './merge.ts';
 
 export interface VasePlacement {
   x: number;
@@ -87,7 +88,9 @@ export class VaseView implements PuzzleView {
     const plinth = new THREE.Mesh(new THREE.BoxGeometry(gap * n + r, baseH, r * 2 + u * 3), stoneMaterial('#c9d3d8'));
     plinth.position.y = baseH / 2;
     plinth.castShadow = plinth.receiveShadow = true;
+    plinth.userData.static = true;
     this.group.add(plinth);
+    const tubes: THREE.Mesh[] = [];
     const glass = new THREE.MeshStandardMaterial({ color: '#dff3ff', roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide });
     const tickMat = new THREE.MeshBasicMaterial({ color: '#2d4a5c' });
     const tickGeo = new THREE.BoxGeometry(r * 0.5, u * 0.06, u * 0.06);
@@ -95,17 +98,19 @@ export class VaseView implements PuzzleView {
       const h = cap * u;
       const tube = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 20, 1, true), glass);
       tube.position.set(xs[i]!, baseH + h / 2, 0);
-      tube.renderOrder = 2;
       this.group.add(tube);
+      tubes.push(tube);
       // fond et rebord
       const rim = new THREE.Mesh(new THREE.TorusGeometry(r, u * 0.08, 6, 20), this.frameMat);
       rim.rotation.x = Math.PI / 2;
       rim.position.set(xs[i]!, baseH + h, 0);
+      rim.userData.static = true;
       this.group.add(rim);
       // graduations (une par unité), sur la face avant
       for (let k = 1; k < cap; k++) {
         const t = new THREE.Mesh(tickGeo, tickMat);
         t.position.set(xs[i]! - r * 0.55, baseH + k * u, r * 0.86);
+        t.userData.static = true;
         this.group.add(t);
       }
       // l'eau : un cylindre dont on règle la hauteur
@@ -128,6 +133,7 @@ export class VaseView implements PuzzleView {
     });
     // les tuyaux : un arc par tuyau, au-dessus des tubes, et sa vanne au sommet
     const pipeMat = new THREE.MeshStandardMaterial({ color: '#8fa3b0', roughness: 0.4, metalness: 0.5 });
+    const oneWayMat = new THREE.MeshStandardMaterial({ color: '#e7b546', metalness: 0.6, roughness: 0.3 });
     puzzle.pipes.forEach((p, k) => {
       const ya = baseH + puzzle.caps[p.a]! * u;
       const yb = baseH + puzzle.caps[p.b]! * u;
@@ -142,6 +148,7 @@ export class VaseView implements PuzzleView {
       ]);
       const pipe = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, u * 0.16, 8), pipeMat);
       pipe.castShadow = true;
+      pipe.userData.static = true;
       this.group.add(pipe);
       // la vanne : une roue au sommet du tuyau, qu'on vise et qu'on tourne
       const wheel = new THREE.Group();
@@ -150,18 +157,23 @@ export class VaseView implements PuzzleView {
       const mat = new THREE.MeshStandardMaterial({ color: '#c98a3a', roughness: 0.4, metalness: 0.6, emissive: '#000000' });
       const ring = new THREE.Mesh(new THREE.TorusGeometry(u * 0.55, u * 0.1, 6, 16), mat);
       wheel.add(ring);
+      const parts: THREE.Mesh[] = [ring];
       for (let s = 0; s < 3; s++) {
         const spoke = new THREE.Mesh(new THREE.BoxGeometry(u * 1.05, u * 0.09, u * 0.09), mat);
         spoke.rotation.z = (s * Math.PI) / 3;
         wheel.add(spoke);
+        parts.push(spoke);
       }
+      // la roue tourne d'un bloc : jante et rayons en un seul maillage
+      mergeMeshes(parts, wheel, mat);
       // sens : une flèche sur le tuyau (deux pour un tuyau à double sens)
       const arrowGeo = new THREE.ConeGeometry(u * 0.28, u * 0.6, 8);
       const dir = Math.sign(xs[p.b]! - xs[p.a]!) || 1;
       for (const side of p.oneWay ? [1] : [1, -1]) {
-        const ar = new THREE.Mesh(arrowGeo, p.oneWay ? new THREE.MeshStandardMaterial({ color: '#e7b546', metalness: 0.6, roughness: 0.3 }) : pipeMat);
+        const ar = new THREE.Mesh(arrowGeo, p.oneWay ? oneWayMat : pipeMat);
         ar.rotation.z = -(dir * side * Math.PI) / 2;
         ar.position.copy(mid).add(new THREE.Vector3(dir * side * u * 1.4, u * 0.25, 0));
+        ar.userData.static = true;
         this.group.add(ar);
       }
       const pick = new THREE.Mesh(new THREE.SphereGeometry(u * (grand ? 1.6 : 1.4), 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
@@ -181,6 +193,9 @@ export class VaseView implements PuzzleView {
     reset.userData = { panel: this, k: puzzle.pipes.length };
     this.group.add(reset);
     this.pickables.push(reset);
+    // tout ce qui ne bouge pas : un maillage par matériau ; le verre à part, dessiné après l'eau
+    mergeStatic(this.group);
+    if (tubes.length) mergeMeshes(tubes, this.group, glass).renderOrder = 2;
     this.refresh(true);
     this.setPowered(false);
   }
