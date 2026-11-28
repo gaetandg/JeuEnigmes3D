@@ -33,6 +33,7 @@ import { HORIZON, SUN_GLOW, buildLights, buildSky, buildWater } from '../render/
 import { applyDaylight, buildStars } from '../render/daylight.ts';
 import { Sparks } from '../render/sparks.ts';
 import { GuideBeams } from '../render/guides.ts';
+import { GoalRings } from '../render/goalRings.ts';
 import { GamepadInput } from './gamepad.ts';
 import { Shards } from '../render/shards.ts';
 import { SECRET_FOLD, SECRET_IDS, SECRET_LIGHT, SECRET_SHADOW } from '../puzzles/secrets.ts';
@@ -57,7 +58,12 @@ import type { MapData, MapMark, MapZone, MarkState } from '../ui/map.ts';
 
 const REACH = 5;
 /** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
-const HINT_DELAY = 180;
+/** temps passé devant une énigme avant de pouvoir demander de l'aide (s) */
+const HELP_READY = 45;
+/** au-delà, la lanterne d'aide se met à palpiter doucement (une proposition, jamais imposée) */
+const HELP_OFFER = 150;
+/** délai entre deux demandes d'aide (s) */
+const HELP_COOLDOWN = 8;
 
 /** Qui alimente quoi : panneaux + énigmes d'environnement. */
 const POWER: { id: string; requires: Req[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU, ...ROOT_PANELS, RACINE_MERE];
@@ -219,6 +225,7 @@ export class Game {
     this.scene.add(this.stars);
     this.scene.add(this.sparks.points);
     this.scene.add(this.guides.mesh);
+    this.scene.add(this.goalRings.group);
     this.scene.environmentIntensity = 0.6;
 
     this.lights = buildLights(this.scene);
@@ -439,7 +446,6 @@ export class Game {
     return a;
   }
 
-  /** Aides discrètes : après HINT_DELAY secondes près d'une énigme non résolue, une pièce luit. */
   /** Zone où se trouve le joueur (pour la musique). */
   private zoneAt(x: number, z: number): Zone {
     if (Math.hypot(x - CAVE.x, z - CAVE.z) < CAVE.r + 15) return 'racines';
@@ -466,17 +472,90 @@ export class Game {
     const pos = this.player.position;
     this.audio.setZone(this.zoneAt(pos.x, pos.z));
     this.updateGuides();
-    if (!this.hintsOn || !this.playing) return;
+    if (!this.hintsOn || !this.playing || this.busy) {
+      this.hud?.setHelp('none');
+      return;
+    }
     for (const p of this.panels.values()) {
       if (!p.powered || p.solved) continue;
       const near = this.anchorsOf(p).some((a) => Math.hypot(a.x - pos.x, a.z - pos.z) < p.reach + 2.5);
-      if (!near) continue;
-      const t = (this.stuck.get(p.id) ?? 0) + dt;
-      if (t >= HINT_DELAY) {
-        p.hint();
-        this.stuck.set(p.id, HINT_DELAY - 120); // l'aide suivante, deux minutes plus tard
-      } else this.stuck.set(p.id, t);
+      if (near) this.stuck.set(p.id, (this.stuck.get(p.id) ?? 0) + dt);
     }
+    // l'aide ne s'impose jamais : une lanterne apparaît, puis palpite si l'on reste longtemps
+    const target = this.helpTarget();
+    const t = target ? this.stuck.get(target.id) ?? 0 : 0;
+    this.hud?.setHelp(!target || t < HELP_READY ? 'none' : t < HELP_OFFER ? 'ready' : 'offer');
+  }
+
+  // ── aide graduée, demandée par le joueur (touche H, bouton Y, lanterne au toucher) ──
+
+  /** palier suivant par énigme : 0 où regarder, 1 quelle pièce, 2 quelle pièce et quel geste */
+  private helpLevel = new Map<string, number>();
+  /** énigmes dont l'aide montre aussi le bon bouton (souris dessinée) */
+  private gestureHelp = new Set<string>();
+  private helpCooldown = 0;
+  readonly goalRings = new GoalRings();
+
+  /** L'énigme visée, sinon la plus proche (allumée, non résolue) à portée. */
+  private helpTarget(): PuzzleView | null {
+    if (this.hovered) return this.hovered.panel;
+    const pos = this.player.position;
+    let best: PuzzleView | null = null;
+    let bd = Infinity;
+    for (const p of this.panels.values()) {
+      if (!p.powered || p.solved || !p.group.visible) continue;
+      const d = Math.min(...this.anchorsOf(p).map((a) => Math.hypot(a.x - pos.x, a.z - pos.z)));
+      if (d < p.reach + 2.5 && d < bd) {
+        bd = d;
+        best = p;
+      }
+    }
+    return best;
+  }
+
+  /** Le joueur demande de l'aide : un palier de plus (où regarder → la pièce → le geste). */
+  requestHelp(): void {
+    if (!this.hintsOn || this.busy) return;
+    const p = this.helpTarget();
+    if (!p) return;
+    if ((this.stuck.get(p.id) ?? 0) < HELP_READY || this.time < this.helpCooldown) {
+      this.audio.denied();
+      return;
+    }
+    const level = this.helpLevel.get(p.id) ?? 0;
+    if (level === 0) this.showGoal(p);
+    else {
+      if (p.hint() === null) this.showGoal(p);
+      if (level >= 2) this.gestureHelp.add(p.id);
+    }
+    this.helpLevel.set(p.id, Math.min(2, level + 1));
+    this.helpCooldown = this.time + HELP_COOLDOWN;
+    this.audio.crystal(4);
+  }
+
+  /** Premier palier : des anneaux sur ce qui n'est pas encore comme il faut. */
+  private showGoal(p: PuzzleView): void {
+    const pts = p.goalPoints?.() ?? [];
+    if (!pts.length) {
+      // l'énigme entière
+      const a = this.anchorsOf(p)[0]!;
+      pts.push({ pos: new THREE.Vector3(a.x, heightAt(a.x, a.z) + 1.2, a.z), r: 0.8 });
+    }
+    this.goalRings.show(pts, this.time);
+  }
+
+  /** Tests : temps passé devant une énigme, et où en est son aide. */
+  debugHelp(id: string, addStuck = 0): { level: number; gesture: boolean; stuck: number } {
+    if (addStuck) this.stuck.set(id, (this.stuck.get(id) ?? 0) + addStuck);
+    return { level: this.helpLevel.get(id) ?? 0, gesture: this.gestureHelp.has(id), stuck: this.stuck.get(id) ?? 0 };
+  }
+
+  /** Aide complète tout de suite (tests) : la pièce et le geste. */
+  showHint(id: string): number | null {
+    const p = this.panels.get(id);
+    if (!p) return null;
+    this.gestureHelp.add(id);
+    return p.hint();
   }
 
   private applyDay(): void {
@@ -1169,6 +1248,7 @@ export class Game {
       onCheat: (action, id) => this.cheat(action, id),
       onCinematic: (which) => this.replay(which),
       onTeleport: (place) => this.teleportTo(place),
+      onHelp: () => this.requestHelp(),
     }, settings, this.save.solved.length > 0, touch, this.cheatList(), PLACES.map((p) => ({ id: p.id, label: p.label })));
     this.refreshJournal();
     this.refreshMap();
@@ -1201,9 +1281,11 @@ export class Game {
       }
     };
     this.input.onClick = (button) => this.click(button === 2);
+    this.input.onHelp = () => this.requestHelp();
     // manette : démarre sans verrouillage de la souris
     this.gamepad = new GamepadInput(this.player);
     this.gamepad.onAct = (reverse) => this.click(reverse);
+    this.gamepad.onHelp = () => this.requestHelp();
     this.gamepad.onStart = () => {
       if (this.playing) {
         this.playing = false;
@@ -1368,6 +1450,8 @@ export class Game {
       navigator.vibrate?.([30, 50, 70]);
     }
     if (!this.save.solved.includes(id)) this.save.solved.push(id);
+    this.helpLevel.delete(id);
+    this.gestureHelp.delete(id);
     // sans la séquence (tests) : le phare remonte aussitôt
     if (id === RACINE_MERE.id && !this.rootsEnd) this.applyDeep();
     this.audio.solved();
@@ -1470,7 +1554,7 @@ export class Game {
       this.noteAt = null;
     }
     // l'aide désigne la pièce visée : montrer le bon bouton
-    const help = next?.panel.activeHint();
+    const help = next && this.gestureHelp.has(next.panel.id) ? next.panel.activeHint() : null;
     this.hud?.setMouseHint(help && help.k === next!.k ? (help.reverse ? 'right' : 'left') : null);
   }
 
@@ -1558,6 +1642,7 @@ export class Game {
       this.glintSecrets();
     }
     this.sparks.update(dt);
+    this.goalRings.update(this.time);
     this.updateDay(dt);
     // après la fin du phare, le guide revient pour les zones de la suite (ciel, racines)
     this.guides.update(this.time, this.guidesOn && (!this.ended || !!this.save.sky) && !this.busy);

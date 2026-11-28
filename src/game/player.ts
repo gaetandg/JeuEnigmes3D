@@ -104,9 +104,12 @@ export class DesktopInput {
   locked = false;
   onClick: ((button: number) => void) | null = null;
   onLockChange: ((locked: boolean) => void) | null = null;
+  /** touche H : demander de l'aide */
+  onHelp: (() => void) | null = null;
 
   constructor(private canvas: HTMLCanvasElement, private player: Player) {
     window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyH' && !e.repeat && this.locked) this.onHelp?.();
       this.keys.add(e.code);
       this.sync();
     });

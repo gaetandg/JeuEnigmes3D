@@ -53,7 +53,11 @@ export function exposeDebugApi(game: Game): void {
     hovered: () => game.hoveredPiece(),
     drawCalls: () => game.lastDrawCalls,
     ended: () => game.ended,
-    hint: (id: string) => game.panels.get(id)?.hint() ?? null,
+    hint: (id: string) => game.showHint(id),
+    /** aide graduée : demander (comme la touche H), et le temps passé devant une énigme */
+    requestHelp: () => game.requestHelp(),
+    goalRings: () => game.goalRings.active,
+    help: (id: string, addStuck = 0) => game.debugHelp(id, addStuck),
     /** l'aide affichée : pièce désignée et sens du geste (clic droit si reverse) */
     hintMove: (id: string) => game.panels.get(id)?.activeHint() ?? null,
     /** pochoir raté : nombre de cases marquées en rouge */

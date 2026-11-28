@@ -41,8 +41,9 @@ bouton ❚❚ = pause. La qualité graphique passe en « basse » automatiquemen
 
 **Réglages** : volume, musique (générée, une tonalité par zone), sensibilité, qualité graphique (haute / moyenne / basse),
 symboles des couleurs pour les personnes daltoniennes (▲ rouge, ■ vert, ● bleu),
-aides discrètes (après 3 minutes bloqué devant une énigme, une pièce à changer luit doucement ; la souris
-dessinée montre le bon bouton),
+aide à la demande (après un moment devant une énigme, une lanterne apparaît ; touche H, bouton Y ou
+toucher la lanterne : d'abord où regarder, puis la pièce à changer, puis la souris dessinée montre le
+bon bouton),
 guide lumineux (colonnes au-dessus des énigmes en attente), champ de vision, inversion de l'axe
 vertical, balancement de la marche. **Manette** : stick gauche marcher, stick droit regarder,
 A agir, B ou X sens inverse, Start pause.

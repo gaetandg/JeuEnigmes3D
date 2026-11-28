@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ringAround } from './goalRings.ts';
 import { initialState, interact, isValidState, simulate, solve } from '../core/light/index.ts';
 import type { Cell, Color, LightPuzzle, LightState, SimResult } from '../core/light/index.ts';
 import { heightAt } from '../world/terrain.ts';
@@ -254,6 +255,10 @@ export class WorldLightPuzzle implements PuzzleView {
   /** miroirs des tours : un clic suffit, dans un sens ou l'autre */
   activeHint(): { k: number; reverse: boolean } | null {
     return this.hintK !== null && this.powered && !this.solved ? { k: this.hintK, reverse: false } : null;
+  }
+
+  goalPoints(): { pos: THREE.Vector3; r: number }[] {
+    return this.target && !this.solved ? [ringAround(this.target.mesh, 1.5)] : [];
   }
 
   hint(): number | null {

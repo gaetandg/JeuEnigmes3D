@@ -231,3 +231,20 @@ input[type='checkbox'] { width: 20px; height: 20px; accent-color: var(--accent);
 .carte-legende .l-locked { width: 5px; height: 5px; background: rgba(120, 106, 88, 0.6); }
 .carte-legende .l-shard { width: auto; height: auto; border-radius: 0; color: #a77fd6; }
 .carte-zones { font-size: 12px; line-height: 1.5; margin: 4px 0 0; opacity: 0.85; }
+
+/* lanterne d'aide (à la demande) */
+.help-lamp {
+  position: absolute; right: 22px; bottom: 26%;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 6px 8px; border: 0; border-radius: 12px;
+  background: rgba(20, 28, 36, 0.5); cursor: pointer;
+  animation: mouse-hint-in 0.3s ease-out;
+}
+.help-lamp .lamp-frame { fill: none; stroke: #e9dcc0; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.help-lamp .lamp-glass { fill: rgba(255, 236, 190, 0.18); stroke: #e9dcc0; stroke-width: 2.5; }
+.help-lamp .lamp-flame { fill: #ffd36b; opacity: 0.8; }
+.help-lamp .lamp-key { font: 700 11px/1 system-ui, sans-serif; color: #e9dcc0; border: 1.5px solid #e9dcc0; border-radius: 4px; padding: 1px 4px; }
+.help-lamp .lamp-key:empty { display: none; }
+.help-lamp.offer .lamp-flame { animation: lamp-flicker 1.6s ease-in-out infinite; }
+.help-lamp.offer { box-shadow: 0 0 18px rgba(255, 200, 100, 0.45); }
+@keyframes lamp-flicker { 50% { opacity: 1; fill: #fff1b8; } }

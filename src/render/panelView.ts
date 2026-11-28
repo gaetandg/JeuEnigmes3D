@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { ringAround } from './goalRings.ts';
 import {
   BLUE, GREEN, RED,
   initialState, interact, isValidState, leverHintMove, objectLevers, piecesUsed, simulate, solve,
@@ -614,6 +615,12 @@ export class LightPanel implements PuzzleView {
     this.hover.visible = true;
     this.hover.position.copy(this.cellPos(piece.cellIndex));
     this.hover.position.y = this.cell * 0.08;
+  }
+
+  goalPoints(): { pos: THREE.Vector3; r: number }[] {
+    if (!this.sim) return [];
+    const bad = new Set(this.sim.crystals.filter((c) => !c.ok).map((c) => c.index));
+    return this.crystals.filter((c) => bad.has(c.index)).map((c) => ringAround(c.mesh, 1.6));
   }
 
   hint(): number | null {

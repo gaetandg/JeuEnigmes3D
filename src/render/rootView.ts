@@ -5,6 +5,7 @@ import { heightAt } from '../world/terrain.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { pulse } from './hints.ts';
+import { ringAround } from './goalRings.ts';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 export interface RootPlacement {
@@ -235,6 +236,17 @@ export class RootView implements PuzzleView {
       this.solvedAt = this.time;
       this.onSolved?.();
     }
+  }
+
+  goalPoints(): { pos: THREE.Vector3; r: number }[] {
+    const chk = checkRoots(this.puzzle, this.state);
+    const out: { pos: THREE.Vector3; r: number }[] = [];
+    this.tiles.forEach((t, i) => {
+      const want = this.puzzle.tiles[i]!.color ?? 0;
+      if (t.crystal && chk.color[i] !== want) out.push(ringAround(t.crystal, 1.6));
+      for (const cap of t.caps) if (cap.visible) out.push(ringAround(cap, 2.2));
+    });
+    return out;
   }
 
   hint(): number | null {

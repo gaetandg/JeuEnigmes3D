@@ -676,3 +676,39 @@ test('la progression est sauvegardée et restaurée', async ({ page }) => {
   expect(await page.evaluate(() => window.__game.state('a2'))).toEqual(state);
   expect(await page.evaluate(() => window.__game.gateOpen('porte-plage'))).toBe(1);
 });
+
+test("l'aide se demande, par paliers : où regarder, puis la pièce, puis le geste", async ({ page }) => {
+  await boot(page);
+  await page.evaluate(() => {
+    window.__game.solve('a1');
+    window.__game.view('a2');
+  });
+  await waitFrames(page, 2);
+  // trop tôt : rien
+  await page.evaluate(() => window.__game.requestHelp());
+  expect(await page.evaluate(() => window.__game.goalRings())).toBe(false);
+  expect((await page.evaluate(() => window.__game.help('a2'))).level).toBe(0);
+  // après un moment devant l'énigme : d'abord, où regarder (des anneaux sur les cristaux)
+  await page.evaluate(() => {
+    window.__game.help('a2', 60);
+    window.__game.requestHelp();
+  });
+  expect(await page.evaluate(() => window.__game.goalRings())).toBe(true);
+  expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 1, gesture: false });
+  // pas deux demandes de suite
+  await page.evaluate(() => window.__game.requestHelp());
+  expect((await page.evaluate(() => window.__game.help('a2'))).level).toBe(1);
+  // ensuite la pièce (sans le geste), puis la pièce et le bon bouton
+  await page.evaluate(() => {
+    window.__game.advance(9);
+    window.__game.requestHelp();
+  });
+  expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 2, gesture: false });
+  expect(await page.evaluate(() => window.__game.hintMove('a2'))).not.toBeNull();
+  await page.evaluate(() => {
+    window.__game.advance(9);
+    window.__game.requestHelp();
+  });
+  expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 2, gesture: true });
+  expect(errors).toEqual([]);
+});

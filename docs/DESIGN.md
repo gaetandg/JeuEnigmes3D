@@ -38,6 +38,12 @@ Au sommet se dresse un **phare éteint**. Pour le rallumer, il faut comprendre t
    résolue ; qui palpite : à faire ; éteinte : pas encore accessible), avec les éclats trouvés,
    notre position, l'Île du Ciel et la grotte en médaillons une fois découvertes, et le compte
    par zone. Vérifié par `tests/unit/progression.test.ts`.
+   **Aide graduée, demandée** : rien ne s'impose. Après 45 s devant une énigme, une petite
+   lanterne apparaît (elle palpite doucement après 2 min 30) ; la touche H (bouton Y, ou toucher
+   la lanterne) donne un palier de plus à chaque demande, une toutes les 8 s : **où regarder**
+   (des anneaux palpitent sur ce qui n'est pas encore comme il faut : cristaux non éclairés,
+   creux sans leur bille, murs dont l'ombre ne colle pas, fuites de racines), puis **la pièce**
+   à changer, puis **le geste** (la souris dessinée, bouton allumé).
 6. **Contemplation.** Palette forte, brouillard doux, sons naturels, aucune pression de temps.
 
 ## 3. Zone 1 — Lumière
