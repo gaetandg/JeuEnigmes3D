@@ -265,6 +265,8 @@ export const BUBBLE_ARRIVAL = { x: BUBBLE.x, z: BUBBLE.z - 24, yaw: Math.PI };
 export const BUBBLE_LIFT = { x: BUBBLE.x + 7, z: BUBBLE.z - 27 };
 /** sur la plage du départ, la pierre qui s'allume quand la Racine-mère est reliée */
 export const BEACH_STONE = { x: START.x + 7, z: START.z - 3 };
+/** le 100 % : là où la barque de papier attend, au bord de l'eau devant la plage du départ */
+export const PAPER_BOAT = { x: START.x - 5, z: START.z + 10.5 };
 /** six tables de vases en cercle, la Grande Écluse au centre */
 export const VASE_PANELS: PanelSpot[] = Array.from({ length: 6 }, (_, i) => {
   // de l'arrivée (nord), dans le sens des aiguilles d'une montre ; la place nord reste libre

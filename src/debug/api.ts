@@ -105,6 +105,36 @@ export function exposeDebugApi(game: Game): void {
     showGroup: (name: string, on: boolean) => {
       for (const top of game.scene.children) if ((top.name || top.type) === name) top.visible = on;
     },
+    /** diagnostic : lumières de la scène, par type (visibles / toutes) */
+    lightStats: () => {
+      const out: Record<string, string> = {};
+      const n: Record<string, [number, number]> = {};
+      game.scene.traverse((o) => {
+        if (!(o as THREE.Light).isLight) return;
+        let vis = true;
+        for (let p: THREE.Object3D | null = o; p; p = p.parent) if (!p.visible) vis = false;
+        const e = (n[o.type] ??= [0, 0]);
+        e[1]++;
+        if (vis) e[0]++;
+      });
+      for (const [k, [v, t]] of Object.entries(n)) out[k] = `${v}/${t}`;
+      return out;
+    },
+    /** diagnostic : les maillages visibles d'un groupe, par géométrie et matériau (combien de chaque) */
+    inspect: (name: string) => {
+      const out: Record<string, number> = {};
+      for (const top of game.scene.children) {
+        if ((top.name || top.type) !== name) continue;
+        top.traverseVisible((o) => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh && !(o as THREE.Sprite).isSprite) return;
+          const mats = Array.isArray(m.material) ? m.material.map((x) => x.type).join('+') : (m.material as THREE.Material).type;
+          const key = `${(m as THREE.InstancedMesh).isInstancedMesh ? 'inst ' : ''}${m.geometry?.type ?? ''} ${mats}`;
+          out[key] = (out[key] ?? 0) + 1;
+        });
+      }
+      return out;
+    },
     /** diagnostic : nombre de maillages visibles par groupe de premier niveau de la scène */
     sceneStats: () => {
       const out: Record<string, number> = {};

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { LoreNote } from '../world/lore.ts';
 import { heightAt } from '../world/terrain.ts';
 import { stoneMaterial } from '../world/props.ts';
@@ -46,7 +47,13 @@ export class LoreNotes {
     const stone = stoneMaterial('#cfc4ae');
     const pedestals: THREE.Mesh[] = [];
     const pedGeo = new THREE.CylinderGeometry(0.2, 0.28, 0.75, 7);
-    const sheetGeo = new THREE.PlaneGeometry(0.52, 0.36);
+    // billet plié en deux : les deux pans dans une seule géométrie (un appel de dessin par billet)
+    const tentGeo = mergeGeometries([-1, 1].map((s) => {
+      const leaf = new THREE.PlaneGeometry(0.52, 0.36);
+      leaf.rotateX(-Math.PI / 2 + s * 0.55);
+      leaf.translate(0, 0, s * 0.09);
+      return leaf;
+    }))!;
     const glowTex = glowTexture();
     const pickGeo = new THREE.BoxGeometry(0.8, 1.4, 0.8);
     const pickMat = new THREE.MeshBasicMaterial({ visible: false });
@@ -63,13 +70,9 @@ export class LoreNotes {
         color: '#fbf3df', roughness: 0.9, side: THREE.DoubleSide, emissive: '#ffd98a', emissiveIntensity: 0,
       });
       const paper = new THREE.Group();
-      for (const s of [-1, 1]) {
-        const leaf = new THREE.Mesh(sheetGeo, mat);
-        leaf.rotation.x = -Math.PI / 2 + s * 0.55;
-        leaf.position.z = s * 0.09;
-        leaf.castShadow = true;
-        paper.add(leaf);
-      }
+      const tent = new THREE.Mesh(tentGeo, mat);
+      tent.castShadow = true;
+      paper.add(tent);
       paper.position.set(note.x, y + 0.85, note.z);
       paper.rotation.y = i * 2.3;
       this.group.add(paper);

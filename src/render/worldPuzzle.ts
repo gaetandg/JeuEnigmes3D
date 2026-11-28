@@ -17,6 +17,7 @@ export interface WorldPlacement {
   name?: string;
 }
 import { stoneMaterial } from '../world/props.ts';
+import { mergeStatic } from './merge.ts';
 import type { Colliders } from '../game/colliders.ts';
 import { displayColor } from './panelView.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
@@ -66,11 +67,26 @@ export class WorldLightPuzzle implements PuzzleView {
 
   readonly place: WorldPlacement;
 
+  /** matériaux des parties fixes, partagés par toutes les pièces (et fusionnables) */
+  private static mats: { stone: THREE.MeshStandardMaterial; light: THREE.MeshStandardMaterial; gold: THREE.MeshStandardMaterial; goldFlat: THREE.MeshBasicMaterial; mirror: THREE.MeshStandardMaterial; glass: THREE.MeshStandardMaterial } | null = null;
+  private static shared() {
+    return (WorldLightPuzzle.mats ??= {
+      stone: stoneMaterial(),
+      light: stoneMaterial('#d8cdbb'),
+      gold: new THREE.MeshStandardMaterial({ color: '#c9a45c', metalness: 0.8, roughness: 0.3 }),
+      goldFlat: new THREE.MeshBasicMaterial({ color: '#c9a45c' }),
+      mirror: new THREE.MeshStandardMaterial({ color: '#f2f6fa', roughness: 0.05, metalness: 1 }),
+      glass: new THREE.MeshStandardMaterial({ color: '#cfeeff', roughness: 0.05, metalness: 0.5, transparent: true, opacity: 0.5 }),
+    });
+  }
+
   constructor(readonly puzzle: LightPuzzle, colliders: Colliders, place: WorldPlacement = TOWERS) {
     this.place = place;
     this.group.name = place.name ?? 'tours-miroirs';
     this.state = initialState(puzzle);
     puzzle.cells.forEach((cell, i) => this.build(cell, i, colliders));
+    // socles, piliers, colonnes, miroirs fixes : un maillage par matériau
+    mergeStatic(this.group);
     const geo = new THREE.BoxGeometry(1, 1, 1);
     const n = puzzle.cells.length * 4;
     this.beams = new THREE.InstancedMesh(geo, new THREE.MeshBasicMaterial({ toneMapped: false }), n);
@@ -101,7 +117,9 @@ export class WorldLightPuzzle implements PuzzleView {
     const sc = this.place.scale ?? 1;
     const Y = this.place.beamY / sc;
     const k = this.puzzle.interactive.indexOf(i);
-    const stone = stoneMaterial();
+    const M = WorldLightPuzzle.shared();
+    const stone = M.stone;
+    const fixed = (...os: THREE.Object3D[]) => os.forEach((o) => (o.userData.static = true));
     const addCircle = (x: number, z: number, r: number) => colliders.addCircle(p.x + (x - p.x) * sc, p.z + (z - p.z) * sc, r * sc);
     const add = (o: THREE.Object3D) => {
       o.scale.multiplyScalar(sc);
@@ -122,7 +140,7 @@ export class WorldLightPuzzle implements PuzzleView {
         const base = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.4, Y - 0.6, 8), stone);
         base.position.y = (Y - 0.6) / 2;
         g.add(base);
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.18, 6, 24), new THREE.MeshStandardMaterial({ color: '#c9a45c', metalness: 0.8, roughness: 0.3 }));
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.18, 6, 24), M.gold);
         ring.position.y = Y;
         ring.rotation.y = Math.PI / 2;
         g.add(ring);
@@ -131,6 +149,7 @@ export class WorldLightPuzzle implements PuzzleView {
         lens.position.set(0.05, Y, 0);
         lens.rotation.y = Math.PI / 2;
         g.add(lens);
+        fixed(base, ring, lens);
         g.rotation.y = [Math.PI / 2, 0, -Math.PI / 2, Math.PI][def.dir]!;
         add(g);
         addCircle(p.x, p.z, 1.5);
@@ -143,25 +162,23 @@ export class WorldLightPuzzle implements PuzzleView {
         const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.7, Y - 1.4, 8), stone);
         pillar.position.y = (Y - 1.4) / 2;
         g.add(pillar);
-        const ringMat = new THREE.MeshBasicMaterial({ color: '#c9a45c' });
+        // l'anneau d'une tour qu'on tourne change de couleur au survol : le sien ; celui d'une fixe, partagé
+        const ringMat = def.fixed ? M.goldFlat : new THREE.MeshBasicMaterial({ color: '#c9a45c' });
         const ring = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.09, 6, 24), ringMat);
         ring.rotation.x = Math.PI / 2;
         ring.position.y = Y - 1.4;
         g.add(ring);
         const head = new THREE.Group();
         head.position.y = Y;
-        const frame = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.8, 0.3), stoneMaterial('#d8cdbb'));
+        const frame = new THREE.Mesh(new THREE.BoxGeometry(3.4, 2.8, 0.3), M.light);
         head.add(frame);
-        const pane = new THREE.Mesh(
-          new THREE.BoxGeometry(3.0, 2.4, 0.34),
-          glass
-            ? new THREE.MeshStandardMaterial({ color: '#cfeeff', roughness: 0.05, metalness: 0.5, transparent: true, opacity: 0.5 })
-            : new THREE.MeshStandardMaterial({ color: '#f2f6fa', roughness: 0.05, metalness: 1 }),
-        );
+        const pane = new THREE.Mesh(new THREE.BoxGeometry(3.0, 2.4, 0.34), glass ? M.glass : M.mirror);
         head.add(pane);
         const angle = (o: number) => (o === 0 ? Math.PI / 4 : -Math.PI / 4);
         head.rotation.y = angle(def.fixed ? def.orient : this.state[k]!);
         g.add(head);
+        fixed(pillar);
+        if (def.fixed) fixed(ring, frame, pane);
         add(g);
         addCircle(p.x, p.z, 0.9);
         if (!def.fixed) {
@@ -189,11 +206,12 @@ export class WorldLightPuzzle implements PuzzleView {
         body.position.y = 0.7 + (Y + 1.0) / 2;
         body.castShadow = false;
         g.add(body);
-        const cap = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.5, 2.8), stoneMaterial('#d8cdbb'));
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.5, 2.8), M.light);
         cap.position.y = Y + 1.95;
         g.add(cap);
         add(g);
         body.castShadow = false;
+        fixed(base, body, cap);
         addCircle(p.x, p.z, 1.6);
         break;
       }
@@ -208,6 +226,7 @@ export class WorldLightPuzzle implements PuzzleView {
         mesh.scale.y = 1.6;
         mesh.position.y = Y + 0.3;
         g.add(mesh);
+        fixed(ped, mesh);
         add(g);
         addCircle(p.x, p.z, 1.4);
         this.darks.push({ index: i, mat });
@@ -225,6 +244,7 @@ export class WorldLightPuzzle implements PuzzleView {
         mesh.scale.y = 1.6;
         mesh.position.y = Y + 0.3;
         g.add(mesh);
+        fixed(ped);
         const glow = new THREE.PointLight(displayColor(def.color), 0, 14, 1.5);
         glow.position.y = Y + 0.3;
         g.add(glow);

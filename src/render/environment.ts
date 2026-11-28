@@ -127,8 +127,8 @@ export interface Lights {
   hemi: THREE.HemisphereLight;
   /** direction de la lumière du soleil (jamais sous l'horizon) */
   sunDir: THREE.Vector3;
-  /** Fait suivre la zone d'ombre au joueur. */
-  follow: (target: THREE.Vector3) => void;
+  /** Fait suivre la zone d'ombre au joueur ; vrai si elle a bougé (la carte d'ombre est à refaire). */
+  follow: (target: THREE.Vector3) => boolean;
 }
 
 export function buildLights(scene: THREE.Scene): Lights {
@@ -154,8 +154,15 @@ export function buildLights(scene: THREE.Scene): Lights {
     const snap = 2;
     const x = Math.round(t.x / snap) * snap;
     const z = Math.round(t.z / snap) * snap;
-    sun.target.position.set(x, t.y, z);
-    sun.position.set(x + sunDir.x * 100, t.y + sunDir.y * 100, z + sunDir.z * 100);
+    const y = Math.round(t.y / snap) * snap;
+    const px = x + sunDir.x * 100;
+    const py = y + sunDir.y * 100;
+    const pz = z + sunDir.z * 100;
+    const p = sun.position;
+    if (p.x === px && p.y === py && p.z === pz) return false;
+    sun.target.position.set(x, y, z);
+    p.set(px, py, pz);
+    return true;
   };
   return { sun, hemi, sunDir, follow };
 }

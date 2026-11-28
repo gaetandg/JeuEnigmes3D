@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { heightAt } from './terrain.ts';
 import { ATELIER, GRAND_PLI } from './layout.ts';
 import { stoneMaterial } from './props.ts';
+import { mergeStatic } from '../render/merge.ts';
 import { mulberry32 } from './noise.ts';
 import type { Colliders } from '../game/colliders.ts';
 
@@ -40,11 +41,13 @@ export function buildAtelier(colliders: Colliders): { group: THREE.Group; update
     for (const s of [-1, 1]) {
       const post = new THREE.Mesh(new THREE.BoxGeometry(0.25, 4.2, 0.25), wood);
       post.position.set(0, 2.1, s * 2);
+      post.userData.static = true;
       frame.add(post);
       colliders.addCircle(cx + Math.sin(a) * s * 2, cz + Math.cos(a) * s * 2 * -1, 0.3);
     }
     const beam = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 5.2), wood);
     beam.position.y = 4.2;
+    beam.userData.static = true;
     frame.add(beam);
     // lés de papier suspendus
     for (let k = -1; k <= 1; k++) {
@@ -75,9 +78,12 @@ export function buildAtelier(colliders: Colliders): { group: THREE.Group; update
     g.add(pole);
     const l = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.5, 8), lantern);
     l.position.set(x, y + 2.75, z);
+    pole.userData.static = l.userData.static = true;
     g.add(l);
     colliders.addCircle(x, z, 0.25);
   }
+  // poteaux, poutres, mâts et lanternes ne bougent pas : un maillage par matériau (les lés, eux, ondulent)
+  mergeStatic(g);
   void GRAND_PLI;
 
   // les lés ondulent au vent

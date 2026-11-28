@@ -125,27 +125,30 @@ export function buildBubble(colliders: Colliders): Bubble {
 
   // ── dehors : algues qui ondulent, poissons, rais de lumière ──
   const kelpMat = new THREE.MeshStandardMaterial({ color: '#2f8a5a', roughness: 0.8, side: THREE.DoubleSide, emissive: '#0d3a22', emissiveIntensity: 0.3 });
-  const kelps: THREE.Group[] = [];
+  // un seul maillage instancié : chaque algue est une lame (hauteur par l'échelle) qui ondule
+  const kelps: THREE.Object3D[] = [];
   for (let i = 0; i < 60; i++) {
     const a = rnd() * Math.PI * 2;
     const r = BUBBLE.r + 4 + rnd() * 40;
-    const k = new THREE.Group();
+    const k = new THREE.Object3D();
     k.position.set(Math.cos(a) * r, BUBBLE.y - 1.3, Math.sin(a) * r);
-    const h = 6 + rnd() * 14;
-    const blade = new THREE.Mesh(new THREE.PlaneGeometry(0.7, h, 1, 6), kelpMat);
-    blade.position.y = h / 2;
-    k.add(blade);
+    k.scale.set(1, 6 + rnd() * 14, 1);
     k.rotation.y = rnd() * 6;
     k.userData.phase = rnd() * 6;
-    g.add(k);
     kelps.push(k);
   }
+  const bladeGeo = new THREE.PlaneGeometry(0.7, 1, 1, 6);
+  bladeGeo.translate(0, 0.5, 0);
+  const kelpMesh = new THREE.InstancedMesh(bladeGeo, kelpMat, kelps.length);
+  kelpMesh.frustumCulled = false;
+  g.add(kelpMesh);
   const fishCount = 90;
   const fish = new THREE.InstancedMesh(new THREE.ConeGeometry(0.22, 0.8, 5).rotateZ(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: '#ffd27a', roughness: 0.4, emissive: '#7a4a10', emissiveIntensity: 0.4 }), fishCount);
   fish.frustumCulled = false;
   const fishData = Array.from({ length: fishCount }, (_, i) => ({ r: BUBBLE.r + 3 + (i % 3) * 4 + rnd() * 3, y: BUBBLE.y + 4 + (i % 5) * 4 + rnd() * 2, a0: rnd() * Math.PI * 2, sp: (0.08 + rnd() * 0.06) * (i % 2 ? 1 : -1) }));
   g.add(fish);
   const rayMat = new THREE.MeshBasicMaterial({ color: '#bff0ff', transparent: true, opacity: 0.035, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false });
+  const rays: THREE.Mesh[] = [];
   for (let i = 0; i < 7; i++) {
     const a = rnd() * Math.PI * 2;
     const r = BUBBLE.r + 6 + rnd() * 30;
@@ -153,7 +156,9 @@ export function buildBubble(colliders: Colliders): Bubble {
     ray.position.set(Math.cos(a) * r, BUBBLE.y / 2, Math.sin(a) * r);
     ray.rotation.z = (rnd() - 0.5) * 0.3;
     g.add(ray);
+    rays.push(ray);
   }
+  mergeMeshes(rays, g, rayMat); // les rais ne bougent pas : un seul maillage
 
   // ── les pierres de passage : la plage du départ ↔ la Bulle ──
   const glow = new THREE.MeshBasicMaterial({ color: '#8fe8ff', transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
@@ -204,7 +209,12 @@ export function buildBubble(colliders: Colliders): Bubble {
     update(time: number) {
       glow.opacity = open ? 0.2 + 0.06 * Math.sin(time * 1.4) : 0;
       for (const s of stones) (s.userData.bub as THREE.Mesh).position.y = 2.2 + Math.sin(time * 1.3) * 0.25;
-      for (const k of kelps) k.rotation.z = Math.sin(time * 0.6 + (k.userData.phase as number)) * 0.12;
+      kelps.forEach((k, i) => {
+        k.rotation.z = Math.sin(time * 0.6 + (k.userData.phase as number)) * 0.12;
+        k.updateMatrix();
+        kelpMesh.setMatrixAt(i, k.matrix);
+      });
+      kelpMesh.instanceMatrix.needsUpdate = true;
       const m = new THREE.Matrix4();
       const q = new THREE.Quaternion();
       const one = new THREE.Vector3(1, 1, 1);

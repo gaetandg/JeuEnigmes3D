@@ -1,5 +1,5 @@
 import { distToPath, heightAt } from '../world/terrain.ts';
-import { BUBBLE, CAVE, LIFT, LIGHTHOUSE, SKY, START, caveEdge, skyEdge } from '../world/layout.ts';
+import { BUBBLE, CAVE, LIFT, LIGHTHOUSE, PAPER_BOAT, SKY, START, caveEdge, skyEdge } from '../world/layout.ts';
 
 /**
  * La carte du gardien (menu pause) : l'île dessinée à l'encre sur un vieux papier, d'après son
@@ -20,6 +20,31 @@ export interface MapMark {
   big?: boolean;
 }
 
+/** Une barque de papier : coque en trapèze et voile en triangle, dorées. */
+function paperBoat(g: CanvasRenderingContext2D, x: number, y: number, r: number, glow: number): void {
+  g.save();
+  g.fillStyle = '#e8b64a';
+  g.strokeStyle = INK;
+  g.lineWidth = 1;
+  g.globalAlpha = 0.55 + 0.45 * glow;
+  g.beginPath();
+  g.moveTo(x - r * 1.3, y);
+  g.lineTo(x + r * 1.3, y);
+  g.lineTo(x + r * 0.7, y + r * 0.7);
+  g.lineTo(x - r * 0.7, y + r * 0.7);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  g.beginPath();
+  g.moveTo(x - r * 0.6, y);
+  g.lineTo(x, y - r * 1.3);
+  g.lineTo(x + r * 0.6, y);
+  g.closePath();
+  g.fill();
+  g.stroke();
+  g.restore();
+}
+
 export interface MapData {
   marks: MapMark[];
   /** éclats trouvés (zone : ciel ou racines pour ceux de la suite) */
@@ -32,6 +57,8 @@ export interface MapData {
   deep: boolean;
   /** la Bulle visitée */
   bubble: boolean;
+  /** le 100 % : la barque de papier attend sur la plage */
+  boat?: boolean;
 }
 
 export const ZONE_NAMES: Record<MapZone, string> = {
@@ -363,6 +390,11 @@ export function drawMap(canvas: HTMLCanvasElement, data: MapData, t: number, siz
   for (const sh of data.shards) {
     const p = where(sh.zone ?? null, sh.x, sh.z);
     if (p) star(g, p[0], p[1], 5 * s);
+  }
+  // le 100 % : une petite barque dorée, qui palpite, au bord de l'eau
+  if (data.boat) {
+    const [bx, by] = main(PAPER_BOAT.x, PAPER_BOAT.z);
+    paperBoat(g, bx, by, 6 * s, 0.6 + 0.4 * Math.sin(t * 3));
   }
   // nous
   const pl = data.player;
