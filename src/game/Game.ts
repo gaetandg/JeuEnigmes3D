@@ -31,7 +31,7 @@ import { ZONE3, ZONE3_CADRAN } from '../puzzles/zone3.ts';
 import { parseShadow, startState } from '../core/shadow/index.ts';
 import { ShadowView } from '../render/shadowView.ts';
 import { ZONE4_FOLD, ZONE4_LIGHT } from '../puzzles/zone4.ts';
-import { buildTerrain, heightAt } from '../world/terrain.ts';
+import { buildTerrain, heightAt, surfaceAt } from '../world/terrain.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../world/props.ts';
 import type { GateView } from '../world/props.ts';
 import { HORIZON, SUN_GLOW, buildLights, buildSky, buildWater } from '../render/environment.ts';
@@ -483,7 +483,7 @@ export class Game {
     this.addShaft(GRAND_PLI.id, new THREE.Vector3(GRAND_PLI.x, heightAt(GRAND_PLI.x, GRAND_PLI.z) + 8.5, GRAND_PLI.z - 2), '#ffd98a');
 
     this.player = new Player(this.camera, this.colliders);
-    this.player.onStep = () => this.audio.step();
+    this.player.onStep = () => this.audio.step(surfaceAt(this.player.position.x, this.player.position.z));
     this.restore();
     this.applyDeep();
     this.snapCave = true;

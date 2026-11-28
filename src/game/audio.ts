@@ -1,3 +1,5 @@
+import type { Surface } from '../world/terrain.ts';
+
 /**
  * Sons générés en Web Audio (aucun fichier) : vent, vagues, clics, carillons.
  * Le contexte audio ne démarre qu'après un geste du joueur (règle des navigateurs).
@@ -387,24 +389,55 @@ export class Audio {
   }
 
   /** Un pas dans l'herbe ou sur la pierre : bruit bref et feutré. */
-  step(): void {
+  step(surface: Surface = 'grass'): void {
     const ctx = this.ctx;
     if (!ctx || !this.master) return;
+    const r = Math.random();
+    // chaque sol a sa voix : un souffle filtré, plus ou moins long, plus ou moins clair
+    switch (surface) {
+      case 'sand': // un crissement doux et clair
+        this.footNoise('bandpass', 1900 + r * 600, 0.9, 0.06, 0.15);
+        this.footNoise('lowpass', 400, 0.7, 0.04, 0.08);
+        break;
+      case 'path': // terre battue et gravillons
+        this.footNoise('lowpass', 900 + r * 300, 0.7, 0.07, 0.1);
+        this.footNoise('highpass', 3200 + r * 800, 0.7, 0.02, 0.06);
+        break;
+      case 'stone': // un pas net sur la pierre
+        this.footNoise('lowpass', 2200 + r * 500, 0.7, 0.06, 0.05);
+        this.tone(130 + r * 30, ctx.currentTime, 0.07, 0.05, 'sine', this.under > 0.5);
+        break;
+      case 'water': // on patauge
+        this.footNoise('bandpass', 850 + r * 400, 0.6, 0.08, 0.28);
+        this.footNoise('highpass', 2600, 0.7, 0.025, 0.18);
+        break;
+      default: // l'herbe : un froissement sourd
+        this.footNoise('lowpass', 500 + r * 250, 0.7, 0.09, 0.11);
+    }
+  }
+
+  /** Un bruit de pas : du bruit filtré, une attaque nette, une chute en `dur` secondes. */
+  private footNoise(type: BiquadFilterType, freq: number, q: number, gain: number, dur: number): void {
+    const ctx = this.ctx!;
     const src = ctx.createBufferSource();
-    src.buffer = this.noiseBuffer(0.12);
+    // un seul tampon de bruit pour tous les pas, lu à partir d'un point au hasard
+    src.buffer = this.stepNoise ??= this.noiseBuffer(0.6);
     const f = ctx.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = 500 + Math.random() * 250;
+    f.type = type;
+    f.frequency.value = freq;
+    f.Q.value = q;
     const g = ctx.createGain();
     const t = ctx.currentTime;
     g.gain.setValueAtTime(0.0, t);
-    g.gain.linearRampToValueAtTime(0.09, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
-    src.connect(f).connect(g).connect(this.master);
+    g.gain.linearRampToValueAtTime(gain, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f).connect(g).connect(this.master!);
     // sous terre, les pas résonnent
     if (this.under > 0.5 && this.reverb) g.connect(this.reverb);
-    src.start();
+    src.start(t, Math.random() * 0.3);
+    src.stop(t + dur + 0.02);
   }
+  private stepNoise: AudioBuffer | null = null;
 
   /** Les billes roulent sur la pierre : un grondement doux qui vibre, de la durée du geste. */
   roll(dur: number, big = false): void {
