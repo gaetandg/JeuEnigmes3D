@@ -760,11 +760,21 @@ test("la Bulle : la pierre de la plage, la plongée, les vases, et la pierre du 
   // v1 : verser le grand tube dans le petit
   await page.evaluate(() => window.__game.view('v1'));
   expect((await page.evaluate(() => window.__game.panels())).find((x) => x.id === 'v1')!.powered).toBe(true);
-  expect(await page.evaluate(() => window.__game.interact('v1', 0, true))).toBe('denied');
-  expect(await page.evaluate(() => window.__game.interact('v1', 0))).toBe('ok');
+  // gauche et droite comme on les voit : vu de face, le grand tube (plein) est à gauche, le petit
+  // à droite ; le clic droit envoie l'eau vers la droite, le gauche vers la gauche (rien à verser)
+  expect(await page.evaluate(() => window.__game.interact('v1', 0))).toBe('denied');
+  expect(await page.evaluate(() => window.__game.hintMove('v1'))).toBeNull();
+  await page.evaluate(() => window.__game.hint('v1'));
+  expect(await page.evaluate(() => window.__game.hintMove('v1'))).toEqual({ k: 0, reverse: true });
+  expect(await page.evaluate(() => window.__game.interact('v1', 0, true))).toBe('ok');
   await page.evaluate(() => window.__game.advance(1));
   expect((await page.evaluate(() => window.__game.panels())).find((x) => x.id === 'v1')!.solved).toBe(true);
   await page.screenshot({ path: 'test-results/bulle-v1.png' });
+  // un tuyau à sens unique (doré, trois flèches) verse d'un clic comme de l'autre, dans son sens
+  await page.evaluate(() => window.__game.cheat('before', 'v5'));
+  const v5 = await page.evaluate(() => window.__game.panels().find((x) => x.id === 'v5')!);
+  expect(v5.powered).toBe(true);
+  expect(await page.evaluate(() => window.__game.interact('v5', 2))).toBe('ok');
   // la pierre du retour ramène sur la plage ; la suivante plonge d'un fondu
   await page.evaluate(() => {
     window.__game.teleport(107, 353, 0);

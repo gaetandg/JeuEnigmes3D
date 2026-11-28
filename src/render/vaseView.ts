@@ -147,7 +147,8 @@ export class VaseView implements PuzzleView {
         new THREE.Vector3(xs[p.b]!, top, za),
         new THREE.Vector3(xs[p.b]!, yb, za),
       ]);
-      const pipe = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, u * 0.16, 8), pipeMat);
+      // un tuyau à sens unique est doré de bout en bout (et porte une rangée de flèches)
+      const pipe = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, u * 0.16, 8), p.oneWay ? oneWayMat : pipeMat);
       pipe.castShadow = true;
       pipe.userData.static = true;
       this.group.add(pipe);
@@ -170,19 +171,19 @@ export class VaseView implements PuzzleView {
       // sens : une flèche sur le tuyau (deux pour un tuyau à double sens)
       const arrowGeo = new THREE.ConeGeometry(u * 0.28, u * 0.6, 8);
       const dir = Math.sign(xs[p.b]! - xs[p.a]!) || 1;
-      // tuyau à double sens : au survol de sa vanne, le geste de chaque sens au-dessus de sa flèche
-      // (clic gauche : de a vers b ; clic droit, ou appui long : de b vers a)
-      if (!p.oneWay) {
-        const lift = new THREE.Vector3(0, u * 1.6, 0);
-        this.twoWay.set(k, [
-          mid.clone().add(new THREE.Vector3(dir * u * 1.4, 0, 0)).add(lift),
-          mid.clone().add(new THREE.Vector3(-dir * u * 1.4, 0, 0)).add(lift),
-        ]);
-      }
-      for (const side of p.oneWay ? [1] : [1, -1]) {
+      // au survol de la vanne, le geste de chaque sens est dessiné au-dessus de sa flèche :
+      // [vers b, vers a]
+      const lift = new THREE.Vector3(0, u * 2.0, 0);
+      this.arrowsAt.set(k, [
+        mid.clone().add(new THREE.Vector3(dir * u * 1.4, 0, 0)).add(lift),
+        mid.clone().add(new THREE.Vector3(-dir * u * 1.4, 0, 0)).add(lift),
+      ]);
+      // double sens : une flèche de chaque côté ; sens unique : trois flèches dorées, toutes vers b
+      const arrows: [number, number][] = p.oneWay ? [[-1, 1], [0, 1], [1, 1]] : [[1, 1], [-1, -1]];
+      for (const [at, side] of arrows) {
         const ar = new THREE.Mesh(arrowGeo, p.oneWay ? oneWayMat : pipeMat);
         ar.rotation.z = -(dir * side * Math.PI) / 2;
-        ar.position.copy(mid).add(new THREE.Vector3(dir * side * u * 1.4, u * 0.25, 0));
+        ar.position.copy(mid).add(new THREE.Vector3(dir * at * u * 1.4, u * 0.25, 0));
         ar.userData.static = true;
         this.group.add(ar);
       }
@@ -203,10 +204,10 @@ export class VaseView implements PuzzleView {
     reset.userData = { panel: this, k: puzzle.pipes.length };
     this.group.add(reset);
     this.pickables.push(reset);
-    for (const ic of [this.iconMain, this.iconAlt]) {
+    for (const ic of [this.iconMain, this.iconAlt, this.iconAny]) {
       ic.visible = false;
       ic.renderOrder = 6;
-      ic.scale.setScalar(u * 2.4);
+      ic.scale.setScalar(u * 2.6);
       this.group.add(ic);
     }
     // tout ce qui ne bouge pas : un maillage par matériau ; le verre à part, dessiné après l'eau
@@ -231,17 +232,50 @@ export class VaseView implements PuzzleView {
 
   setHover(k: number | null): void {
     this.hovered = this.powered && !this.solved ? k : null;
-    const at = this.hovered !== null ? this.twoWay.get(this.hovered) : undefined;
-    this.iconMain.visible = this.iconAlt.visible = !!at;
-    if (at) {
-      this.iconMain.position.copy(at[0]);
-      this.iconAlt.position.copy(at[1]);
+    const at = this.hovered !== null ? this.arrowsAt.get(this.hovered) : undefined;
+    this.iconMain.visible = this.iconAlt.visible = this.iconAny.visible = false;
+    if (!at) return;
+    if (this.puzzle.pipes[this.hovered!]!.oneWay) {
+      // sens unique : les deux boutons versent dans le sens des flèches
+      this.iconAny.position.copy(at[0]);
+      this.iconAny.visible = true;
+      return;
     }
+    // le clic gauche envoie l'eau vers la gauche (vue d'où l'on est), le clic droit vers la droite
+    const right = this.bRight(this.hovered!);
+    this.iconAlt.position.copy(at[right ? 0 : 1]);
+    this.iconMain.position.copy(at[right ? 1 : 0]);
+    this.iconMain.visible = this.iconAlt.visible = true;
   }
-  /** les tuyaux à double sens : où dessiner le geste de chaque sens */
-  private twoWay = new Map<number, [THREE.Vector3, THREE.Vector3]>();
+  /** pour chaque tuyau : où dessiner le geste de chaque sens, [vers b, vers a] */
+  private arrowsAt = new Map<number, [THREE.Vector3, THREE.Vector3]>();
   private iconMain = new THREE.Sprite(actionIconMaterial(false));
   private iconAlt = new THREE.Sprite(actionIconMaterial(true));
+  private iconAny = new THREE.Sprite(actionIconMaterial('any'));
+
+  /** la caméra du joueur : gauche et droite se comptent depuis là où il regarde */
+  static viewer: THREE.Camera | null = null;
+  private static tmpA = new THREE.Vector3();
+  private static tmpB = new THREE.Vector3();
+
+  /** Le bout b du tuyau k est-il à droite du bout a, vu par le joueur ? */
+  private bRight(k: number): boolean {
+    const [ea, eb] = this.pipes[k]!.ends;
+    const cam = VaseView.viewer;
+    if (!cam) return eb.x > ea.x;
+    this.group.updateWorldMatrix(true, false);
+    cam.updateMatrixWorld();
+    const a = this.group.localToWorld(VaseView.tmpA.copy(ea)).applyMatrix4(cam.matrixWorldInverse);
+    const b = this.group.localToWorld(VaseView.tmpB.copy(eb)).applyMatrix4(cam.matrixWorldInverse);
+    return b.x > a.x;
+  }
+
+  /** Le geste du joueur → le sens du moteur (`true` : de b vers a). */
+  private pourReverse(k: number, click: boolean): boolean {
+    if (this.puzzle.pipes[k]!.oneWay) return false;
+    // clic droit : l'eau va vers la droite ; si b est à droite, c'est de a vers b
+    return click !== this.bRight(k);
+  }
 
   /** Place l'eau (instant : sans animation) et allume les anneaux atteints. */
   private refresh(instant: boolean): void {
@@ -260,6 +294,8 @@ export class VaseView implements PuzzleView {
       this.refresh(false);
       return 'ok';
     }
+    // gauche et droite comme on les voit (et un tuyau à sens unique verse d'un clic ou de l'autre)
+    reverse = this.pourReverse(k, reverse);
     const next = pour(this.puzzle, this.state, { pipe: k, reverse });
     if (!next) return 'denied';
     const amount = Math.abs(next[this.puzzle.pipes[k]!.a]! - this.state[this.puzzle.pipes[k]!.a]!);
@@ -294,7 +330,11 @@ export class VaseView implements PuzzleView {
   }
 
   activeHint(): { k: number; reverse: boolean } | null {
-    return this.hintK !== null && this.powered && !this.solved ? { k: this.hintK, reverse: this.hintRev } : null;
+    if (this.hintK === null || !this.powered || this.solved) return null;
+    // le moteur dit « de b vers a » ; le joueur, lui, voit gauche et droite (même règle, à l'envers)
+    const k = this.hintK;
+    const click = k < this.puzzle.pipes.length && !this.puzzle.pipes[k]!.oneWay ? this.hintRev !== this.bRight(k) : false;
+    return { k, reverse: click };
   }
 
   goalPoints(): { pos: THREE.Vector3; r: number }[] {

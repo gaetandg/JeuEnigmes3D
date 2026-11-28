@@ -11,7 +11,11 @@ const SHADE = 'rgba(20, 24, 30, 0.72)';
  * Dessin d'une action, sans un mot : la souris avec le bon bouton allumé, le doigt qui touche
  * (ou qui reste appuyé), ou la manette avec le bon bouton allumé. `reverse` : l'action inverse.
  */
-function drawIcon(mode: InputMode, reverse: boolean): THREE.CanvasTexture {
+/** l'action : principale (clic gauche), inverse (clic droit), ou l'une ou l'autre (les deux) */
+type Act = boolean | 'any';
+
+function drawIcon(mode: InputMode, act: Act): THREE.CanvasTexture {
+  const reverse = act === true;
   const c = document.createElement('canvas');
   c.width = c.height = 128;
   const g = c.getContext('2d')!;
@@ -32,7 +36,14 @@ function drawIcon(mode: InputMode, reverse: boolean): THREE.CanvasTexture {
     const mid = 58;
     g.fillStyle = GOLD;
     g.beginPath();
-    if (reverse) {
+    if (act === 'any') {
+      // les deux boutons : peu importe lequel
+      g.moveTo(64, y0);
+      g.arcTo(x1, y0, x1, mid, 22);
+      g.lineTo(x1, mid);
+      g.lineTo(x0, mid);
+      g.arcTo(x0, y0, 64, y0, 22);
+    } else if (reverse) {
       g.moveTo(64, y0);
       g.arcTo(x1, y0, x1, mid, 22);
       g.lineTo(x1, mid);
@@ -109,26 +120,32 @@ function drawIcon(mode: InputMode, reverse: boolean): THREE.CanvasTexture {
 
 let mode: InputMode = 'mouse';
 const textures = new Map<string, THREE.CanvasTexture>();
-const tex = (m: InputMode, reverse: boolean) => {
-  const key = `${m}|${reverse}`;
+const tex = (m: InputMode, act: Act) => {
+  const key = `${m}|${act}`;
   let t = textures.get(key);
-  if (!t) textures.set(key, (t = drawIcon(m, reverse)));
+  if (!t) textures.set(key, (t = drawIcon(m, act)));
   return t;
 };
-const mats: Partial<Record<'main' | 'alt', THREE.SpriteMaterial>> = {};
+const ACTS: Record<'main' | 'alt' | 'any', Act> = { main: false, alt: true, any: 'any' };
+const mats: Partial<Record<'main' | 'alt' | 'any', THREE.SpriteMaterial>> = {};
 
-/** Le matériau d'une icône d'action (partagé : il change tout seul avec la commande utilisée). */
-export function actionIconMaterial(reverse: boolean): THREE.SpriteMaterial {
-  const key = reverse ? 'alt' : 'main';
-  return (mats[key] ??= new THREE.SpriteMaterial({ map: tex(mode, reverse), transparent: true, depthTest: false, depthWrite: false, toneMapped: false }));
+/**
+ * Le matériau d'une icône d'action (partagé : il change tout seul avec la commande utilisée).
+ * `true` : l'action inverse ; `'any'` : les deux boutons font la même chose.
+ */
+export function actionIconMaterial(act: Act): THREE.SpriteMaterial {
+  const key = act === 'any' ? 'any' : act ? 'alt' : 'main';
+  return (mats[key] ??= new THREE.SpriteMaterial({ map: tex(mode, act), transparent: true, depthTest: false, depthWrite: false, toneMapped: false }));
 }
 
 /** La commande utilisée a changé : les icônes suivent. */
 export function setInputMode(m: InputMode): void {
   if (m === mode) return;
   mode = m;
-  if (mats.main) mats.main.map = tex(m, false);
-  if (mats.alt) mats.alt.map = tex(m, true);
+  for (const k of ['main', 'alt', 'any'] as const) {
+    const mat = mats[k];
+    if (mat) mat.map = tex(m, ACTS[k]);
+  }
 }
 
 export function inputMode(): InputMode {
