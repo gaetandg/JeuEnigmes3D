@@ -42,10 +42,14 @@ Au sommet se dresse un **phare éteint**. Pour le rallumer, il faut comprendre t
    autour de la rose des vents. Vérifié par `tests/unit/progression.test.ts`.
    **Aide graduée, demandée** : rien ne s'impose. Après 45 s devant une énigme, une petite
    lanterne apparaît (elle palpite doucement après 2 min 30) ; la touche H (bouton Y, ou toucher
-   la lanterne) donne un palier de plus à chaque demande, une toutes les 8 s : **où regarder**
-   (des anneaux palpitent sur ce qui n'est pas encore comme il faut : cristaux non éclairés,
-   creux sans leur bille, murs dont l'ombre ne colle pas, fuites de racines), puis **la pièce**
-   à changer, puis **le geste** (la souris dessinée, bouton allumé).
+   la lanterne) donne un palier de plus à chaque demande. Chaque appui aide vraiment (retour de
+   jeu : des anneaux seuls « n'aident pas ») : **la pièce à toucher** maintenant (et des anneaux
+   sur ce qui n'est pas encore comme il faut : cristaux non éclairés, creux sans leur bille, murs
+   dont l'ombre ne colle pas, fuites de racines), puis **le bon bouton** en plus (la souris
+   dessinée, bouton allumé), puis **pas à pas** : après chaque geste, la pièce suivante, jusqu'au
+   bout. Trois points sous la lanterne s'allument un à un : ceux qui restent éteints disent qu'un
+   nouvel appui en montrera davantage. La touche H dessinée s'enfonce régulièrement, et la flamme
+   s'allume au même instant.
 6. **Contemplation.** Palette forte, brouillard doux, sons naturels, aucune pression de temps.
 
 ## 3. Zone 1 — Lumière

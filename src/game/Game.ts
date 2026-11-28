@@ -71,13 +71,12 @@ const REACH = 5;
 const SHADOW_EVERY = 3;
 /** on pousse la barque du 100 % depuis le bord de l'eau */
 const BOAT_REACH = 7;
-/** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
 /** temps passé devant une énigme avant de pouvoir demander de l'aide (s) */
 const HELP_READY = 45;
 /** au-delà, la lanterne d'aide se met à palpiter doucement (une proposition, jamais imposée) */
 const HELP_OFFER = 150;
-/** délai entre deux demandes d'aide (s) */
-const HELP_COOLDOWN = 8;
+/** délai entre deux demandes d'aide (s) : juste de quoi ne pas tout dérouler d'un appui maintenu */
+const HELP_COOLDOWN = 1.5;
 
 /** Qui alimente quoi : panneaux + énigmes d'environnement. */
 const POWER: { id: string; requires: Req[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU, ...ROOT_PANELS, RACINE_MERE, ...VASE_PANELS, GRANDE_ECLUSE];
@@ -561,14 +560,22 @@ export class Game {
     const target = this.helpTarget();
     const t = target ? this.stuck.get(target.id) ?? 0 : 0;
     this.hud?.setHelp(!target || t < HELP_READY ? 'none' : t < HELP_OFFER ? 'ready' : 'offer');
+    this.hud?.setHelpLevel(target ? this.helpLevel.get(target.id) ?? 0 : 0);
   }
 
   // ── aide graduée, demandée par le joueur (touche H, bouton Y, lanterne au toucher) ──
 
-  /** palier suivant par énigme : 0 où regarder, 1 quelle pièce, 2 quelle pièce et quel geste */
+  /**
+   * Paliers déjà donnés par énigme (0 à 3). Chaque appui aide vraiment (retour de jeu : « ça
+   * allume juste un halo, ça n'aide pas ») : 1 la pièce à toucher (et des anneaux sur ce qui
+   * reste à faire), 2 la pièce et le bon bouton, 3 pas à pas jusqu'au bout.
+   */
   private helpLevel = new Map<string, number>();
   /** énigmes dont l'aide montre aussi le bon bouton (souris dessinée) */
   private gestureHelp = new Set<string>();
+  /** énigmes guidées pas à pas : après chaque geste, l'aide montre le suivant */
+  private followHelp = new Set<string>();
+  private followClock = 0;
   private helpCooldown = 0;
   readonly goalRings = new GoalRings();
 
@@ -589,7 +596,7 @@ export class Game {
     return best;
   }
 
-  /** Le joueur demande de l'aide : un palier de plus (où regarder → la pièce → le geste). */
+  /** Le joueur demande de l'aide : un palier de plus (la pièce → le bon bouton → pas à pas). */
   requestHelp(): void {
     if (!this.hintsOn || this.busy) return;
     const p = this.helpTarget();
@@ -598,15 +605,32 @@ export class Game {
       this.audio.denied();
       return;
     }
-    const level = this.helpLevel.get(p.id) ?? 0;
-    if (level === 0) this.showGoal(p);
-    else {
-      if (p.hint() === null) this.showGoal(p);
-      if (level >= 2) this.gestureHelp.add(p.id);
-    }
-    this.helpLevel.set(p.id, Math.min(2, level + 1));
+    const level = Math.min(3, (this.helpLevel.get(p.id) ?? 0) + 1);
+    // toujours : ce qui reste à faire (anneaux) et la pièce à toucher maintenant
+    this.showGoal(p);
+    p.hint();
+    if (level >= 2) this.gestureHelp.add(p.id);
+    if (level >= 3) this.followHelp.add(p.id);
+    this.helpLevel.set(p.id, level);
+    this.hud?.setHelpLevel(level);
     this.helpCooldown = this.time + HELP_COOLDOWN;
     this.audio.crystal(4);
+  }
+
+  /** Pas à pas : dès que la pièce montrée a été jouée, montrer la suivante. */
+  private updateFollowHelp(dt: number): void {
+    if (!this.followHelp.size) return;
+    this.followClock += dt;
+    if (this.followClock < 0.4) return;
+    this.followClock = 0;
+    for (const id of this.followHelp) {
+      const p = this.panels.get(id);
+      if (!p || p.solved) {
+        this.followHelp.delete(id);
+        continue;
+      }
+      if (p.powered && p.activeHint() === null) p.hint();
+    }
   }
 
   /** Premier palier : des anneaux sur ce qui n'est pas encore comme il faut. */
@@ -621,9 +645,9 @@ export class Game {
   }
 
   /** Tests : temps passé devant une énigme, et où en est son aide. */
-  debugHelp(id: string, addStuck = 0): { level: number; gesture: boolean; stuck: number } {
+  debugHelp(id: string, addStuck = 0): { level: number; gesture: boolean; follow: boolean; stuck: number } {
     if (addStuck) this.stuck.set(id, (this.stuck.get(id) ?? 0) + addStuck);
-    return { level: this.helpLevel.get(id) ?? 0, gesture: this.gestureHelp.has(id), stuck: this.stuck.get(id) ?? 0 };
+    return { level: this.helpLevel.get(id) ?? 0, gesture: this.gestureHelp.has(id), follow: this.followHelp.has(id), stuck: this.stuck.get(id) ?? 0 };
   }
 
   /** Aide complète tout de suite (tests) : la pièce et le geste. */
@@ -1883,6 +1907,7 @@ export class Game {
     }
     this.helpLevel.delete(id);
     this.gestureHelp.delete(id);
+    this.followHelp.delete(id);
     // sans la séquence (tests) : le phare remonte aussitôt
     if (id === RACINE_MERE.id && !this.rootsEnd) this.applyDeep();
     this.audio.solved();
@@ -2101,6 +2126,7 @@ export class Game {
     }
     this.sparks.update(dt);
     this.goalRings.update(this.time);
+    this.updateFollowHelp(dt);
     this.updateLures(this.time);
     this.updateMapTable(dt);
     this.updateDay(dt);

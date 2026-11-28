@@ -677,7 +677,7 @@ test('la progression est sauvegardée et restaurée', async ({ page }) => {
   expect(await page.evaluate(() => window.__game.gateOpen('porte-plage'))).toBe(1);
 });
 
-test("l'aide se demande, par paliers : où regarder, puis la pièce, puis le geste", async ({ page }) => {
+test("l'aide se demande, par paliers : la pièce, puis le bon bouton, puis pas à pas", async ({ page }) => {
   await boot(page);
   await page.evaluate(() => {
     window.__game.solve('a1');
@@ -688,28 +688,38 @@ test("l'aide se demande, par paliers : où regarder, puis la pièce, puis le ges
   await page.evaluate(() => window.__game.requestHelp());
   expect(await page.evaluate(() => window.__game.goalRings())).toBe(false);
   expect((await page.evaluate(() => window.__game.help('a2'))).level).toBe(0);
-  // après un moment devant l'énigme : d'abord, où regarder (des anneaux sur les cristaux)
+  // après un moment devant l'énigme, le premier appui aide déjà : la pièce à toucher (et des
+  // anneaux sur ce qui reste à faire)
   await page.evaluate(() => {
     window.__game.help('a2', 60);
     window.__game.requestHelp();
   });
   expect(await page.evaluate(() => window.__game.goalRings())).toBe(true);
-  expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 1, gesture: false });
-  // pas deux demandes de suite
+  expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 1, gesture: false, follow: false });
+  expect(await page.evaluate(() => window.__game.hintMove('a2'))).not.toBeNull();
+  // pas deux demandes d'un seul appui maintenu
   await page.evaluate(() => window.__game.requestHelp());
   expect((await page.evaluate(() => window.__game.help('a2'))).level).toBe(1);
-  // ensuite la pièce (sans le geste), puis la pièce et le bon bouton
+  // deuxième appui : le bon bouton en plus
   await page.evaluate(() => {
-    window.__game.advance(9);
+    window.__game.advance(2);
     window.__game.requestHelp();
   });
-  expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 2, gesture: false });
-  expect(await page.evaluate(() => window.__game.hintMove('a2'))).not.toBeNull();
+  expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 2, gesture: true, follow: false });
+  // troisième : pas à pas ; après le geste montré, l'aide montre aussitôt le suivant
   await page.evaluate(() => {
-    window.__game.advance(9);
+    window.__game.advance(2);
     window.__game.requestHelp();
   });
-  expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 2, gesture: true });
+  expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 3, follow: true });
+  const m = (await page.evaluate(() => window.__game.hintMove('a2')))!;
+  expect(m).not.toBeNull();
+  expect(await page.evaluate((m) => window.__game.interact('a2', m.k, m.reverse), m)).toBe('ok');
+  const solved = await page.evaluate(() => window.__game.panels().find((p) => p.id === 'a2')!.solved);
+  if (!solved) {
+    await page.evaluate(() => window.__game.advance(1));
+    await page.waitForFunction(() => window.__game.hintMove('a2') !== null, null, { timeout: 10_000 });
+  }
   expect(errors).toEqual([]);
 });
 

@@ -72,6 +72,7 @@ export class Hud {
           <path d="M11 38 H29 L26 44 H14 Z" class="lamp-frame"/>
         </svg>
         <span class="lamp-key" aria-hidden="true">${touch ? '' : 'H'}</span>
+        <span class="lamp-pips" aria-hidden="true"><i></i><i></i><i></i></span>
       </button>
       <div class="toast" hidden></div>
       <div class="fade"></div>
@@ -211,6 +212,18 @@ export class Hud {
   private helpState: 'none' | 'ready' | 'offer' = 'none';
 
   /** La lanterne d'aide : absente, disponible, ou qui palpite (on bloque depuis longtemps). */
+  /**
+   * Trois points sous la lanterne : autant d'aides déjà données pour cette énigme. Ceux qui
+   * restent éteints disent, sans un mot, qu'un nouvel appui en montrera davantage.
+   */
+  setHelpLevel(level: number): void {
+    if (level === this.helpLevelShown) return;
+    this.helpLevelShown = level;
+    this.helpLamp.querySelectorAll('.lamp-pips i').forEach((el, i) => el.classList.toggle('on', i < level));
+    this.helpLamp.classList.toggle('spent', level >= 3);
+  }
+  private helpLevelShown = -1;
+
   setHelp(state: 'none' | 'ready' | 'offer'): void {
     const st = this.title.hidden ? state : 'none';
     if (st === this.helpState) return;
