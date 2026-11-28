@@ -33,6 +33,7 @@ export type Api = {
   lighthouseY: () => number;
   requestHelp: () => void;
   mapTable: () => number;
+  symbols: (on: boolean) => void;
   bubble: () => { visited: boolean; dive: boolean; appel: boolean; ecluse: boolean };
   goalRings: () => boolean;
   help: (id: string, addStuck?: number) => { level: number; gesture: boolean; stuck: number };

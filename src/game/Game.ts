@@ -1637,7 +1637,7 @@ export class Game {
 
   /** Symboles des couleurs sur les panneaux de lumière (daltonisme). */
   setSymbols(on: boolean): void {
-    for (const p of this.panels.values()) if (p instanceof LightPanel) p.setSymbols(on);
+    for (const p of this.panels.values()) if (p instanceof LightPanel || p instanceof TiltView) p.setSymbols(on);
   }
 
   /** Applique la sauvegarde (ou l'état de départ). */
