@@ -343,6 +343,34 @@ export const FLATS: { x: number; z: number; r: number }[] = [
 
 
 /** Position où se tient le joueur pour faire face à un panneau. */
-export function standPoint(p: PanelSpot, dist = 1.9): { x: number; z: number } {
+export function standPoint(p: Pick<PanelSpot, 'x' | 'z' | 'yaw'> & Partial<PanelSpot>, dist = 1.9): { x: number; z: number } {
   return { x: p.x + Math.sin(p.yaw) * dist, z: p.z + Math.cos(p.yaw) * dist };
+}
+
+// ── La Grotte des Échos : des énigmes sans fin, une par langage ────────────
+/** la salle, sous la mer, loin au sud-ouest (on n'y voit rien d'autre : vue courte sous terre) */
+export const ECHO = { x: -300, z: 260, y: -60, r: 13 };
+/** l'entrée : un rocher creux sur la côte ouest, son ouverture tournée vers la mer (ouest) */
+export const ECHO_MOUTH = { x: -100.5, z: -10 };
+/** en sortant, devant l'ouverture, face à la mer */
+export const ECHO_OUTSIDE = { x: -104.5, z: -10, yaw: Math.PI / 2 };
+export const ECHO_ARRIVAL = { x: ECHO.x, z: ECHO.z + 9, yaw: 0 };
+/** la pierre du retour, à côté de l'arrivée */
+export const ECHO_EXIT = { x: ECHO.x + 3.2, z: ECHO.z + 10.2 };
+export type EchoLang = 'lumiere' | 'pliage' | 'ombres' | 'inclinaison' | 'racines' | 'vases';
+/** les six alcôves en cercle (la place du sud reste libre : c'est l'arrivée), et ce qui les allume */
+export const ECHO_MODULES: { kind: EchoLang; x: number; z: number; yaw: number; a: number; unlock: string }[] = (
+  [['lumiere', 'tours'], ['pliage', 'grand-pli'], ['ombres', 'cadran'], ['inclinaison', 'grand-plateau'], ['racines', 'racine-mere'], ['vases', 'grande-ecluse']] as const
+).map(([kind, unlock], i) => {
+  const a = Math.PI / 2 + ((i + 1) * Math.PI * 2) / 7;
+  const r = 8.2;
+  return { kind, unlock, a, x: ECHO.x + Math.cos(a) * r, z: ECHO.z + Math.sin(a) * r, yaw: Math.atan2(Math.cos(a), Math.sin(a)) };
+});
+/** les trois pierres de taille d'une alcôve (petite, moyenne, grande), sur le côté */
+export function echoStones(m: { x: number; z: number; a: number }): { x: number; z: number; r: number }[] {
+  const tx = -Math.sin(m.a);
+  const tz = Math.cos(m.a);
+  const rx = -Math.cos(m.a);
+  const rz = -Math.sin(m.a);
+  return [0.3, 0.42, 0.54].map((r, k) => ({ x: m.x + tx * (1.9 + k * 0.95) + rx * 0.7, z: m.z + tz * (1.9 + k * 0.95) + rz * 0.7, r }));
 }

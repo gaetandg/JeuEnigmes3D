@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { parsePuzzle } from '../core/light/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
-import { PLAZA, SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL, skyEdge, CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, reqIds, reqMet, BUBBLE, BUBBLE_ARRIVAL, BUBBLE_LIFT, BEACH_STONE, VASE_PANELS, GRANDE_ECLUSE } from '../world/layout.ts';
+import { PLAZA, SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL, skyEdge, CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, reqIds, reqMet, BUBBLE, BUBBLE_ARRIVAL, BUBBLE_LIFT, BEACH_STONE, VASE_PANELS, GRANDE_ECLUSE, ECHO, ECHO_ARRIVAL, ECHO_EXIT, ECHO_MODULES, ECHO_MOUTH, ECHO_OUTSIDE } from '../world/layout.ts';
 import { buildBubble } from '../world/bubble.ts';
 import type { Bubble } from '../world/bubble.ts';
 import { ZONE7, ZONE7_GRANDE } from '../puzzles/zone7.ts';
@@ -64,6 +64,7 @@ import { prepareMap } from '../ui/map.ts';
 import { buildMapTable } from '../world/mapTable.ts';
 import { BOAT_AT, FAR_LIGHT, PaperBoat } from '../render/paperBoat.ts';
 import { setInputMode } from '../render/inputIcons.ts';
+import { EchoCave, isEchoId } from './echoCave.ts';
 import type { MapTable } from '../world/mapTable.ts';
 
 const REACH = 5;
@@ -127,6 +128,8 @@ const PLACES: { id: string; label: string; x: number; z: number; yaw: number; ne
   { id: 'ciel', label: "L'Île du Ciel (une fois montée)", x: SKY_ARRIVAL.x, z: SKY_ARRIVAL.z, yaw: SKY_ARRIVAL.yaw, needs: 'sky' },
   { id: 'grotte', label: 'La grotte des Racines', x: CAVE_ARRIVAL.x, z: CAVE_ARRIVAL.z, yaw: CAVE_ARRIVAL.yaw, needs: 'deep' },
   { id: 'bulle', label: 'La Bulle, au fond de l\'océan', x: BUBBLE_ARRIVAL.x, z: BUBBLE_ARRIVAL.z, yaw: BUBBLE_ARRIVAL.yaw, needs: 'bubble' },
+  { id: 'echos-entree', label: "L'entrée de la Grotte des Échos (côte ouest)", x: ECHO_OUTSIDE.x - 2, z: ECHO_OUTSIDE.z, yaw: -Math.PI / 2 },
+  { id: 'echos', label: 'La Grotte des Échos', x: ECHO_ARRIVAL.x, z: ECHO_ARRIVAL.z, yaw: ECHO_ARRIVAL.yaw },
 ];
 
 /** Liens dessinés au sol (câbles lumineux). */
@@ -475,6 +478,22 @@ export class Game {
     this.answer = new SeaAnswer();
     this.scene.add(this.answer.group);
     this.scene.add(this.boat.group);
+    // la Grotte des Échos : des énigmes sans fin, une alcôve par langage maîtrisé
+    this.echo = new EchoCave({
+      addView: (v) => this.registerView(v),
+      removeView: (id) => this.unregisterView(id),
+      isSolved: (id) => this.isSolved(id),
+      celebrate: (v) => {
+        const at = v.group.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 1.4, 0));
+        this.sparks.burst(at, new THREE.Color('#d9c8ff'), 90, 1);
+        this.audio.solved();
+        navigator.vibrate?.([30, 50, 70]);
+      },
+      chime: () => this.audio.power(),
+      persist: () => this.persist(),
+    }, (this.save.echo ??= { counts: {}, tiers: {} }), this.colliders);
+    this.scene.add(this.echo.world.outside, this.echo.world.interior);
+    this.echo.world.interior.visible = false; // dessinée seulement de près
 
     // rais de lumière jusqu'au phare (visibles une fois chaque zone finie)
     const crystal = towerCell(3, 0);
@@ -486,6 +505,7 @@ export class Game {
     this.player.onStep = () => this.audio.step(surfaceAt(this.player.position.x, this.player.position.z));
     this.restore();
     this.applyDeep();
+    this.echo.refreshUnlocks();
     this.snapCave = true;
 
     window.addEventListener('resize', () => this.resize());
@@ -526,6 +546,8 @@ export class Game {
   private zoneAt(x: number, z: number): Zone {
     if (Math.hypot(x - BUBBLE.x, z - BUBBLE.z) < BUBBLE.r + 30) return 'bulle';
     if (Math.hypot(x - CAVE.x, z - CAVE.z) < CAVE.r + 15) return 'racines';
+    // la Grotte des Échos : la voix des grottes
+    if (Math.hypot(x - ECHO.x, z - ECHO.z) < ECHO.r + 15) return 'racines';
     if (Math.hypot(x - SKY.x, z - SKY.z) < SKY.r + 10) return 'ciel';
     if (Math.hypot(x - ATELIER.x, z - ATELIER.z) < ATELIER.r + 15) return 'atelier';
     if (Math.abs(x - CLOITRE.x) < CLOITRE.half + 12 && Math.abs(z - CLOITRE.z) < CLOITRE.half + 12) return 'cloitre';
@@ -537,7 +559,7 @@ export class Game {
     const pos = this.player.position;
     const pts: THREE.Vector3[] = [];
     for (const p of this.panels.values()) {
-      if (!p.powered || p.solved || SECRET_IDS.includes(p.id) || !p.group.visible) continue;
+      if (!p.powered || p.solved || SECRET_IDS.includes(p.id) || isEchoId(p.id) || !p.group.visible) continue;
       const a = this.anchorsOf(p)[0]!;
       if (Math.hypot(a.x - pos.x, a.z - pos.z) < 9) continue;
       pts.push(new THREE.Vector3(a.x, heightAt(a.x, a.z) + 2.2, a.z));
@@ -702,11 +724,18 @@ export class Game {
   private snapCave = false;
   private fogFar = 420;
   /** grotte (lampe chaude) ou fond de l'océan (lumière bleue) */
-  private underKind: 'cave' | 'bubble' = 'cave';
+  private underKind: 'cave' | 'bubble' | 'echo' = 'cave';
   /** sous la surface, autour de la Bulle (en plongée ou dedans) */
   private inDeep(p: THREE.Vector3): boolean {
     return p.y < -1 && Math.hypot(p.x - BUBBLE.x, p.z - BUBBLE.z) < 320;
   }
+  /** dans la Grotte des Échos (sous la mer, loin au sud-ouest) */
+  private inEchoCave(p: THREE.Vector3): boolean {
+    return p.y < ECHO.y + 25 && Math.hypot(p.x - ECHO.x, p.z - ECHO.z) < ECHO.r + 10;
+  }
+  /** la salle des Échos est-elle assez près pour être dessinée ? */
+  private nearEcho = false;
+
   private inCave(p: THREE.Vector3): boolean {
     return p.y < CAVE.y + 30 && Math.hypot(p.x - CAVE.x, p.z - CAVE.z) < CAVE.r + 20;
   }
@@ -714,15 +743,19 @@ export class Game {
   private updateCaveMix(dt: number): void {
     const cam = this.camera.position;
     const deep = this.inDeep(cam);
-    const target = deep || this.inCave(cam) ? 1 : 0;
-    // grotte ou fond de l'océan : la même lampe, déplacée et recolorée (le nombre de lumières ne
-    // change pas, donc pas de recompilation des matériaux en passant de l'un à l'autre)
-    const kind = deep ? 'bubble' : 'cave';
+    const echo = this.inEchoCave(cam);
+    const target = deep || echo || this.inCave(cam) ? 1 : 0;
+    // grotte, Échos ou fond de l'océan : la même lampe, déplacée et recolorée (le nombre de
+    // lumières ne change pas, donc pas de recompilation des matériaux en passant de l'un à l'autre)
+    const kind = deep ? 'bubble' : echo ? 'echo' : 'cave';
     if (kind !== this.underKind) {
       this.underKind = kind;
       if (deep) {
         this.caveLight.position.set(BUBBLE.x, BUBBLE.y + 16, BUBBLE.z);
         this.caveLight.color.set('#bff0ff');
+      } else if (echo) {
+        this.caveLight.position.set(ECHO.x, ECHO.y + 6.5, ECHO.z);
+        this.caveLight.color.set('#e2d4ff');
       } else {
         this.caveLight.position.set(CAVE.x, CAVE.y + 7, CAVE.z);
         this.caveLight.color.set('#ffc98a');
@@ -740,7 +773,14 @@ export class Game {
       this.bubbleNotes.group.visible = nearBubble;
       for (const id of VASE_IDS) this.panels.get(id)!.group.visible = nearBubble;
     }
-    const near = this.camera.position.x < CAVE.x + 130;
+    // la salle des Échos aussi, et ses énigmes
+    const nearEcho = Math.hypot(cam.x - ECHO.x, cam.z - ECHO.z) < 200;
+    if (this.nearEcho !== nearEcho) {
+      this.nearEcho = nearEcho;
+      this.echo.world.interior.visible = nearEcho;
+      for (const [id, p] of this.panels) if (isEchoId(id)) p.group.visible = nearEcho;
+    }
+    const near = Math.hypot(cam.x - CAVE.x, cam.z - CAVE.z) < 200;
     if (this.cave.interior.visible !== near) {
       this.cave.interior.visible = near;
       this.caveNotes.group.visible = near;
@@ -797,7 +837,7 @@ export class Game {
   /** séquence : l'île bascule, on glisse, on tombe ; le phare s'enfonce ; réveil dans la grotte */
   bascule: { t: number; lx: number; lz: number; last: THREE.Vector3; fall: THREE.CatmullRomCurve3 | null; switched: boolean; faded: boolean } | null = null;
   /** passage d'une pierre à l'autre (grotte ↔ pied du phare) */
-  passage: { t: number; down: boolean; moved: boolean; dest?: 'bubble' | 'beach' } | null = null;
+  passage: { t: number; down: boolean; moved: boolean; dest?: 'bubble' | 'beach' | 'echo' | 'echo-out' } | null = null;
   /** séquence : la Racine-mère reliée, la lumière remonte, le phare sort de la colline */
   rootsEnd: { t: number; switched: boolean; shown: boolean } | null = null;
   cave!: Cave;
@@ -1107,6 +1147,11 @@ export class Game {
     if (!q.moved && q.t >= 0.8) {
       q.moved = true;
       if (q.dest === 'bubble') this.player.place(BUBBLE_ARRIVAL.x, BUBBLE_ARRIVAL.z, BUBBLE_ARRIVAL.yaw, -0.05);
+      else if (q.dest === 'echo') {
+        this.player.place(ECHO_ARRIVAL.x, ECHO_ARRIVAL.z, ECHO_ARRIVAL.yaw, -0.05);
+        this.echo.save.visited = true;
+      }
+      else if (q.dest === 'echo-out') this.player.place(ECHO_OUTSIDE.x, ECHO_OUTSIDE.z, ECHO_OUTSIDE.yaw, 0);
       else if (q.dest === 'beach') this.player.place(BEACH_STONE.x - 3, BEACH_STONE.z - 4, Math.atan2(-3, -4), -0.1);
       else if (q.down) this.player.place(CAVE_ARRIVAL.x, CAVE_ARRIVAL.z, CAVE_ARRIVAL.yaw, -0.08);
       // à côté de la pierre (pas devant), face au phare enfoncé
@@ -1260,6 +1305,25 @@ export class Game {
     }
   }
 
+  /** Le rocher creux de la côte ouest mène à la Grotte des Échos ; la pierre du retour, dehors. */
+  private checkEchoPassage(): void {
+    if (this.busy) return;
+    const p = this.player.position;
+    if (this.inEchoCave(p)) {
+      if (Math.hypot(p.x - ECHO_EXIT.x, p.z - ECHO_EXIT.z) < 1.3) {
+        this.passage = { t: 0, down: false, moved: false, dest: 'echo-out' };
+        this.audio.power();
+        this.hud?.fade(1, 700);
+      }
+      return;
+    }
+    if (Math.hypot(p.x - ECHO_MOUTH.x, p.z - ECHO_MOUTH.z) < 1.5 && p.y > -5) {
+      this.passage = { t: 0, down: true, moved: false, dest: 'echo' };
+      this.audio.power();
+      this.hud?.fade(1, 700);
+    }
+  }
+
   startDive(): void {
     const from = this.camera.position.clone();
     const curve = new THREE.CatmullRomCurve3([
@@ -1357,7 +1421,7 @@ export class Game {
 
   /** Le 100 % : toutes les énigmes, éclats compris. */
   get everything(): boolean {
-    return [...this.panels.keys()].every((id) => this.isSolved(id));
+    return [...this.panels.keys()].every((id) => isEchoId(id) || this.isSolved(id));
   }
 
   /** On pousse la barque : elle part au large, et au loin une autre lumière s'allume. */
@@ -1490,6 +1554,7 @@ export class Game {
       deep: !!this.save.deep,
       bubble: !!this.save.bubble,
       boat: this.boat.waiting,
+      echo: !!this.echo.save.visited,
     };
   }
 
@@ -1541,7 +1606,7 @@ export class Game {
 
   /** Bilan affiché à la fin. */
   stats(): { solved: number; total: number; minutes: number; shards: number; shardsTotal: number; notes: number; notesTotal: number; story: string } {
-    const main = [...this.panels.keys()].filter((id) => !SECRET_IDS.includes(id));
+    const main = [...this.panels.keys()].filter((id) => !SECRET_IDS.includes(id) && !isEchoId(id));
     return {
       notes: new Set(this.save.notes ?? []).size,
       notesTotal: NOTES.length,
@@ -1552,6 +1617,48 @@ export class Game {
       shards: SECRET_IDS.filter((id) => this.isSolved(id)).length,
       shardsTotal: SECRET_IDS.length,
     };
+  }
+
+  echo!: EchoCave;
+
+  /** Inscrit une énigme (Grotte des Échos) : le bon branchement selon son langage. */
+  private registerView(view: PuzzleView): void {
+    if (view instanceof TiltView) this.addTiltView(view);
+    else if (view instanceof VaseView) this.addVaseView(view);
+    else if (view instanceof RootView) this.addRootView(view);
+    else if (view instanceof ShadowView) this.addShadowView(view);
+    else if (view instanceof FoldView) this.addFoldView(view);
+    else if (view instanceof LightPanel) {
+      view.onSolved = () => this.onPanelSolved(view);
+      view.onCrystal = (c) => this.audio.crystal(c);
+      this.panels.set(view.id, view);
+      this.scene.add(view.group);
+    }
+    view.group.visible = this.nearEcho;
+  }
+
+  /** Retire une énigme de la grotte (une nouvelle prend sa place) et libère sa mémoire. */
+  private unregisterView(id: string): void {
+    const v = this.panels.get(id);
+    if (!v) return;
+    if (this.hovered?.panel === v) {
+      v.setHover(null);
+      this.hovered = null;
+    }
+    this.panels.delete(id);
+    this.anchors.delete(id);
+    this.stuck.delete(id);
+    this.helpLevel.delete(id);
+    this.gestureHelp.delete(id);
+    this.followHelp.delete(id);
+    v.group.removeFromParent();
+    v.group.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.geometry) m.geometry.dispose();
+      for (const mat of Array.isArray(m.material) ? m.material : m.material ? [m.material] : []) {
+        for (const t of Object.values(mat)) if (t instanceof THREE.Texture) t.dispose();
+      }
+    });
   }
 
   private addTiltView(view: TiltView): void {
@@ -1874,6 +1981,16 @@ export class Game {
 
   private onPanelSolved(panel: PuzzleView): void {
     const id = panel.id;
+    // la Grotte des Échos : rien ne s'ajoute à la progression ; un cristal pousse, et la suite
+    if (isEchoId(id)) {
+      this.echo.onSolved(panel);
+      this.stuck.delete(id);
+      this.helpLevel.delete(id);
+      this.gestureHelp.delete(id);
+      this.followHelp.delete(id);
+      this.persist();
+      return;
+    }
     // pendant le chargement, une feuille déjà résolue se signale : on la note sans fête ni
     // sauvegarde (sauvegarder ici écraserait les états des panneaux pas encore restaurés)
     if (this.restoring) {
@@ -1915,12 +2032,13 @@ export class Game {
     this.audio.solved();
     // l'ouverture des portes et l'allumage suivent le câble
     window.setTimeout(() => this.updatePower(false), 900);
+    this.echo.refreshUnlocks();
     this.persist();
   }
 
   private persist(): void {
     if (this.rewinding) return;
-    for (const [id, panel] of this.panels) this.save.states[id] = panel.state;
+    for (const [id, panel] of this.panels) if (!isEchoId(id)) this.save.states[id] = panel.state;
     this.save.player = { x: this.player.position.x, z: this.player.position.z, yaw: this.player.yaw };
     writeSave(this.save);
   }
@@ -2105,6 +2223,8 @@ export class Game {
     this.checkLift();
     this.checkPassage();
     this.checkBubbleStones();
+    this.checkEchoPassage();
+    this.echo.update(dt, this.time, this.player.position);
     this.bubble.setOpen(this.bubbleOpen);
     this.bubble.update(this.time);
     this.bubbleNotes.update(this.time);
@@ -2167,6 +2287,14 @@ export class Game {
 
   /** Place le joueur devant un panneau. */
   view(id: string): void {
+    // une alcôve de la Grotte des Échos : devant son module, à la bonne distance
+    const echoSpot = ECHO_MODULES.find((m) => `echo-${m.kind}` === id);
+    if (echoSpot) {
+      const [d, pitch] = ({ lumiere: [1.6, -0.55], pliage: [1.5, -0.6], ombres: [2.3, -0.25], inclinaison: [1.5, -0.6], racines: [1.5, -0.6], vases: [2.6, -0.05] } as const)[echoSpot.kind];
+      const st = standPoint(echoSpot, d);
+      this.player.place(st.x, st.z, echoSpot.yaw, pitch);
+      return;
+    }
     const vaseSpot = VASE_PANELS.find((p) => p.id === id);
     if (vaseSpot) {
       const s = standPoint(vaseSpot, 2.6);
@@ -2369,6 +2497,7 @@ export class Game {
       this.boat.set(this.everything, !!this.save.departed);
       this.persist();
     }
+    this.echo.refreshUnlocks();
     if (action === 'every') this.player.place(BOAT_AT.x + 2, BOAT_AT.z - 6, Math.atan2(2, -6), 0);
     else this.view(action === 'all' ? FINAL_ID : id);
     this.snapCave = true;
@@ -2500,6 +2629,8 @@ export class Game {
       this.checkLift();
       this.checkPassage();
       this.checkBubbleStones();
+      this.checkEchoPassage();
+      this.echo.update(0.05, this.time, this.player.position);
       this.bubble.setOpen(this.bubbleOpen);
       this.cave.update(this.time);
       this.updateDay(0.05);

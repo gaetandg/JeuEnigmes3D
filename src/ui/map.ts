@@ -1,5 +1,5 @@
 import { distToPath, heightAt } from '../world/terrain.ts';
-import { BUBBLE, CAVE, LIFT, LIGHTHOUSE, PAPER_BOAT, SKY, START, caveEdge, skyEdge } from '../world/layout.ts';
+import { BUBBLE, CAVE, ECHO_MOUTH, LIFT, LIGHTHOUSE, PAPER_BOAT, SKY, START, caveEdge, skyEdge } from '../world/layout.ts';
 
 /**
  * La carte du gardien (menu pause) : l'île dessinée à l'encre sur un vieux papier, d'après son
@@ -59,6 +59,8 @@ export interface MapData {
   bubble: boolean;
   /** le 100 % : la barque de papier attend sur la plage */
   boat?: boolean;
+  /** la Grotte des Échos découverte : son entrée sur la côte ouest */
+  echo?: boolean;
 }
 
 export const ZONE_NAMES: Record<MapZone, string> = {
@@ -390,6 +392,27 @@ export function drawMap(canvas: HTMLCanvasElement, data: MapData, t: number, siz
   for (const sh of data.shards) {
     const p = where(sh.zone ?? null, sh.x, sh.z);
     if (p) star(g, p[0], p[1], 5 * s);
+  }
+  // la Grotte des Échos : une petite arche sombre dans un rocher, sur la côte ouest
+  if (data.echo) {
+    const [ex, ey] = main(ECHO_MOUTH.x + 2, ECHO_MOUTH.z);
+    const r = 5 * s;
+    g.save();
+    g.fillStyle = '#8a8378';
+    g.strokeStyle = INK;
+    g.lineWidth = 1;
+    g.beginPath();
+    g.arc(ex, ey, r, Math.PI, 0);
+    g.lineTo(ex + r, ey + r * 0.4);
+    g.lineTo(ex - r, ey + r * 0.4);
+    g.closePath();
+    g.fill();
+    g.stroke();
+    g.fillStyle = '#1a1520';
+    g.beginPath();
+    g.arc(ex, ey + r * 0.4, r * 0.5, Math.PI, 0);
+    g.fill();
+    g.restore();
   }
   // le 100 % : une petite barque dorée, qui palpite, au bord de l'eau
   if (data.boat) {

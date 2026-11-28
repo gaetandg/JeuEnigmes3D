@@ -323,6 +323,25 @@ clignoter (trois éclats, une pause : pas la même voix que la Bulle). La boucle
 allumée pour qui arrivera ensuite par la mer*. Ensuite, c'est le soir pour de bon, et la lumière
 lointaine reste à l'horizon. (Mode test : « Le 100 % », et la cinématique « La barque de papier ».)
 
+## 6 octies. La Grotte des Échos : des énigmes sans fin
+
+Idée de joueur : « refaire de nouveaux puzzles du même type, générés aléatoirement ». Sur la côte
+ouest de l'île du départ, un amas de rochers cache une ouverture sombre tournée vers la mer ; de
+petites lueurs en sortent lentement. On y entre (fondu), et l'on arrive dans une salle ronde sous
+la mer : un bassin au centre, six alcôves en cercle, une par langage.
+
+- **Une alcôve s'allume quand on a maîtrisé son langage** (sa grande énigme résolue : Tours-Miroirs,
+  Grand Pli, Cadran, Grand Plateau, Racine-mère, Grande Écluse) ; son emblème flotte au-dessus
+  (octaèdre de lumière, billet plié, cube d'ombre, bille, cristal de racine, tube).
+- **Une énigme tirée au hasard** s'y forme (`src/core/echo/generate.ts`, dans un Worker) : construite
+  à rebours, validée par le solveur du langage (solution unique, nombre de gestes voulu).
+- **Trois pierres à côté** (petite, moyenne, grande) : on s'y tient un instant, une énigme de cette
+  taille se forme ; un anneau d'or marque la taille choisie.
+- **Résolue** : étincelles, un cristal de la couleur du langage pousse aux parois, et une nouvelle
+  énigme se forme. Le cœur du bassin brille à mesure que la grotte se remplit.
+- Ce n'est pas la progression : rien ne compte pour le 100 % ni pour le bilan. L'aide (H) y marche.
+- Une pierre lumineuse, près de l'arrivée, ramène devant le rocher.
+
 ## 7. Direction artistique
 
 - Low-poly à facettes, géométrie générée par le code (aucun modèle importé requis).

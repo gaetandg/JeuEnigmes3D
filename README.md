@@ -57,6 +57,11 @@ et le **carnet** (menu pause) les rassemble. À la fin, regardez la mer… et av
 encore plus. Tout résoudre, les neuf éclats compris, fait apparaître quelque chose au bord de
 l'eau, sur la plage du départ.
 
+Et pour ne jamais manquer d'énigmes : un **rocher creux**, quelque part sur la côte ouest, mène à
+la **Grotte des Échos**. Chaque langage maîtrisé y allume une alcôve où se forment, sans fin, des
+énigmes tirées au hasard (trois pierres à côté : petite, moyenne ou grande) ; chaque énigme résolue
+fait pousser un cristal aux parois.
+
 ## Mode test (triche)
 
 Dans l'écran d'accueil ou de pause (Échap), la section **Mode test (triche)** permet de choisir

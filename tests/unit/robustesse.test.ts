@@ -60,6 +60,14 @@ describe('sauvegarde abîmée mais lisible', () => {
     stub(JSON.stringify({ solved: [], states: {}, departed: 'oui' }));
     expect(loadSave().departed).toBe(false);
   });
+  it('la Grotte des Échos : comptes et tailles gardés, valeurs abîmées écartées', () => {
+    stub(JSON.stringify({ solved: [], states: {}, echo: { counts: { lumiere: 3, vases: -1, pliage: 'x' }, tiers: { lumiere: 2, ombres: 1.5 } } }));
+    const e = loadSave().echo!;
+    expect(e.counts).toEqual({ lumiere: 3 });
+    expect(e.tiers).toEqual({ lumiere: 2 });
+    stub(JSON.stringify({ solved: [], states: {}, echo: 'non' }));
+    expect(loadSave().echo).toBeUndefined();
+  });
 });
 
 describe('manette', () => {
