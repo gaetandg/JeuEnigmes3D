@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from './noise.ts';
 import { HORIZON } from '../render/environment.ts';
+import { mergeMeshes } from '../render/merge.ts';
 
 /**
  * Ce qui bouge sans le joueur : nuages qui dérivent, oiseaux qui tournent au-dessus de
@@ -17,13 +18,17 @@ export function buildLife(beds: THREE.Vector3[]): { group: THREE.Group; update: 
   for (let i = 0; i < 12; i++) {
     const c = new THREE.Group();
     const n = 5 + Math.floor(rnd() * 5);
+    const puffs: THREE.Mesh[] = [];
     for (let k = 0; k < n; k++) {
       const s = 11 + rnd() * 12;
       const m = new THREE.Mesh(new THREE.IcosahedronGeometry(s, 0), cloudMat);
       m.scale.y = 0.55;
       m.position.set((k - n / 2) * 15 + rnd() * 8, rnd() * 6, rnd() * 14);
       c.add(m);
+      puffs.push(m);
     }
+    // un nuage = un seul maillage (ses boules ne bougent pas entre elles)
+    mergeMeshes(puffs, c, cloudMat);
     const cl = { mesh: c, speed: 0.004 + rnd() * 0.004, r: 160 + rnd() * 200, a: rnd() * Math.PI * 2, y: 70 + rnd() * 40 };
     clouds.push(cl);
     g.add(c);

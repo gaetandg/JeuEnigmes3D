@@ -7,7 +7,8 @@ import { heightAt } from '../world/terrain.ts';
  */
 interface Cable {
   from: string;
-  mesh: THREE.InstancedMesh;
+  /** première tuile du câble dans le maillage commun, et nombre de tuiles */
+  start: number;
   count: number;
   progress: number; // 0..1
   lit: boolean;
@@ -16,36 +17,43 @@ interface Cable {
 const OFF = new THREE.Color('#5e513c');
 const ON = new THREE.Color('#ffc23d');
 
+/**
+ * Tous les câbles en un seul maillage instancié (un appel de dessin) : chaque câble est une
+ * tranche de tuiles, qu'on colore à mesure que la lumière y court.
+ */
 export class Cables {
   readonly group = new THREE.Group();
   private cables: Cable[] = [];
+  private mesh: THREE.InstancedMesh;
 
   /** `links` : un câble par lien « source → cible » (positions au sol). */
   constructor(links: { from: string; ax: number; az: number; bx: number; bz: number }[]) {
     this.group.name = 'câbles';
-    const tile = new THREE.BoxGeometry(0.16, 0.05, 0.42);
-    for (const l of links) this.add(l.from, l.ax, l.az, l.bx, l.bz, tile);
-  }
-
-  private add(from: string, ax: number, az: number, bx: number, bz: number, geo: THREE.BufferGeometry): void {
-    const len = Math.hypot(bx - ax, bz - az);
     const step = 0.55;
-    const n = Math.max(2, Math.floor(len / step));
-    const mat = new THREE.MeshBasicMaterial({ toneMapped: false });
-    const mesh = new THREE.InstancedMesh(geo, mat, n);
+    const counts = links.map((l) => Math.max(2, Math.floor(Math.hypot(l.bx - l.ax, l.bz - l.az) / step)));
+    const total = counts.reduce((a, b) => a + b, 0);
+    this.mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(0.16, 0.05, 0.42), new THREE.MeshBasicMaterial({ toneMapped: false }), Math.max(1, total));
+    this.mesh.receiveShadow = false;
     const m = new THREE.Matrix4();
-    const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(bx - ax, bz - az));
-    for (let i = 0; i < n; i++) {
-      const t = (i + 0.5) / n;
-      const x = ax + (bx - ax) * t;
-      const z = az + (bz - az) * t;
-      m.compose(new THREE.Vector3(x, heightAt(x, z) + 0.02, z), q, new THREE.Vector3(1, 1, 1));
-      mesh.setMatrixAt(i, m);
-      mesh.setColorAt(i, OFF);
-    }
-    mesh.receiveShadow = false;
-    this.group.add(mesh);
-    this.cables.push({ from, mesh, count: n, progress: 0, lit: false });
+    let at = 0;
+    links.forEach((l, k) => {
+      const n = counts[k]!;
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.atan2(l.bx - l.ax, l.bz - l.az));
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) / n;
+        const x = l.ax + (l.bx - l.ax) * t;
+        const z = l.az + (l.bz - l.az) * t;
+        m.compose(new THREE.Vector3(x, heightAt(x, z) + 0.02, z), q, new THREE.Vector3(1, 1, 1));
+        this.mesh.setMatrixAt(at + i, m);
+        this.mesh.setColorAt(at + i, OFF);
+      }
+      this.cables.push({ from: l.from, start: at, count: n, progress: 0, lit: false });
+      at += n;
+    });
+    this.mesh.count = total;
+    // les câbles couvrent toute l'île : on ne les écarte jamais du champ en bloc
+    this.mesh.frustumCulled = false;
+    this.group.add(this.mesh);
   }
 
   /** Allume les câbles qui partent de ce panneau (animé sauf si `instant`). */
@@ -73,13 +81,14 @@ export class Cables {
 
   private paint(c: Cable): void {
     const col = new THREE.Color();
+    const white = new THREE.Color('#ffffff');
     for (let i = 0; i < c.count; i++) {
       const t = i / c.count;
       const on = t < c.progress;
       const head = on && t > c.progress - 0.06 && c.progress < 1;
-      c.mesh.setColorAt(i, on ? col.copy(ON).lerp(new THREE.Color('#ffffff'), head ? 0.7 : 0) : OFF);
+      this.mesh.setColorAt(c.start + i, on ? col.copy(ON).lerp(white, head ? 0.7 : 0) : OFF);
     }
-    if (c.mesh.instanceColor) c.mesh.instanceColor.needsUpdate = true;
+    if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
   }
 
   update(dt: number): void {

@@ -3,7 +3,7 @@ import { Colliders } from '../../src/game/colliders.ts';
 import { heightAt, walkable } from '../../src/world/terrain.ts';
 import {
   CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, PLAZA, SECRETS, SECRET_PLAGE, SHADOW_PANELS, START, standPoint, towerCell, towerCells,
-  LIFT, SKY, SKY_ARRIVAL, SKY_LIFT, SKY_PANELS, GRAND_PLATEAU, skyEdge,
+  LIFT, LIGHTHOUSE, SKY, SKY_ARRIVAL, SKY_LIFT, SKY_PANELS, GRAND_PLATEAU, skyEdge,
   CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, caveEdge, MAP_TABLE,
   BUBBLE, BUBBLE_ARRIVAL, BUBBLE_LIFT, BEACH_STONE, VASE_PANELS, GRANDE_ECLUSE,
 } from '../../src/world/layout.ts';
@@ -149,7 +149,7 @@ describe('navigation — on peut marcher jusqu\'à chaque énigme', () => {
     // et la pierre qui descend à la grotte (après la bascule)
     expect(reach(DEEP_LIFT.x, DEEP_LIFT.z)).toBe(true);
     expect(reach(DEEP_LIFT.x + 4.5, DEEP_LIFT.z + 4.1)).toBe(true);
-    expect(reach(LIFT.x + 5, LIFT.z + 7)).toBe(true);
+    expect(reach(LIGHTHOUSE.x + 8, LIGHTHOUSE.z + 17)).toBe(true);
     // la table d'orientation, sur la place
     const t = standPoint({ ...MAP_TABLE, id: 'carte', requires: [] }, 1.2);
     expect(reach(t.x, t.z)).toBe(true);

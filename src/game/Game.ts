@@ -118,7 +118,7 @@ const PLACES: { id: string; label: string; x: number; z: number; yaw: number; ne
   { id: 'tours', label: 'Le belvédère des Tours-Miroirs', x: 4, z: 1, yaw: 0 },
   { id: 'atelier', label: "L'Atelier de Papier", x: ATELIER.x, z: ATELIER.z + 10.5, yaw: 0 },
   { id: 'cloitre', label: 'Le Cloître des Ombres', x: CADRAN.x - 7, z: CADRAN.z + 10, yaw: -0.6 },
-  { id: 'phare', label: 'Le pied du phare', x: LIFT.x + 5, z: LIFT.z + 7, yaw: 0.18 },
+  { id: 'phare', label: 'Le pied du phare', x: LIGHTHOUSE.x + 8, z: LIGHTHOUSE.z + 17, yaw: 0.44 },
   { id: 'ciel', label: "L'Île du Ciel (une fois montée)", x: SKY_ARRIVAL.x, z: SKY_ARRIVAL.z, yaw: SKY_ARRIVAL.yaw, needs: 'sky' },
   { id: 'grotte', label: 'La grotte des Racines', x: CAVE_ARRIVAL.x, z: CAVE_ARRIVAL.z, yaw: CAVE_ARRIVAL.yaw, needs: 'deep' },
   { id: 'bulle', label: 'La Bulle, au fond de l\'océan', x: BUBBLE_ARRIVAL.x, z: BUBBLE_ARRIVAL.z, yaw: BUBBLE_ARRIVAL.yaw, needs: 'bubble' },
@@ -693,6 +693,7 @@ export class Game {
         this.caveLight.color.set('#ffc98a');
       }
       this.applyDay();
+      this.audio.setUnderground(this.caveMix, deep);
     }
     const next = this.snapCave ? target : this.caveMix + Math.sign(target - this.caveMix) * Math.min(Math.abs(target - this.caveMix), dt * 1.5);
     this.snapCave = false;
@@ -713,7 +714,7 @@ export class Game {
     if (next !== this.caveMix) {
       this.caveMix = next;
       this.applyDay();
-      this.audio.setUnderground(next);
+      this.audio.setUnderground(next, this.underKind === 'bubble');
     }
   }
 
@@ -1143,7 +1144,7 @@ export class Game {
     this.cameraOverride = null;
     this.applyDeep();
     // face au phare, à l'écart de la pierre d'envol
-    this.player.place(LIFT.x + 5, LIFT.z + 7, 0.18, 0.12);
+    this.player.place(LIGHTHOUSE.x + 8, LIGHTHOUSE.z + 17, 0.44, 0.15);
     this.snapCave = true;
     this.persist();
     // … et ce n'est toujours pas la fin : le phare montre la mer

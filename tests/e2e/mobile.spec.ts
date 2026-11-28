@@ -72,5 +72,14 @@ test('sur téléphone : joystick pour marcher, toucher pour agir', async ({ page
   await expect(page.locator('.mouse-hint')).toHaveClass(/right/);
   expect(await page.evaluate(() => window.__game.interact('p6', 2, true))).toBe('ok');
   await expect(page.locator('.mouse-hint')).toBeHidden({ timeout: 15_000 });
+
+  // la lanterne d'aide se touche (elle apparaît après un moment devant une énigme)
+  await page.evaluate(() => {
+    window.__game.view('p7');
+    window.__game.help('p7', 60);
+  });
+  await expect(page.locator('.help-lamp')).toBeVisible({ timeout: 15_000 });
+  await page.locator('.help-lamp').tap();
+  await expect.poll(() => page.evaluate(() => window.__game.goalRings()), { timeout: 10_000 }).toBe(true);
   expect(errors).toEqual([]);
 });

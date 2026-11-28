@@ -94,6 +94,24 @@ export function exposeDebugApi(game: Game): void {
     guides: () => game.guides.mesh.count,
     shards: () => game.stats().shards,
     memory: () => ({ ...game.renderer.info.memory }),
+    /** diagnostic : masquer / montrer un groupe de premier niveau (par son nom) */
+    showGroup: (name: string, on: boolean) => {
+      for (const top of game.scene.children) if ((top.name || top.type) === name) top.visible = on;
+    },
+    /** diagnostic : nombre de maillages visibles par groupe de premier niveau de la scène */
+    sceneStats: () => {
+      const out: Record<string, number> = {};
+      for (const top of game.scene.children) {
+        if (!top.visible) continue;
+        let n = 0;
+        top.traverseVisible((o) => {
+          if ((o as THREE.Mesh).isMesh || (o as THREE.Points).isPoints || (o as THREE.Sprite).isSprite) n++;
+        });
+        const key = top.name || top.type;
+        out[key] = (out[key] ?? 0) + n;
+      }
+      return out;
+    },
     hover: (id: string, k: number | null) => game.panels.get(id)?.setHover(k),
   };
   (window as unknown as { __game: typeof api }).__game = api;
