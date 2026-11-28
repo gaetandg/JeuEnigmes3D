@@ -7,6 +7,7 @@ import { heightAt } from '../world/terrain.ts';
 import { stoneMaterial } from '../world/props.ts';
 import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { pulse } from './hints.ts';
+import { actionIconMaterial } from './inputIcons.ts';
 import { EASEL_TILT } from '../world/puzzleColliders.ts';
 
 /** Placement d'une feuille : sur un pupitre (panneau) ou à plat sur une estrade (paysage). */
@@ -205,6 +206,13 @@ export class FoldView implements PuzzleView {
   private previewMain = new THREE.Mesh(UNIT_BOX, new THREE.MeshBasicMaterial({ color: '#ffb81f', transparent: true, opacity: 0.5, depthWrite: false, toneMapped: false }));
   private previewAlt = new THREE.Mesh(UNIT_BOX, new THREE.MeshBasicMaterial({ color: '#c9b8ff', transparent: true, opacity: 0.3, depthWrite: false, toneMapped: false }));
   private previewHint = new THREE.Mesh(UNIT_BOX, new THREE.MeshBasicMaterial({ color: '#9fe8ff', transparent: true, opacity: 0.25, depthWrite: false, toneMapped: false }));
+  /**
+   * Sur une ligne qui plie dans les deux sens, un dessin sur chaque moitié éclairée : la souris
+   * avec le bouton gauche (ou le doigt qui touche) sur l'une, le bouton droit (ou l'appui long)
+   * sur l'autre. Sans cela, rien ne disait qu'un clic droit plie l'autre moitié.
+   */
+  private iconMain = new THREE.Sprite(actionIconMaterial(false));
+  private iconAlt = new THREE.Sprite(actionIconMaterial(true));
   /** plis possibles sur chaque ligne affichée */
   private lineFolds = new Map<number, Fold[]>();
   /** prochain pli de la solution désigné par l'aide (avec son côté) */
@@ -338,6 +346,12 @@ export class FoldView implements PuzzleView {
       m.renderOrder = 3;
       this.board.add(m);
     }
+    for (const ic of [this.iconMain, this.iconAlt]) {
+      ic.visible = false;
+      ic.renderOrder = 6;
+      ic.scale.setScalar(Math.min(this.cell * 0.75, 0.9));
+      this.board.add(ic);
+    }
 
     // réserve de plis : encoches sur le bord proche
     for (let i = 0; i < puzzle.maxFolds; i++) {
@@ -393,13 +407,21 @@ export class FoldView implements PuzzleView {
       line.material = this.hovered === k ? this.lineHot : this.hintK === k ? this.lineHint : this.lineMat;
     }
     this.previewMain.visible = this.previewAlt.visible = this.previewHint.visible = false;
+    this.iconMain.visible = this.iconAlt.visible = false;
     const opts = this.hovered !== null ? this.lineFolds.get(this.hovered) : undefined;
     if (opts && opts.length) {
       // clic gauche : la seule option, ou la moitié gauche / haute ; clic droit : l'autre
       const main = opts.length === 1 ? opts[0]! : opts.find((o) => o.side === -1)!;
       this.placePreview(this.previewMain, main);
       const alt = opts.find((o) => o !== main);
-      if (alt) this.placePreview(this.previewAlt, alt);
+      if (alt) {
+        this.placePreview(this.previewAlt, alt);
+        // les deux gestes, dessinés au-dessus de chaque moitié
+        const lift = Math.min(this.cell * 0.5, 0.6);
+        this.iconMain.position.copy(this.previewMain.position).setY(this.previewY + lift);
+        this.iconAlt.position.copy(this.previewAlt.position).setY(this.previewY + lift);
+        this.iconMain.visible = this.iconAlt.visible = true;
+      }
     }
     // l'aide montre la moitié à plier, même pendant qu'on survole une autre ligne
     if (this.hintFold && this.hintK !== null && this.hintK !== RESET_K && this.lines.has(this.hintK)) {
@@ -620,6 +642,7 @@ export class FoldView implements PuzzleView {
     this.lines.clear();
     this.lineFolds.clear();
     this.previewMain.visible = this.previewAlt.visible = this.previewHint.visible = false;
+    this.iconMain.visible = this.iconAlt.visible = false;
     this.pickables.length = 0;
     this.pickables.push(this.resetPick);
     this.state = this.encode();

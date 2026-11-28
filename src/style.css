@@ -240,8 +240,35 @@ input[type='checkbox'] { width: 20px; height: 20px; accent-color: var(--accent);
 .help-lamp .lamp-frame { fill: none; stroke: #e9dcc0; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .help-lamp .lamp-glass { fill: rgba(255, 236, 190, 0.18); stroke: #e9dcc0; stroke-width: 2.5; }
 .help-lamp .lamp-flame { fill: #ffd36b; opacity: 0.8; }
-.help-lamp .lamp-key { font: 700 11px/1 system-ui, sans-serif; color: #e9dcc0; border: 1.5px solid #e9dcc0; border-radius: 4px; padding: 1px 4px; }
+.help-lamp .lamp-key {
+  font: 700 11px/1 system-ui, sans-serif; color: #e9dcc0;
+  border: 1.5px solid #e9dcc0; border-bottom-width: 3.5px; border-radius: 4px; padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.08);
+}
 .help-lamp .lamp-key:empty { display: none; }
+/*
+ * Sans un mot : la touche s'enfonce, et la flamme s'allume au même instant (« appuie ici, la
+ * lanterne t'éclaire »). Au toucher, une onde autour de la lanterne invite à la toucher.
+ */
+.help-lamp .lamp-key { animation: lamp-key-press 3.2s ease-in-out 0.6s infinite; }
+.help-lamp .lamp-flame { animation: lamp-wake 3.2s ease-in-out 0.6s infinite; transform-origin: 20px 26px; }
+@keyframes lamp-key-press {
+  0%, 68%, 100% { transform: translateY(0); border-bottom-width: 3.5px; }
+  74%, 84% { transform: translateY(2px); border-bottom-width: 1.5px; background: #ffd36b; color: #2a2418; border-color: #ffd36b; }
+}
+@keyframes lamp-wake {
+  0%, 70%, 100% { opacity: 0.45; transform: scale(0.85); }
+  76%, 90% { opacity: 1; transform: scale(1.15); fill: #fff1b8; }
+}
+.help-lamp.touch::after {
+  content: ''; position: absolute; inset: -4px; border-radius: 14px;
+  border: 2px solid rgba(255, 211, 107, 0.8); opacity: 0;
+  animation: lamp-tap 2.4s ease-out 0.6s infinite; pointer-events: none;
+}
+@keyframes lamp-tap { 0% { opacity: 0.9; transform: scale(0.9); } 60%, 100% { opacity: 0; transform: scale(1.35); } }
 .help-lamp.offer .lamp-flame { animation: lamp-flicker 1.6s ease-in-out infinite; }
 .help-lamp.offer { box-shadow: 0 0 18px rgba(255, 200, 100, 0.45); }
 @keyframes lamp-flicker { 50% { opacity: 1; fill: #fff1b8; } }
+@media (prefers-reduced-motion: reduce) {
+  .help-lamp .lamp-key, .help-lamp .lamp-flame, .help-lamp.touch::after { animation: none; }
+}

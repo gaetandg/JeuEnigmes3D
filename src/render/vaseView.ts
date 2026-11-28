@@ -7,6 +7,7 @@ import type { InteractResult, PuzzleView } from './puzzleView.ts';
 import { pulse } from './hints.ts';
 import { ringAround } from './goalRings.ts';
 import { mergeMeshes, mergeStatic } from './merge.ts';
+import { actionIconMaterial } from './inputIcons.ts';
 
 export interface VasePlacement {
   x: number;
@@ -169,6 +170,15 @@ export class VaseView implements PuzzleView {
       // sens : une flèche sur le tuyau (deux pour un tuyau à double sens)
       const arrowGeo = new THREE.ConeGeometry(u * 0.28, u * 0.6, 8);
       const dir = Math.sign(xs[p.b]! - xs[p.a]!) || 1;
+      // tuyau à double sens : au survol de sa vanne, le geste de chaque sens au-dessus de sa flèche
+      // (clic gauche : de a vers b ; clic droit, ou appui long : de b vers a)
+      if (!p.oneWay) {
+        const lift = new THREE.Vector3(0, u * 1.6, 0);
+        this.twoWay.set(k, [
+          mid.clone().add(new THREE.Vector3(dir * u * 1.4, 0, 0)).add(lift),
+          mid.clone().add(new THREE.Vector3(-dir * u * 1.4, 0, 0)).add(lift),
+        ]);
+      }
       for (const side of p.oneWay ? [1] : [1, -1]) {
         const ar = new THREE.Mesh(arrowGeo, p.oneWay ? oneWayMat : pipeMat);
         ar.rotation.z = -(dir * side * Math.PI) / 2;
@@ -193,6 +203,12 @@ export class VaseView implements PuzzleView {
     reset.userData = { panel: this, k: puzzle.pipes.length };
     this.group.add(reset);
     this.pickables.push(reset);
+    for (const ic of [this.iconMain, this.iconAlt]) {
+      ic.visible = false;
+      ic.renderOrder = 6;
+      ic.scale.setScalar(u * 2.4);
+      this.group.add(ic);
+    }
     // tout ce qui ne bouge pas : un maillage par matériau ; le verre à part, dessiné après l'eau
     mergeStatic(this.group);
     if (tubes.length) mergeMeshes(tubes, this.group, glass).renderOrder = 2;
@@ -215,7 +231,17 @@ export class VaseView implements PuzzleView {
 
   setHover(k: number | null): void {
     this.hovered = this.powered && !this.solved ? k : null;
+    const at = this.hovered !== null ? this.twoWay.get(this.hovered) : undefined;
+    this.iconMain.visible = this.iconAlt.visible = !!at;
+    if (at) {
+      this.iconMain.position.copy(at[0]);
+      this.iconAlt.position.copy(at[1]);
+    }
   }
+  /** les tuyaux à double sens : où dessiner le geste de chaque sens */
+  private twoWay = new Map<number, [THREE.Vector3, THREE.Vector3]>();
+  private iconMain = new THREE.Sprite(actionIconMaterial(false));
+  private iconAlt = new THREE.Sprite(actionIconMaterial(true));
 
   /** Place l'eau (instant : sans animation) et allume les anneaux atteints. */
   private refresh(instant: boolean): void {

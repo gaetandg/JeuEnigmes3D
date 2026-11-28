@@ -64,7 +64,7 @@ export class Hud {
         </svg>
       </div>
       <!-- l'aide : une lanterne, quand on est depuis un moment devant une énigme ; touche H -->
-      <button class="help-lamp" hidden aria-label="Aide (touche H)">
+      <button class="help-lamp${touch ? ' touch' : ''}" hidden aria-label="Aide (touche H)">
         <svg viewBox="0 0 40 52" width="30" height="39" aria-hidden="true">
           <path d="M14 8 H26 M20 3 V8" class="lamp-frame"/>
           <rect x="9" y="8" width="22" height="30" rx="7" class="lamp-glass"/>

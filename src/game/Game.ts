@@ -63,6 +63,7 @@ import type { MapData, MapMark, MapZone, MarkState } from '../ui/map.ts';
 import { prepareMap } from '../ui/map.ts';
 import { buildMapTable } from '../world/mapTable.ts';
 import { BOAT_AT, FAR_LIGHT, PaperBoat } from '../render/paperBoat.ts';
+import { setInputMode } from '../render/inputIcons.ts';
 import type { MapTable } from '../world/mapTable.ts';
 
 const REACH = 5;
@@ -1580,6 +1581,7 @@ export class Game {
 
   private setupInput(): void {
     const touch = TouchInput.supported();
+    setInputMode(touch ? 'touch' : 'mouse');
     const settings: Settings = {
       volume: 0.7, sensitivity: 0.0022, quality: touch ? 'basse' : 'haute', symbols: false, hints: true, ...this.save.settings,
     };
@@ -1650,7 +1652,10 @@ export class Game {
     this.refreshJournal();
     if (touch) {
       touchInput = new TouchInput(this.opts.canvas, this.opts.ui, this.player);
-      touchInput.onTap = (reverse) => this.click(reverse);
+      touchInput.onTap = (reverse) => {
+        setInputMode('touch');
+        this.click(reverse);
+      };
     }
     this.hud.onContinue = () => {
       // fin de la séquence : retour au joueur
@@ -1677,11 +1682,17 @@ export class Game {
         this.persist();
       }
     };
-    this.input.onClick = (button) => this.click(button === 2);
+    this.input.onClick = (button) => {
+      setInputMode('mouse');
+      this.click(button === 2);
+    };
     this.input.onHelp = () => this.requestHelp();
     // manette : démarre sans verrouillage de la souris
     this.gamepad = new GamepadInput(this.player);
-    this.gamepad.onAct = (reverse) => this.click(reverse);
+    this.gamepad.onAct = (reverse) => {
+      setInputMode('pad');
+      this.click(reverse);
+    };
     this.gamepad.onHelp = () => this.requestHelp();
     this.gamepad.onStart = () => {
       if (this.playing) {
