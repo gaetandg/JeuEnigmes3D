@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CAVE, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, caveEdge } from './layout.ts';
+import { CAVE, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, caveEdge, SECRETS } from './layout.ts';
 import { heightAt } from './terrain.ts';
 import { stoneMaterial } from './props.ts';
 import { NOTES } from './lore.ts';
@@ -162,7 +162,7 @@ export function buildCave(colliders: Colliders): Cave {
   const crystalMat = new THREE.MeshStandardMaterial({ color: '#8fd8ff', roughness: 0.2, emissive: '#5fc0ff', emissiveIntensity: 0.9, flatShading: true });
   const mossMat = new THREE.MeshBasicMaterial({ color: '#4fbf8c', transparent: true, opacity: 0.35, toneMapped: false, depthWrite: false });
   const crystals: THREE.Mesh[] = [];
-  const spots = [...ROOT_PANELS, ...NOTES.filter((n) => n.zone === 'racines'), CAVE_LIFT].map((p) => ({ x: p.x - CAVE.x, z: p.z - CAVE.z }));
+  const spots = [...ROOT_PANELS, ...NOTES.filter((n) => n.zone === 'racines'), CAVE_LIFT, ...SECRETS.filter((q) => q.kind === 'roots')].map((p) => ({ x: p.x - CAVE.x, z: p.z - CAVE.z }));
   for (let i = 0; i < 26; i++) {
     const a = rnd() * Math.PI * 2;
     const r = caveEdge(a) - 0.5 - rnd() * 2.5;

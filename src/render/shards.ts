@@ -2,7 +2,9 @@ import * as THREE from 'three';
 
 /**
  * Les éclats gagnés : chacun vole depuis son énigme secrète jusqu'au phare puis tourne
- * en orbite autour de la lampe. Quand les sept sont réunis, tout s'irise.
+ * en orbite autour de la lampe. Quand tous sont réunis, tout s'irise.
+ * Dès le début, des alvéoles fantômes tournent déjà autour de la lampe, une par éclat à
+ * trouver : on voit, sans un mot, qu'il y a des choses à chercher, et combien il en reste.
  */
 interface Shard {
   mesh: THREE.Mesh;
@@ -12,15 +14,26 @@ interface Shard {
   slot: number;
 }
 
-const COLORS = ['#ff5a4e', '#ffb33a', '#ffe14a', '#5be36f', '#3fd6ff', '#5d7bff', '#c86bff'];
+const COLORS = ['#ff5a4e', '#ffb33a', '#ffe14a', '#5be36f', '#3fd6ff', '#5d7bff', '#c86bff', '#ff7ad9', '#fff0b0'];
 
 export class Shards {
   readonly group = new THREE.Group();
   private shards: Shard[] = [];
   private time = 0;
 
+  /** les alvéoles vides (une par éclat), qui s'éteignent quand leur éclat arrive */
+  private ghosts: THREE.Mesh[] = [];
+
   constructor(private lamp: THREE.Vector3, readonly total = 7) {
     this.group.name = 'éclats';
+    const geo = new THREE.OctahedronGeometry(0.75, 0);
+    const mat = new THREE.MeshBasicMaterial({ color: '#e8e4ff', transparent: true, opacity: 0.3, depthWrite: false, toneMapped: false });
+    for (let i = 0; i < total; i++) {
+      const g = new THREE.Mesh(geo, mat);
+      g.scale.y = 1.6;
+      this.ghosts.push(g);
+      this.group.add(g);
+    }
   }
 
   get count(): number {
@@ -49,6 +62,13 @@ export class Shards {
 
   update(dt: number): void {
     this.time += dt;
+    this.ghosts.forEach((g, slot) => {
+      const s = this.shards[slot];
+      g.visible = !s || s.t < 1;
+      if (!g.visible) return;
+      g.position.copy(this.orbitPos(slot, this.time));
+      g.rotation.y = this.time * 0.6 + slot;
+    });
     for (const s of this.shards) {
       const target = this.orbitPos(s.slot, this.time);
       if (s.t < 1) {

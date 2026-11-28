@@ -7,7 +7,8 @@ import { ZONE3, ZONE3_CADRAN } from '../../src/puzzles/zone3.ts';
 import { ZONE4_FOLD, ZONE4_LIGHT } from '../../src/puzzles/zone4.ts';
 import { ZONE5, ZONE5_GRAND } from '../../src/puzzles/zone5.ts';
 import { isSolved, parseTilt, solveTilt, startTilt } from '../../src/core/tilt/index.ts';
-import { SECRET_FOLD, SECRET_IDS, SECRET_LIGHT, SECRET_SHADOW } from '../../src/puzzles/secrets.ts';
+import { SECRET_FOLD, SECRET_IDS, SECRET_LIGHT, SECRET_SHADOW, ISLAND_SECRET_IDS, SECRET_ROOTS, SECRET_TILT } from '../../src/puzzles/secrets.ts';
+import { checkRoots, parseRoots, solveRoots, undecided } from '../../src/core/roots/index.ts';
 import { checkShadow, parseShadow, shadowSearch, solveShadow, startState } from '../../src/core/shadow/index.ts';
 
 describe('zone 1 — validation de toutes les énigmes par le solveur', () => {
@@ -119,9 +120,22 @@ describe('zone 4 — énigmes combinées', () => {
 });
 
 describe('les Éclats — énigmes secrètes', () => {
-  it('sept secrets aux identifiants uniques', () => {
-    expect(SECRET_IDS).toHaveLength(7);
-    expect(new Set(SECRET_IDS).size).toBe(7);
+  it('neuf secrets aux identifiants uniques (sept sur l\'île, un dans le ciel, un dans la grotte)', () => {
+    expect(SECRET_IDS).toHaveLength(9);
+    expect(new Set(SECRET_IDS).size).toBe(9);
+    expect(ISLAND_SECRET_IDS).toHaveLength(7);
+  });
+  it('les éclats de la suite : solution unique (racines), soluble en 12 gestes (billes)', () => {
+    for (const def of SECRET_ROOTS) {
+      const { puzzle, start } = parseRoots(def);
+      expect(checkRoots(puzzle, start).solved).toBe(false);
+      expect(solveRoots(puzzle, 2).count).toBe(1);
+      expect(undecided(puzzle)).toBeGreaterThanOrEqual(12);
+    }
+    for (const def of SECRET_TILT) {
+      const r = solveTilt(parseTilt(def));
+      expect(r.minMoves).toBe(def.moves);
+    }
   });
   for (const def of SECRET_LIGHT) {
     it(`${def.id} : solution unique, aucune pièce inutile`, () => {

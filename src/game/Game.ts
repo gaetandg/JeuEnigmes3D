@@ -36,7 +36,7 @@ import { GuideBeams } from '../render/guides.ts';
 import { GoalRings } from '../render/goalRings.ts';
 import { GamepadInput } from './gamepad.ts';
 import { Shards } from '../render/shards.ts';
-import { SECRET_FOLD, SECRET_IDS, SECRET_LIGHT, SECRET_SHADOW } from '../puzzles/secrets.ts';
+import { ISLAND_SECRET_IDS, SECRET_FOLD, SECRET_IDS, SECRET_LIGHT, SECRET_ROOTS, SECRET_SHADOW, SECRET_TILT } from '../puzzles/secrets.ts';
 import type { Lights } from '../render/environment.ts';
 import { LightPanel } from '../render/panelView.ts';
 import { WorldLightPuzzle } from '../render/worldPuzzle.ts';
@@ -55,6 +55,9 @@ import { LoreNotes, NOTE_REACH } from '../render/notes.ts';
 import { SeaAnswer } from '../render/ending.ts';
 import type { CheatAction, CheatList, Cinematic } from '../ui/hud.ts';
 import type { MapData, MapMark, MapZone, MarkState } from '../ui/map.ts';
+import { prepareMap } from '../ui/map.ts';
+import { buildMapTable } from '../world/mapTable.ts';
+import type { MapTable } from '../world/mapTable.ts';
 
 const REACH = 5;
 /** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
@@ -69,6 +72,20 @@ const HELP_COOLDOWN = 8;
 const POWER: { id: string; requires: Req[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU, ...ROOT_PANELS, RACINE_MERE];
 const SKY_IDS = [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id];
 const ROOT_IDS = [...ROOT_PANELS.map((p) => p.id), RACINE_MERE.id];
+/** les éclats cachés dans la suite (ils apparaissent avec leur lieu) */
+const SKY_SECRET = 'eclat-nuages';
+const CAVE_SECRET = 'eclat-alcove';
+
+/** Au-dessus d'une énigme secrète : là flotte son éclat, et c'est de là qu'il s'envole. */
+function secretLure(s: (typeof SECRETS)[number]): THREE.Vector3 {
+  if (s.kind === 'world-light') {
+    const x = SECRET_PLAGE.x0 + 2 * SECRET_PLAGE.dx;
+    const z = SECRET_PLAGE.z0 + SECRET_PLAGE.dz;
+    return new THREE.Vector3(x, heightAt(x, z) + 2.6, z);
+  }
+  const up = s.kind === 'fold-easel' ? 6.2 : s.kind === 'shadow' ? 2.5 : 2.0;
+  return new THREE.Vector3(s.x, heightAt(s.x, s.z) + up, s.z);
+}
 /** de combien le phare s'enfonce dans la colline pendant la bascule (m) */
 const SINK_DEPTH = 22;
 /** lumière de la grotte : voûte violette, sol de terre, brume sombre */
@@ -80,6 +97,9 @@ const CAVE_FOG = new THREE.Color('#141019');
 /** dernière énigme : elle rallume le phare */
 const FINAL_ID = 'f6';
 const BEACON_STEPS = ['tours', 'grand-pli', 'cadran', FINAL_ID];
+
+const LURE_GEO = new THREE.OctahedronGeometry(0.17, 0);
+const LURE_MAT = new THREE.MeshStandardMaterial({ color: '#fbf6ff', emissive: '#d9c8ff', emissiveIntensity: 1.1, flatShading: true, roughness: 0.2 });
 
 /** Mode test : lieux où se téléporter d'un coup, sans rien changer à la progression. */
 const PLACES: { id: string; label: string; x: number; z: number; yaw: number; needs?: 'sky' | 'deep' }[] = [
@@ -244,6 +264,9 @@ export class Game {
     const plaza = buildPlaza(this.colliders);
     this.plazaCrystal = plaza.crystal;
     this.scene.add(plaza.group);
+    // la carte du gardien : une table d'orientation qui sort du sol quand le jardin est fini
+    this.mapTable = buildMapTable(this.colliders);
+    this.scene.add(this.mapTable.group);
     const lh = buildLighthouse(this.colliders);
     this.lighthouseLamp = lh.lamp;
     this.lighthouse = lh.group;
@@ -325,6 +348,17 @@ export class Game {
         const sv = new ShadowView(parseShadow(def), { x: s.x, z: s.z, yaw: s.yaw, voxel: 0.2, stageY: 0.8 }, startState(def));
         sv.onTurn = () => this.audio.click();
         view = sv;
+      } else if (s.kind === 'tilt') {
+        const tv = new TiltView(parseTilt(SECRET_TILT.find((d) => d.id === s.id)!), { x: s.x, z: s.z, yaw: s.yaw, cell: 0.24, kind: 'table' });
+        tv.onRoll = (dur) => this.audio.roll(dur);
+        tv.onLand = (end) => (end === 'home' ? this.audio.home() : end === 'pit' ? this.audio.pit() : this.audio.bump());
+        tv.onFail = () => this.audio.denied();
+        view = tv;
+      } else if (s.kind === 'roots') {
+        const { puzzle, start } = parseRoots(SECRET_ROOTS.find((d) => d.id === s.id)!);
+        const rv = new RootView(puzzle, { x: s.x, z: s.z, yaw: s.yaw, cell: 0.2, kind: 'lectern' }, start);
+        rv.onCrystal = (n) => this.audio.crystal(((n - 1) % 7) + 1);
+        view = rv;
       } else {
         const def = SECRET_FOLD.find((d) => d.id === s.id)!;
         const fv = new FoldView(parseFold(def), s.kind === 'fold-easel'
@@ -338,6 +372,12 @@ export class Game {
       view.setPowered(true);
       this.panels.set(view.id, view);
       this.scene.add(view.group);
+      // un petit éclat flotte au-dessus tant qu'elle n'est pas résolue : « il y a quelque chose ici »
+      const lure = new THREE.Mesh(LURE_GEO, LURE_MAT);
+      lure.position.copy(secretLure(s));
+      lure.scale.y = 1.6;
+      this.scene.add(lure);
+      this.lures.push({ id: s.id, mesh: lure, y0: lure.position.y });
     }
 
     // faisceau tournant du phare (fin du jeu)
@@ -357,7 +397,7 @@ export class Game {
     this.beaconY = this.beacon.position.y;
     this.scene.add(this.beacon);
     // la position du faisceau elle-même (pas une copie) : les éclats suivent le phare s'il s'enfonce
-    this.shards = new Shards(this.beacon.position);
+    this.shards = new Shards(this.beacon.position, SECRET_IDS.length);
     this.scene.add(this.shards.group);
     // le récit : les billets du gardien, et la réponse de la mer à la fin
     this.notes = new LoreNotes(NOTES.filter((n) => n.zone !== 'ciel' && n.zone !== 'racines'), this.save.notes ?? []);
@@ -417,7 +457,10 @@ export class Game {
 
     window.addEventListener('resize', () => this.resize());
 
-    if (!opts.test) this.setupInput();
+    if (!opts.test) {
+      this.setupInput();
+      prepareMap(); // le relief de la carte, calculé quand le jeu ne fait rien
+    }
     // en test (rendu logiciel lent) : ombres plus légères
     if (opts.test) this.lights.sun.shadow.mapSize.set(1024, 1024);
   }
@@ -611,7 +654,7 @@ export class Game {
     if (this.cave.interior.visible !== near) {
       this.cave.interior.visible = near;
       this.caveNotes.group.visible = near;
-      for (const id of ROOT_IDS) this.panels.get(id)!.group.visible = near;
+      for (const id of [...ROOT_IDS, CAVE_SECRET]) this.panels.get(id)!.group.visible = near;
     }
     if (next !== this.caveMix) {
       this.caveMix = next;
@@ -675,6 +718,19 @@ export class Game {
   private beaconY = 0;
   /** 0 : le phare à sa place ; 1 : enfoncé dans la colline */
   private lhSink = 0;
+
+  /** les éclats qui flottent au-dessus des énigmes secrètes non résolues */
+  private lures: { id: string; mesh: THREE.Mesh; y0: number }[] = [];
+
+  private updateLures(time: number): void {
+    for (const l of this.lures) {
+      const v = this.panels.get(l.id)!;
+      l.mesh.visible = !v.solved && v.group.visible;
+      if (!l.mesh.visible) continue;
+      l.mesh.position.y = l.y0 + Math.sin(time * 1.4 + l.y0) * 0.15;
+      l.mesh.rotation.y = time * 1.2;
+    }
+  }
 
   /** une séquence est en cours (le joueur ne marche pas, pas de menu pause) */
   get busy(): boolean {
@@ -798,7 +854,7 @@ export class Game {
 
   /** ce qui bascule avec l'île : ses énigmes et ses billets */
   private skyGroups(): THREE.Object3D[] {
-    return [...SKY_IDS.map((id) => this.panels.get(id)!.group), this.skyNotes.group];
+    return [...[...SKY_IDS, SKY_SECRET].map((id) => this.panels.get(id)!.group), this.skyNotes.group];
   }
 
   startBascule(): void {
@@ -812,7 +868,7 @@ export class Game {
     this.hud?.closeNote();
     this.noteAt = null;
     // les positions de référence des énigmes, avant qu'elles ne changent de repère
-    for (const id of SKY_IDS) this.anchorsOf(this.panels.get(id)!);
+    for (const id of [...SKY_IDS, SKY_SECRET]) this.anchorsOf(this.panels.get(id)!);
     for (const g of this.skyGroups()) this.sky.pivot.attach(g);
   }
 
@@ -1041,7 +1097,7 @@ export class Game {
 
   /** Les sept éclats sont-ils réunis ? (au chargement, avant que les éclats ne soient recomptés) */
   private allSecrets(): boolean {
-    return SECRET_IDS.every((id) => this.isSolved(id));
+    return ISLAND_SECRET_IDS.every((id) => this.isSolved(id));
   }
 
   /** Lit un billet du gardien : carte à l'écran, carnet et sauvegarde. */
@@ -1062,6 +1118,31 @@ export class Game {
   }
   private noteAt: THREE.Vector3 | null = null;
 
+  mapTable!: MapTable;
+  /** 0 : enfouie ; 1 : sortie (la table d'orientation) */
+  mapRaise = 0;
+  private mapRaiseTarget = 0;
+  private mapDrawClock = 0;
+
+  /** La table sort du sol (4 s), puis sa carte se redessine quand on est assez près pour la lire. */
+  private updateMapTable(dt: number): void {
+    if (this.mapRaise < this.mapRaiseTarget) {
+      this.mapRaise = Math.min(1, this.mapRaise + dt / 4);
+      this.mapTable.setRaise(THREE.MathUtils.smoothstep(this.mapRaise, 0, 1));
+      if (Math.random() < 0.4) {
+        const a = Math.random() * Math.PI * 2;
+        const c = this.mapTable.center;
+        this.sparks.burst(new THREE.Vector3(c.x + Math.cos(a) * 1.1, c.y - 1, c.z + Math.sin(a) * 1.1), new THREE.Color('#d9c7a6'), 8, 1.5);
+      }
+    }
+    if (this.mapRaise <= 0) return;
+    this.mapDrawClock -= dt;
+    if (this.mapDrawClock <= 0 && this.camera.position.distanceTo(this.mapTable.center) < 16) {
+      this.mapDrawClock = 0.15;
+      this.mapTable.redraw(this.mapData(), this.time);
+    }
+  }
+
   /** Données de la carte du gardien : chaque énigme principale et son état, éclats, billets, nous. */
   mapData(): MapData {
     const towers = towerCell(1.5, 1);
@@ -1081,7 +1162,10 @@ export class Game {
     const pos = this.player.position;
     return {
       marks,
-      shards: SECRETS.filter((s) => this.isSolved(s.id)).map((s) => (s.kind === 'world-light' ? { x: SECRET_PLAGE.x0 + 8, z: SECRET_PLAGE.z0 + 6 } : { x: s.x, z: s.z })),
+      shards: SECRETS.filter((s) => this.isSolved(s.id)).map((s) => ({
+        ...(s.kind === 'world-light' ? { x: SECRET_PLAGE.x0 + 8, z: SECRET_PLAGE.z0 + 6 } : { x: s.x, z: s.z }),
+        zone: s.kind === 'tilt' ? 'ciel' as const : s.kind === 'roots' ? 'racines' as const : null,
+      })),
       shardsTotal: SECRETS.length,
       notes: new Set(this.save.notes ?? []).size,
       notesTotal: NOTES.length,
@@ -1089,10 +1173,6 @@ export class Game {
       sky: !!this.save.sky,
       deep: !!this.save.deep,
     };
-  }
-
-  private refreshMap(): void {
-    this.hud?.setMap(this.mapData());
   }
 
   private refreshJournal(): void {
@@ -1158,7 +1238,7 @@ export class Game {
     this.sky.setRise(on ? 1 : 0);
     this.sky.setBridge(on ? 1 : 0);
     this.skyNotes.group.visible = on;
-    for (const id of SKY_IDS) this.panels.get(id)!.group.visible = on;
+    for (const id of [...SKY_IDS, SKY_SECRET]) this.panels.get(id)!.group.visible = on;
   }
 
   get skyRisen(): boolean {
@@ -1212,7 +1292,6 @@ export class Game {
       onPause: () => {
         if (touchInput) touchInput.enabled = false;
         this.playing = false;
-        this.refreshMap();
         this.hud!.showTitle(true);
         this.persist();
       },
@@ -1251,7 +1330,6 @@ export class Game {
       onHelp: () => this.requestHelp(),
     }, settings, this.save.solved.length > 0, touch, this.cheatList(), PLACES.map((p) => ({ id: p.id, label: p.label })));
     this.refreshJournal();
-    this.refreshMap();
     if (touch) {
       touchInput = new TouchInput(this.opts.canvas, this.opts.ui, this.player);
       touchInput.onTap = (reverse) => this.click(reverse);
@@ -1275,7 +1353,6 @@ export class Game {
       if (locked) this.hud!.hideTitle();
       // pendant une séquence (fin, île qui monte, pont de lumière, vraie fin), pas de menu pause
       else if (!this.busy) {
-        this.refreshMap();
         this.hud!.showTitle(true);
         this.persist();
       }
@@ -1289,7 +1366,6 @@ export class Game {
     this.gamepad.onStart = () => {
       if (this.playing) {
         this.playing = false;
-        this.refreshMap();
         this.hud!.showTitle(true);
         this.persist();
       } else {
@@ -1376,6 +1452,14 @@ export class Game {
     let newCable = false;
     for (const id of this.save.solved) newCable = this.cables.light(id, instant) || newCable;
     if (newCable && !instant) this.audio.cable();
+    // le jardin fini : la table d'orientation sort du sol
+    if (this.isSolved(TOWERS.id) && this.mapRaiseTarget < 1) {
+      this.mapRaiseTarget = 1;
+      if (instant) {
+        this.mapRaise = 1;
+        this.mapTable.setRaise(1);
+      } else this.audio.rumble();
+    }
     const allees = ['a5', 'b6', 'c5', 'd6', 'tours'].filter((id) => this.isSolved(id)).length;
     const m = this.plazaCrystal.material as THREE.MeshStandardMaterial;
     m.emissive.set('#ffd98a').multiplyScalar(allees * 0.25);
@@ -1416,6 +1500,8 @@ export class Game {
 
   /** Où faire jaillir les étincelles d'une énigme résolue. */
   private sparkAt(p: PuzzleView): { at: THREE.Vector3; big: boolean } {
+    const sec = SECRETS.find((q) => q.id === p.id);
+    if (sec) return { at: secretLure(sec), big: false };
     if (p instanceof WorldLightPuzzle) {
       const c = towerCell(3, 0);
       return { at: new THREE.Vector3(c.x, heightAt(c.x, c.z) + TOWERS.beamY + 1, c.z), big: true };
@@ -1442,7 +1528,7 @@ export class Game {
       this.shards.add(this.sparkAt(panel).at);
       this.audio.finale();
       // le dernier éclat trouvé après la fin : les lanternes partent à leur tour
-      if (this.answer.answered && SECRET_IDS.every((s) => s === id || this.isSolved(s))) this.answer.bringLanterns();
+      if (this.answer.answered && ISLAND_SECRET_IDS.includes(id) && ISLAND_SECRET_IDS.every((s) => s === id || this.isSolved(s))) this.answer.bringLanterns();
     }
     if (this.save.solved.includes(id) === false) {
       const s = this.sparkAt(panel);
@@ -1643,6 +1729,8 @@ export class Game {
     }
     this.sparks.update(dt);
     this.goalRings.update(this.time);
+    this.updateLures(this.time);
+    this.updateMapTable(dt);
     this.updateDay(dt);
     // après la fin du phare, le guide revient pour les zones de la suite (ciel, racines)
     this.guides.update(this.time, this.guidesOn && (!this.ended || !!this.save.sky) && !this.busy);
@@ -1714,6 +1802,9 @@ export class Game {
       else if (sec.kind === 'fold-easel') {
         const d = 6.5;
         this.player.place(sec.x + Math.sin(sec.yaw) * d, sec.z + Math.cos(sec.yaw) * d, sec.yaw, 0.05);
+      } else if (sec.kind === 'tilt' || sec.kind === 'roots') {
+        const st = standPoint(sec, 1.5);
+        this.player.place(st.x, st.z, sec.yaw, -0.6);
       } else if (sec.kind === 'shadow') {
         const yaw = sec.yaw - 0.4;
         this.player.place(sec.x + Math.sin(yaw) * 2.3, sec.z + Math.cos(yaw) * 2.3, yaw, -0.22);
@@ -1965,6 +2056,7 @@ export class Game {
       this.updateDay(0.05);
       this.sparks.update(0.05);
       this.shards.update(0.05);
+      this.updateMapTable(0.05);
       for (const g of this.gates.values()) {
         if (g.opening && g.open < 1) {
           g.open = Math.min(1, g.open + 0.05 / 2.5);

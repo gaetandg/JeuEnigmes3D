@@ -33,11 +33,13 @@ Au sommet se dresse un **phare éteint**. Pour le rallumer, il faut comprendre t
    ensuite, chacune s'allume dès que *l'une des deux précédentes* est résolue. Bloqué sur une
    énigme, on la laisse de côté et l'on continue (jamais deux de suite) ; seules les grandes
    énigmes de zone sont obligatoires. Les câbles le montrent : deux câbles arrivent à chaque
-   énigme, le premier allumé suffit. Le 100 % reste à aller chercher : la **carte du gardien**
-   (menu pause) dessine l'île d'après son relief, chaque énigme y est une lanterne (allumée :
-   résolue ; qui palpite : à faire ; éteinte : pas encore accessible), avec les éclats trouvés,
-   notre position, l'Île du Ciel et la grotte en médaillons une fois découvertes, et le compte
-   par zone. Vérifié par `tests/unit/progression.test.ts`.
+   énigme, le premier allumé suffit. Le 100 % reste à aller chercher : la **carte du gardien**,
+   une table d'orientation en pierre qui **sort du sol sur la place quand le jardin est fini**
+   (il faut revenir la consulter), dessine l'île d'après son relief ; chaque énigme y est une
+   lanterne (allumée : résolue ; qui palpite : à faire ; éteinte : pas encore accessible), avec
+   les éclats trouvés (étoiles), notre position (flèche), l'Île du Ciel et la grotte en médaillons
+   une fois découvertes. **Aucun texte** : la progression totale est un anneau d'or qui se remplit
+   autour de la rose des vents. Vérifié par `tests/unit/progression.test.ts`.
    **Aide graduée, demandée** : rien ne s'impose. Après 45 s devant une énigme, une petite
    lanterne apparaît (elle palpite doucement après 2 min 30) ; la touche H (bouton Y, ou toucher
    la lanterne) donne un palier de plus à chaque demande, une toutes les 8 s : **où regarder**
@@ -264,6 +266,18 @@ bord du plateau du phare, une feuille dans les dunes est, trois gardiens derriè
 Toutes choisies pour leur « déclic » (l'agent glouton y échoue souvent). Un scintillement furtif
 attire l'œil quand on passe à moins de 35 m. Chaque éclat gagné vole jusqu'au phare et tourne
 autour de la lampe ; les sept réunis irisent le faisceau et le grand cristal de la place.
+
+**Les rendre lisibles sans un mot** (retour de jeu : « je ne comprends pas ce que c'est ») :
+- dès le début, des **alvéoles fantômes** (cristaux de verre pâle) tournent autour de la lanterne,
+  une par éclat : on voit qu'il y a des choses à chercher, et combien il en reste ; chaque éclat
+  trouvé vient prendre la place de la sienne ;
+- au-dessus de chaque énigme secrète non résolue **flotte un petit éclat pâle** (c'est de là qu'il
+  s'envole vers le phare) : on distingue les secrets des énigmes du parcours.
+
+**Deux éclats de plus dans la suite** (neuf en tout) : un plateau à trois billes au bord est de
+l'Île du Ciel (12 gestes), et un pupitre de racines à deux lumières au fond d'une alcôve de la
+grotte (14 tuiles indécises). Les lanternes de la première fin attendent les sept de l'île ;
+l'irisation du faisceau, les neuf.
 
 ## 7. Direction artistique
 
