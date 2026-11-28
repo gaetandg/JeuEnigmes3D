@@ -2271,8 +2271,9 @@ export class Game {
   cheat(action: CheatAction, id: string): void {
     // les énigmes du ciel : l'île monte d'abord (sans la séquence)
     // … et pour les Racines, la grotte est ouverte (sans la bascule)
-    const bubbleTarget = VASE_IDS.includes(id);
     const all = action === 'all' || action === 'every';
+    // tout résoudre, c'est aussi la Bulle : on la compte comme visitée (sa carte, ses billets)
+    const bubbleTarget = all || VASE_IDS.includes(id);
     const deepTarget = all || ROOT_IDS.includes(id) || bubbleTarget;
     const skyTarget = deepTarget || SKY_IDS.includes(id);
     // revenir en arrière : si des énigmes au-delà du point choisi sont déjà résolues, on réécrit
