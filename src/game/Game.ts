@@ -240,6 +240,8 @@ export class Game {
     this.renderer.info.autoReset = false;
 
     this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 1500);
+    // aux vases, gauche et droite se comptent depuis le regard du joueur
+    VaseView.viewer = this.camera;
     this.scene.fog = new THREE.Fog(HORIZON, 90, 420);
     this.scene.background = HORIZON.clone();
 
