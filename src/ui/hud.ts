@@ -338,7 +338,7 @@ export class Hud {
       if (e.text) li.textContent = e.text;
       else {
         li.className = 'missing';
-        li.textContent = `… un billet reste à trouver (${e.zone})`;
+        li.textContent = `… un billet reste à trouver ${e.zone}`;
       }
       list.appendChild(li);
     }
