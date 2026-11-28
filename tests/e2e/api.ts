@@ -33,6 +33,7 @@ export type Api = {
   lighthouseY: () => number;
   requestHelp: () => void;
   mapTable: () => number;
+  bubble: () => { visited: boolean; dive: boolean; appel: boolean; ecluse: boolean };
   goalRings: () => boolean;
   help: (id: string, addStuck?: number) => { level: number; gesture: boolean; stuck: number };
   map: () => { marks: { id: string; zone: string; state: 'solved' | 'open' | 'locked' }[]; shards: unknown[]; sky: boolean; deep: boolean };

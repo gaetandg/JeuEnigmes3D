@@ -1,5 +1,5 @@
 import { distToPath, heightAt } from '../world/terrain.ts';
-import { CAVE, LIFT, LIGHTHOUSE, SKY, caveEdge, skyEdge } from '../world/layout.ts';
+import { BUBBLE, CAVE, LIFT, LIGHTHOUSE, SKY, START, caveEdge, skyEdge } from '../world/layout.ts';
 
 /**
  * La carte du gardien (menu pause) : l'île dessinée à l'encre sur un vieux papier, d'après son
@@ -7,7 +7,7 @@ import { CAVE, LIFT, LIGHTHOUSE, SKY, caveEdge, skyEdge } from '../world/layout.
  * éteinte (pas encore accessible). L'Île du Ciel et la grotte des Racines n'apparaissent, en
  * médaillon, qu'une fois découvertes. Les éclats trouvés sont des étoiles ; une flèche, c'est nous.
  */
-export type MapZone = 'jardin' | 'atelier' | 'cloitre' | 'phare' | 'ciel' | 'racines';
+export type MapZone = 'jardin' | 'atelier' | 'cloitre' | 'phare' | 'ciel' | 'racines' | 'bulle';
 export type MarkState = 'solved' | 'open' | 'locked';
 
 export interface MapMark {
@@ -30,10 +30,12 @@ export interface MapData {
   player: { x: number; y: number; z: number; yaw: number };
   sky: boolean;
   deep: boolean;
+  /** la Bulle visitée */
+  bubble: boolean;
 }
 
 export const ZONE_NAMES: Record<MapZone, string> = {
-  jardin: 'Jardin', atelier: 'Atelier', cloitre: 'Cloître', phare: 'Phare', ciel: 'Ciel', racines: 'Racines',
+  jardin: 'Jardin', atelier: 'Atelier', cloitre: 'Cloître', phare: 'Phare', ciel: 'Ciel', racines: 'Racines', bulle: 'Bulle',
 };
 
 const INK = '#5b4a38';
@@ -333,7 +335,17 @@ export function drawMap(canvas: HTMLCanvasElement, data: MapData, t: number, siz
     const at = medallion(g, cx, cy, R, caveEdge, CAVE.r + 6, true);
     caveAt = (x, z) => at(x - CAVE.x, z - CAVE.z);
   }
+  let bubbleAt: ((x: number, z: number) => [number, number]) | null = null;
+  if (data.bubble) {
+    const cx = R + 8 * s;
+    const cy = R + 8 * s;
+    const [ax, ay] = main(START.x, START.z);
+    dashed(ax, ay, cx + R * 0.7, cy + R * 0.7);
+    const at = medallion(g, cx, cy, R, () => BUBBLE.r, BUBBLE.r + 6, false);
+    bubbleAt = (x, z) => at(x - BUBBLE.x, z - BUBBLE.z);
+  }
   const where = (zone: MapZone | null, x: number, z: number): [number, number] | null => {
+    if (zone === 'bulle') return bubbleAt ? bubbleAt(x, z) : null;
     if (zone === 'ciel') return skyAt ? skyAt(x, z) : null;
     if (zone === 'racines') return caveAt ? caveAt(x, z) : null;
     return main(x, z);
@@ -354,7 +366,7 @@ export function drawMap(canvas: HTMLCanvasElement, data: MapData, t: number, siz
   }
   // nous
   const pl = data.player;
-  const zone: MapZone | null = Math.hypot(pl.x - SKY.x, pl.z - SKY.z) < SKY.r + 15 ? 'ciel' : Math.hypot(pl.x - CAVE.x, pl.z - CAVE.z) < CAVE.r + 15 ? 'racines' : null;
+  const zone: MapZone | null = Math.hypot(pl.x - SKY.x, pl.z - SKY.z) < SKY.r + 15 ? 'ciel' : Math.hypot(pl.x - CAVE.x, pl.z - CAVE.z) < CAVE.r + 15 ? 'racines' : Math.hypot(pl.x - BUBBLE.x, pl.z - BUBBLE.z) < BUBBLE.r + 15 ? 'bulle' : null;
   const pp = where(zone, pl.x, pl.z);
   if (pp) arrow(g, pp[0], pp[1], pl.yaw, s);
 }

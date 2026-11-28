@@ -25,7 +25,7 @@ export interface HudCallbacks {
   onHelp: () => void;
 }
 
-export type Cinematic = 'phare' | 'ile' | 'vraie' | 'bascule' | 'racines';
+export type Cinematic = 'phare' | 'ile' | 'vraie' | 'bascule' | 'racines' | 'appel' | 'ecluse';
 
 export type CheatAction = 'goto' | 'before' | 'upto' | 'all';
 /** Énigmes proposées au mode test, groupées par zone, dans l'ordre de progression. */
@@ -130,6 +130,8 @@ export class Hud {
                 <option value="vraie">La vraie fin (les lanternes)</option>
                 <option value="bascule">L'île bascule (la chute)</option>
                 <option value="racines">Les racines reliées (le phare remonte)</option>
+                <option value="appel">Le phare montre la mer (la Bulle)</option>
+                <option value="ecluse">La Grande Écluse (la Bulle répond)</option>
               </select>
             </label>
             <div class="cheat-actions">

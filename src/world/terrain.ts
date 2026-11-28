@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Perlin2D, clamp, lerp, smoothstep } from './noise.ts';
-import { CAVE, FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS, SKY, caveEdge, skyEdge } from './layout.ts';
+import { BUBBLE, CAVE, FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS, SKY, caveEdge, skyEdge } from './layout.ts';
 
 const noise = new Perlin2D(7);
 const ISLAND_CENTER = { x: 0, z: -15 };
@@ -98,9 +98,14 @@ export function inCave(x: number, z: number): boolean {
   return dc < CAVE.r + 8 && dc < caveEdge(Math.atan2(z - CAVE.z, x - CAVE.x));
 }
 
-/** Peut-on poser le pied ici ? Pas dans la mer (la grotte, elle, est de la terre ferme). */
+/** Sous la Bulle (au fond de l'océan, mais à l'air libre). */
+export function inBubble(x: number, z: number): boolean {
+  return Math.hypot(x - BUBBLE.x, z - BUBBLE.z) < BUBBLE.r - 1.2;
+}
+
+/** Peut-on poser le pied ici ? Pas dans la mer (la grotte et la Bulle, elles, sont à pied sec). */
 export function walkable(x: number, z: number): boolean {
-  return inCave(x, z) || heightAt(x, z) >= -0.3;
+  return inCave(x, z) || inBubble(x, z) || heightAt(x, z) >= -0.3;
 }
 
 function groundHeight(x: number, z: number): number {
@@ -108,6 +113,9 @@ function groundHeight(x: number, z: number): number {
   // (la mer en dessous), où le joueur ne peut pas avancer, comme au bord de l'eau
   const ds = Math.hypot(x - SKY.x, z - SKY.z);
   if (ds < SKY.r + 14 && ds < skyEdge(Math.atan2(z - SKY.z, x - SKY.x))) return skyHeight(x, z, ds);
+  // la Bulle : un sol de sable presque plat, au fond de l'océan
+  const db = Math.hypot(x - BUBBLE.x, z - BUBBLE.z);
+  if (db < BUBBLE.r + 4) return BUBBLE.y + noise.noise(x * 0.12, z * 0.12) * 0.25 * smoothstep(6, 12, db) - Math.max(0, db - BUBBLE.r) * 0.3;
   // la grotte des Racines : un sol de terre sous la mer ; au-delà de ses parois, le roc
   if (inCave(x, z)) {
     const dc = Math.hypot(x - CAVE.x, z - CAVE.z);

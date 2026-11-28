@@ -257,6 +257,35 @@ les tuiles sont allumées, sans aucune fuite (les cristaux, au bout des racines,
 - Ambiance : sous terre, plus de soleil ; une voûte violette, une lampe chaude au-dessus de la
   fosse, une brume sombre et proche, la mer étouffée, une gamme phrygienne grave.
 
+## 6 sexies. La Bulle, au fond de l'océan (les vases)
+
+Encore une suite, et un retournement du récit. Quand la Racine-mère est reliée et que le phare
+remonte, la carte de fin se referme et **le phare montre la mer** : au large, là où une lumière
+avait répondu à la première fin, des bulles montent ; puis la caméra revient sur **la plage du
+départ**, où une pierre s'est allumée. On y monte : une bulle nous enveloppe, nous emporte au-dessus
+de la mer (on voit déjà le dôme luire sous l'eau), plonge, et nous dépose dans **la Bulle** : une
+demi-sphère de verre posée sur le fond, pleine d'air, de sable, de coraux et d'anémones qui luisent ;
+dehors, l'eau bleue, des forêts d'algues qui ondulent, des bancs de poissons qui tournent autour du
+dôme, des rais de lumière qui tombent de la surface. Une pierre ramène à la plage (et la suivante
+plonge d'un simple fondu).
+
+**Sixième langage, les vases** : des tubes de verre de hauteurs différentes (graduées, sans
+chiffres), plus ou moins remplis d'eau, reliés par des tuyaux à vanne. Un clic sur une vanne verse
+dans un sens (clic droit : dans l'autre, sauf tuyau à sens unique, marqué d'une flèche d'or),
+jusqu'à ce que la source soit vide ou la cible pleine. Il faut que l'eau arrive pile aux anneaux
+d'or (tous en même temps). Une pierre ronde remet tout comme au départ (l'aide la désigne dans une
+impasse).
+
+- Six tables (2 tubes en 1 geste pour la leçon, puis 3 tubes, une chaîne, un tuyau à sens unique,
+  4 tubes et deux anneaux ; 1 à 11 gestes), générées par `scripts/vases-gen.ts` et vérifiées au
+  solveur (parcours en largeur des états).
+- **La Grande Écluse**, au centre : quatre grands tubes, deux anneaux, 14 gestes.
+- **Le récit se retourne** : les trois billets de la Bulle ne sont pas du gardien. C'est l'autre
+  qui écrit, la personne partie en mer : elle n'était jamais loin, juste en dessous ; les bateaux de
+  papier ont tous coulé jusqu'à elle ; c'était elle, la lumière qui répondait au large.
+- **La fin de la Bulle** : la Grande Écluse remplie, le dôme s'illumine et un rai de lumière monte
+  jusqu'à la surface, face au phare : les deux lumières se répondent à travers la mer.
+
 ## 6 bis. Les Éclats (secrets)
 
 Sept énigmes cachées hors des chemins, allumées dès le départ, sans câble ni guide lumineux :

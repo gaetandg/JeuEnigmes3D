@@ -87,6 +87,8 @@ export function exposeDebugApi(game: Game): void {
     map: () => game.mapData(),
     /** la table d'orientation : 0 enfouie, 1 sortie */
     mapTable: () => game.mapRaise,
+    /** la Bulle : plongée faite, séquences */
+    bubble: () => ({ visited: !!game.save.bubble, dive: !!game.dive, appel: !!game.appel, ecluse: !!game.ecluse }),
     answered: () => game.answer.answered,
     homecoming: () => game.answer.homecoming,
     guides: () => game.guides.mesh.count,

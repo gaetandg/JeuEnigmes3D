@@ -3,7 +3,7 @@
  * Le contexte audio ne démarre qu'après un geste du joueur (règle des navigateurs).
  */
 /** Zones de l'île : chacune a sa tonalité. */
-export type Zone = 'jardin' | 'atelier' | 'cloitre' | 'phare' | 'ciel' | 'racines';
+export type Zone = 'jardin' | 'atelier' | 'cloitre' | 'phare' | 'ciel' | 'racines' | 'bulle';
 
 const ZONE_SCALES: Record<Zone, { root: number; steps: number[] }> = {
   jardin: { root: 261.63, steps: [0, 2, 4, 7, 9] }, // do, pentatonique majeure : lumineux
@@ -12,6 +12,7 @@ const ZONE_SCALES: Record<Zone, { root: number; steps: number[] }> = {
   phare: { root: 349.23, steps: [0, 2, 4, 6, 9] }, // fa, lydien : ouvert
   ciel: { root: 392.0, steps: [0, 4, 7, 11, 14] }, // sol, accord majeur septième : suspendu
   racines: { root: 146.83, steps: [0, 1, 5, 7, 8] }, // ré grave, phrygien : souterrain
+  bulle: { root: 329.63, steps: [0, 2, 4, 6, 8] }, // mi, gamme par tons : en suspension, sous l'eau
 };
 
 export class Audio {
@@ -404,6 +405,30 @@ export class Audio {
     lfo.start(t);
     src.stop(t + dur + 0.15);
     lfo.stop(t + dur + 0.15);
+  }
+
+  /** L'eau coule d'un tube à l'autre : un glouglou doux, plus long quand on verse beaucoup. */
+  pour(amount: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master) return;
+    const dur = 0.35 + Math.min(1.2, amount * 0.09);
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer(dur + 0.1);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 6;
+    // le glouglou : la fréquence sautille, et monte à mesure que le tube se remplit
+    for (let k = 0; k < Math.ceil(dur / 0.07); k++) f.frequency.setValueAtTime(380 + k * 22 + Math.random() * 160, t + k * 0.07);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.35, t + 0.05);
+    g.gain.setValueAtTime(0.35, t + dur - 0.1);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    src.connect(f).connect(g).connect(this.master);
+    if (this.reverb) g.connect(this.reverb);
+    src.start(t);
+    src.stop(t + dur + 0.1);
   }
 
   /** Une bille bute (mur, bord, autre bille) : petit choc sourd. */
