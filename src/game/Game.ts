@@ -1335,6 +1335,7 @@ export class Game {
     this.notes.markRead(id);
     this.skyNotes.markRead(id);
     this.caveNotes.markRead(id);
+    this.bubbleNotes.markRead(id);
     this.audio.click();
     this.hud?.showNote(NOTES[i]!.text, `billet ${i + 1} sur ${NOTES.length}${first ? '' : ' · déjà lu'}`);
     this.noteAt = this.player.position.clone();
@@ -1418,7 +1419,7 @@ export class Game {
 
   /** Vise un billet (tests). */
   aimAtNote(id: string): void {
-    const a = this.notes.anchor(id) ?? this.skyNotes.anchor(id) ?? this.caveNotes.anchor(id);
+    const a = this.notes.anchor(id) ?? this.skyNotes.anchor(id) ?? this.caveNotes.anchor(id) ?? this.bubbleNotes.anchor(id);
     if (!a) throw new Error(`billet ${id} introuvable`);
     a.y += 0.25;
     const d = a.sub(this.player.position);
@@ -1869,12 +1870,12 @@ export class Game {
       ? this.raycaster.intersectObjects(candidates, false).find((h) => h.distance <= (h.object.userData.panel as PuzzleView).reach)
       : undefined;
     // un billet du gardien, plus proche qu'une pièce d'énigme ?
-    const notePicks = [...this.notes.pickables, ...(this.save.sky ? this.skyNotes.pickables : []), ...(this.save.deep ? this.caveNotes.pickables : [])];
+    const notePicks = [...this.notes.pickables, ...(this.save.sky ? this.skyNotes.pickables : []), ...(this.save.deep ? this.caveNotes.pickables : []), ...(this.save.bubble ? this.bubbleNotes.pickables : [])];
     const noteHit = this.raycaster.intersectObjects(notePicks, false)[0];
     const note = noteHit && noteHit.distance <= NOTE_REACH && (!hit || noteHit.distance < hit.distance) ? (noteHit.object.userData.note as string) : null;
     if (note !== this.hoveredNote) {
       this.hoveredNote = note;
-      for (const n of [this.notes, this.skyNotes, this.caveNotes]) n.setHover(note);
+      for (const n of [this.notes, this.skyNotes, this.caveNotes, this.bubbleNotes]) n.setHover(note);
     }
     const next = hit && !note ? { panel: hit.object.userData.panel as PuzzleView, k: hit.object.userData.k as number } : null;
     if (this.hovered && (!next || next.panel !== this.hovered.panel || next.k !== this.hovered.k)) {
