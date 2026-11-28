@@ -693,6 +693,7 @@ export class Game {
         this.caveLight.color.set('#ffc98a');
       }
       this.applyDay();
+      this.audio.setUnderground(this.caveMix, deep);
     }
     const next = this.snapCave ? target : this.caveMix + Math.sign(target - this.caveMix) * Math.min(Math.abs(target - this.caveMix), dt * 1.5);
     this.snapCave = false;
@@ -713,7 +714,7 @@ export class Game {
     if (next !== this.caveMix) {
       this.caveMix = next;
       this.applyDay();
-      this.audio.setUnderground(next);
+      this.audio.setUnderground(next, this.underKind === 'bubble');
     }
   }
 

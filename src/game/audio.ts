@@ -28,6 +28,8 @@ export class Audio {
   private drone: GainNode | null = null;
   /** 0 : dehors ; 1 : sous terre */
   private under = 0;
+  /** sous terre : la grotte (gouttes) ou le fond de l'océan (bulles) */
+  private underSea = false;
   private nextBar = 0;
   private zone: Zone = 'jardin';
   musicVolume = 0.5;
@@ -62,14 +64,38 @@ export class Audio {
    * Sous terre (0..1) : plus de vent, un écho plus long, un bourdon grave, des gouttes d'eau
    * qui tombent de la voûte, et les pas qui résonnent.
    */
-  setUnderground(k: number): void {
+  setUnderground(k: number, sea = false): void {
     this.under = k;
+    this.underSea = sea;
     const ctx = this.ctx;
     if (!ctx) return;
     const t = ctx.currentTime;
     this.wind?.gain.setTargetAtTime(0.22 * (1 - k), t, 0.3);
     this.wet?.gain.setTargetAtTime(0.35 + 0.45 * k, t, 0.3);
-    this.drone?.gain.setTargetAtTime(0.07 * k, t, 0.6);
+    // sous l'eau, le bourdon est plus feutré (et les bulles remplacent les gouttes)
+    this.drone?.gain.setTargetAtTime((sea ? 0.05 : 0.07) * k, t, 0.6);
+  }
+
+  /** Une bulle remonte : un petit « bloup » qui glisse vers l'aigu. */
+  private bubble(at: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.master || !this.reverb) return;
+    const o = ctx.createOscillator();
+    const f0 = 260 + Math.random() * 300;
+    o.frequency.setValueAtTime(f0, at);
+    o.frequency.exponentialRampToValueAtTime(f0 * 2.4, at + 0.09);
+    const g = ctx.createGain();
+    const peak = 0.025 + Math.random() * 0.035;
+    g.gain.setValueAtTime(0, at);
+    g.gain.linearRampToValueAtTime(peak, at + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, at + 0.13);
+    const pan = ctx.createStereoPanner();
+    pan.pan.value = Math.random() * 1.6 - 0.8;
+    o.connect(g).connect(pan);
+    pan.connect(this.master);
+    pan.connect(this.reverb);
+    o.start(at);
+    o.stop(at + 0.16);
   }
 
   /** Une goutte tombe de la voûte : un « plic » qui glisse vers le grave, quelque part autour. */
@@ -129,8 +155,12 @@ export class Audio {
     // onglet en arrière-plan : le minuteur ralentit mais l'horloge audio continue ; on ne
     // rattrape pas les mesures manquées (elles partiraient toutes en même temps)
     if (this.nextBar < ctx.currentTime) this.nextBar = ctx.currentTime + 0.1;
-    // sous terre : des gouttes, parfois deux à la suite
-    if (this.under > 0.5 && Math.random() < 0.22) {
+    // sous terre : des gouttes, parfois deux à la suite ; sous l'eau, des chapelets de bulles
+    if (this.under > 0.5 && this.underSea && Math.random() < 0.28) {
+      const at = ctx.currentTime + Math.random() * 0.5;
+      const n = 1 + Math.floor(Math.random() * 4);
+      for (let i = 0; i < n; i++) this.bubble(at + i * (0.06 + Math.random() * 0.08));
+    } else if (this.under > 0.5 && !this.underSea && Math.random() < 0.22) {
       const at = ctx.currentTime + Math.random() * 0.5;
       this.drip(at);
       if (Math.random() < 0.3) this.drip(at + 0.25 + Math.random() * 0.3);
