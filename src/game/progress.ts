@@ -39,7 +39,7 @@ export interface SaveData {
   /** le 100 % : la barque de papier est partie au large */
   departed?: boolean;
   /** la Grotte des Échos : énigmes résolues par langage, taille choisie par alcôve */
-  echo?: { counts: Record<string, number>; tiers: Record<string, number> };
+  echo?: { counts: Record<string, number>; tiers: Record<string, number>; visited?: boolean };
   settings?: Settings;
 }
 
@@ -61,7 +61,7 @@ export function loadSave(): SaveData {
         if (o && typeof o === 'object' && !Array.isArray(o)) for (const [k, v] of Object.entries(o)) if (Number.isInteger(v) && (v as number) >= 0) out[k] = v as number;
         return out;
       };
-      const echo = d?.echo && typeof d.echo === 'object' ? { counts: nums(d.echo.counts), tiers: nums(d.echo.tiers) } : undefined;
+      const echo = d?.echo && typeof d.echo === 'object' ? { counts: nums(d.echo.counts), tiers: nums(d.echo.tiers), visited: d.echo.visited === true } : undefined;
       return { solved, states, player, settings, playTime, notes, sky: d?.sky === true, deep: d?.deep === true, bubble: d?.bubble === true, departed: d?.departed === true, echo };
     }
   } catch {

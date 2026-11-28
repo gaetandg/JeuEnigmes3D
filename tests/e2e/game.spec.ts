@@ -814,6 +814,8 @@ test("la Grotte des Échos : un rocher creux, des énigmes tirées au hasard, sa
     window.__game.advance(2);
   });
   expect((await page.evaluate(() => window.__game.player())).y).toBeLessThan(-50);
+  // découverte : la carte du gardien montrera son entrée
+  expect((await page.evaluate(() => window.__game.map())).echo).toBe(true);
   // le jardin fini (les Tours-Miroirs) : l'alcôve de la lumière s'allume, une énigme s'y forme
   await page.evaluate(() => window.__game.cheat('upto', 'tours'));
   await page.waitForFunction(() => window.__game.echo().modules.find((m) => m.kind === 'lumiere')!.id === 'echo-lumiere', null, { timeout: 20_000 });

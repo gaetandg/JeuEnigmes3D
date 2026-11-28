@@ -39,6 +39,8 @@ export interface EchoHost {
 export interface EchoSave {
   counts: Partial<Record<EchoLang, number>>;
   tiers: Partial<Record<EchoLang, number>>;
+  /** on y est déjà entré (la carte du gardien montre l'entrée) */
+  visited?: boolean;
 }
 
 /** id de l'énigme d'une alcôve */

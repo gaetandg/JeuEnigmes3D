@@ -1147,7 +1147,10 @@ export class Game {
     if (!q.moved && q.t >= 0.8) {
       q.moved = true;
       if (q.dest === 'bubble') this.player.place(BUBBLE_ARRIVAL.x, BUBBLE_ARRIVAL.z, BUBBLE_ARRIVAL.yaw, -0.05);
-      else if (q.dest === 'echo') this.player.place(ECHO_ARRIVAL.x, ECHO_ARRIVAL.z, ECHO_ARRIVAL.yaw, -0.05);
+      else if (q.dest === 'echo') {
+        this.player.place(ECHO_ARRIVAL.x, ECHO_ARRIVAL.z, ECHO_ARRIVAL.yaw, -0.05);
+        this.echo.save.visited = true;
+      }
       else if (q.dest === 'echo-out') this.player.place(ECHO_OUTSIDE.x, ECHO_OUTSIDE.z, ECHO_OUTSIDE.yaw, 0);
       else if (q.dest === 'beach') this.player.place(BEACH_STONE.x - 3, BEACH_STONE.z - 4, Math.atan2(-3, -4), -0.1);
       else if (q.down) this.player.place(CAVE_ARRIVAL.x, CAVE_ARRIVAL.z, CAVE_ARRIVAL.yaw, -0.08);
@@ -1551,6 +1554,7 @@ export class Game {
       deep: !!this.save.deep,
       bubble: !!this.save.bubble,
       boat: this.boat.waiting,
+      echo: !!this.echo.save.visited,
     };
   }
 
