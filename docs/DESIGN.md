@@ -357,7 +357,8 @@ tests/
 - la passe d'ombre du soleil n'est refaite qu'une image sur trois, ou aussitôt que la zone
   d'ombre suit le joueur (elle coûtait 20 à 35 % des appels) ;
 - sous terre, l'île n'est pas dessinée (vue courte), la mer et le ciel non plus.
-Exemples, tout résolu : plage 828 → 610, place 734 → 511, phare 533 → 390.
+Exemples, tout résolu : plage 828 → 610, place 734 → 511, phare 533 → 390, intérieur de la Bulle
+338 → 106 (tubes, graduations, tuyaux et flèches fusionnés ; chaque vanne d'un seul bloc).
 
 ### Qualité garantie automatiquement
 
