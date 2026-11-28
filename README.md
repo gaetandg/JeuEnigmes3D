@@ -42,7 +42,7 @@ glisser à droite = regarder, toucher = agir, appui long = agir en sens inverse,
 bouton ❚❚ = pause. La qualité graphique passe en « basse » automatiquement.
 
 **Réglages** : volume, musique (générée, une tonalité par zone), sensibilité, qualité graphique (haute / moyenne / basse),
-symboles des couleurs pour les personnes daltoniennes (▲ rouge, ■ vert, ● bleu),
+symboles des couleurs pour les personnes daltoniennes (▲ rouge, ■ vert, ● bleu, ✚ jaune ; sur les panneaux de lumière et sur les billes et leurs creux),
 aide à la demande (après un moment devant une énigme, une lanterne apparaît ; touche H, bouton Y ou
 toucher la lanterne : d'abord où regarder, puis la pièce à changer, puis la souris dessinée montre le
 bon bouton),

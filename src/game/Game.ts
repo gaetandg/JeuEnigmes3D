@@ -826,6 +826,7 @@ export class Game {
       this.save.sky = true;
       this.setSkyRisen(true);
       this.dayTarget = 5;
+      this.refreshJournal();
       // retour au pied du phare, face à la pierre d'envol
       this.player.place(LIFT.x, LIFT.z + 4, 0, -0.1);
       this.persist();
@@ -1002,6 +1003,7 @@ export class Game {
         this.save.deep = true;
         this.applyDeep();
         this.player.place(A.x, A.z, A.yaw, 0);
+        this.refreshJournal();
         this.persist();
       }
       this.snapCave = true;
@@ -1269,6 +1271,7 @@ export class Game {
       this.player.place(BUBBLE_ARRIVAL.x, BUBBLE_ARRIVAL.z, BUBBLE_ARRIVAL.yaw, -0.05);
       if (!this.save.bubble) {
         this.save.bubble = true;
+        this.refreshJournal();
         this.persist();
       }
     }
@@ -1399,9 +1402,18 @@ export class Game {
     };
   }
 
+  /**
+   * Le carnet : les billets lus, et la place de ceux qui restent — seulement pour les lieux déjà
+   * découverts (sinon il trahirait l'Île du Ciel, la grotte ou la Bulle avant l'heure).
+   */
   private refreshJournal(): void {
     const read = new Set(this.save.notes ?? []);
-    this.hud?.setJournal(NOTES.map((n) => ({ zone: n.zone, text: read.has(n.id) ? n.text : null })));
+    const labels: Record<string, string> = {
+      plage: 'sur la plage', jardin: 'dans le jardin', atelier: 'à l\'atelier', 'cloître': 'au cloître', phare: 'au pied du phare',
+      secret: 'quelque part, caché', ciel: 'sur l\'Île du Ciel', racines: 'dans la grotte', bulle: 'dans la Bulle',
+    };
+    const known = (z: string) => (z === 'ciel' ? !!this.save.sky : z === 'racines' ? !!this.save.deep : z === 'bulle' ? !!this.save.bubble : true);
+    this.hud?.setJournal(NOTES.filter((n) => read.has(n.id) || known(n.zone)).map((n) => ({ zone: labels[n.zone] ?? n.zone, text: read.has(n.id) ? n.text : null })));
   }
 
   /** Vise un billet (tests). */
@@ -1637,7 +1649,7 @@ export class Game {
 
   /** Symboles des couleurs sur les panneaux de lumière (daltonisme). */
   setSymbols(on: boolean): void {
-    for (const p of this.panels.values()) if (p instanceof LightPanel) p.setSymbols(on);
+    for (const p of this.panels.values()) if (p instanceof LightPanel || p instanceof TiltView) p.setSymbols(on);
   }
 
   /** Applique la sauvegarde (ou l'état de départ). */
@@ -2206,6 +2218,7 @@ export class Game {
     }
     this.view(action === 'all' ? FINAL_ID : id);
     this.snapCave = true;
+    this.refreshJournal();
   }
 
   /**

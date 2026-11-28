@@ -58,7 +58,7 @@ test('mode test : valider ce qui précède une énigme, puis jusqu\'à une autre
   await page.mouse.up();
   await expect(page.locator('.note-card')).toBeHidden();
   await page.evaluate(() => document.exitPointerLock());
-  await expect(page.locator('.journal-count')).toHaveText('(1 / 21)');
+  await expect(page.locator('.journal-count')).toHaveText('(1 / 12)');
 
   // la vraie fin : « valider ce qui précède » le Grand Plateau (l'île monte sans séquence),
   // puis on le résout : les lanternes montent aux étoiles

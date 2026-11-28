@@ -20,6 +20,26 @@ export interface TiltPlacement {
 }
 
 const BALL_COLORS: Record<TiltColor, string> = { R: '#e2473a', G: '#3fbf5a', B: '#3a78e2', Y: '#f2c230' };
+/**
+ * Symboles des couleurs (option daltonisme) : ▲ rouge, ■ vert, ● bleu (comme sur les panneaux de
+ * lumière), et une croix pour le jaune. Une forme plate, couchée, de rayon `r`.
+ */
+function symbolGeo(color: TiltColor, r: number): THREE.BufferGeometry {
+  let g: THREE.BufferGeometry;
+  if (color === 'R') g = new THREE.CircleGeometry(r, 3, Math.PI / 2);
+  else if (color === 'G') g = new THREE.CircleGeometry(r * 0.95, 4, Math.PI / 4);
+  else if (color === 'B') g = new THREE.CircleGeometry(r * 0.85, 20);
+  else {
+    const w = r * 0.42;
+    const s = new THREE.Shape();
+    s.moveTo(-w, r).lineTo(w, r).lineTo(w, w).lineTo(r, w).lineTo(r, -w).lineTo(w, -w).lineTo(w, -r).lineTo(-w, -r).lineTo(-w, -w).lineTo(-r, -w).lineTo(-r, w).lineTo(-w, w).closePath();
+    g = new THREE.ShapeGeometry(s);
+  }
+  return g.rotateX(-Math.PI / 2);
+}
+const SYMBOL_MAT = new THREE.MeshBasicMaterial({ color: '#f7f2e6', toneMapped: false });
+const SYMBOL_DARK = new THREE.MeshBasicMaterial({ color: '#d6cfbf', toneMapped: false });
+
 /** touche de la pierre de remise à zéro */
 export const TILT_RESET = 4;
 const DIRS: { dx: number; dz: number }[] = [{ dx: 0, dz: -1 }, { dx: 1, dz: 0 }, { dx: 0, dz: 1 }, { dx: -1, dz: 0 }];
@@ -116,6 +136,12 @@ export class TiltView implements PuzzleView {
   private topY: number;
   /** demi-étendue du plateau (flèches comprises), en largeur et en profondeur */
   private half = { w: 0, d: 0 };
+  /** symboles des couleurs (billes et creux), visibles seulement avec l'option daltonisme */
+  private symbols: THREE.Mesh[] = [];
+
+  setSymbols(on: boolean): void {
+    for (const s of this.symbols) s.visible = on;
+  }
 
   constructor(readonly puzzle: TiltPuzzle, readonly place: TiltPlacement) {
     const c = (this.c = place.cell);
@@ -177,6 +203,21 @@ export class TiltView implements PuzzleView {
       this.detail.add(m);
       this.balls.push(m);
       this.ballMats.push(mat);
+      // symbole sur le dessus de la bille (option daltonisme)
+      const sym = new THREE.Mesh(symbolGeo(b.color, c * 0.17), SYMBOL_MAT);
+      sym.position.y = c * 0.38;
+      sym.visible = false;
+      m.add(sym);
+      this.symbols.push(sym);
+    });
+    // … et au fond de chaque creux
+    puzzle.cells.forEach((cell, i) => {
+      if (cell.kind !== 'hole') return;
+      const sym = new THREE.Mesh(symbolGeo(cell.color, c * 0.17), SYMBOL_DARK);
+      sym.position.copy(this.cellPos(i % puzzle.width, Math.floor(i / puzzle.width), 0.004));
+      sym.visible = false;
+      this.board.add(sym);
+      this.symbols.push(sym);
     });
     // flèches de pierre : nord (loin), est, sud (vers le joueur), ouest
     const arrow = new THREE.ConeGeometry(c * (plaza ? 0.5 : 0.42), c * (plaza ? 0.9 : 0.7), 3);
