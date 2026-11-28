@@ -250,6 +250,8 @@ test("le 100 % : une barque de papier attend sur la plage, on la pousse au large
   expect(b.everything).toBe(true);
   expect(b.waiting).toBe(true);
   expect(await page.evaluate(() => window.__game.shards())).toBe(9);
+  // la carte du gardien la montre aussi
+  expect((await page.evaluate(() => window.__game.map())).boat).toBe(true);
   // on la vise, on clique : elle part
   const aimed = await page
     .waitForFunction(() => {
@@ -271,6 +273,7 @@ test("le 100 % : une barque de papier attend sur la plage, on la pousse au large
   expect(after.depart).toBe(false);
   expect(after.departed).toBe(true);
   expect(after.waiting).toBe(false);
+  expect((await page.evaluate(() => window.__game.map())).boat).toBe(false);
   // c'est gardé : après rechargement, la barque est partie (la lumière lointaine reste)
   await page.evaluate(() => sessionStorage.setItem('keep', '1'));
   await page.reload();

@@ -349,6 +349,16 @@ tests/
   e2e/         Playwright : démarrage, captures, résolution complète via l'API debug
 ```
 
+**Rendu léger** (mesuré en appels de dessin par image, `__game.drawCalls()`, et par groupe avec
+`__game.inspect(nom)`) :
+- les pièces fixes d'une énigme (cadres, socles, piliers, miroirs fixes) et du décor (bassins,
+  colonnes, vasques, pergolas, lanternes) sont fusionnées : un maillage par matériau ;
+- ce qui bouge en nombre (oiseaux, papillons, nénuphars, poissons, câbles) est instancié ;
+- la passe d'ombre du soleil n'est refaite qu'une image sur trois, ou aussitôt que la zone
+  d'ombre suit le joueur (elle coûtait 20 à 35 % des appels) ;
+- sous terre, l'île n'est pas dessinée (vue courte), la mer et le ciel non plus.
+Exemples, tout résolu : plage 828 → 610, place 734 → 511, phare 533 → 390.
+
 ### Qualité garantie automatiquement
 
 - **Chaque énigme est vérifiée par un solveur** : solvable, non résolue au départ, nombre de

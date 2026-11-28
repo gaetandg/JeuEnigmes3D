@@ -5,7 +5,8 @@ import { mergeMeshes } from '../render/merge.ts';
 
 /**
  * Ce qui bouge sans le joueur : nuages qui dérivent, oiseaux qui tournent au-dessus de
- * l'île, papillons autour des massifs de fleurs. Tout est léger (quelques appels de dessin).
+ * l'île, papillons autour des massifs de fleurs. Tout est léger : un appel de dessin par nuage,
+ * un pour tous les oiseaux, un pour tous les papillons.
  */
 export function buildLife(beds: THREE.Vector3[]): { group: THREE.Group; update: (t: number, dt: number) => void } {
   const g = new THREE.Group();
@@ -35,38 +36,50 @@ export function buildLife(beds: THREE.Vector3[]): { group: THREE.Group; update: 
   }
 
   // ── oiseaux : deux ailes qui battent, en cercles lents ──────────────────
+  // chaque aile est une instance d'un seul maillage (un appel de dessin pour tous les oiseaux) ;
+  // les « os » (racine, ailes) ne sont pas dans la scène : ils servent à calculer les matrices
   const birdMat = new THREE.MeshBasicMaterial({ color: '#3a3330', side: THREE.DoubleSide });
   const wing = new THREE.BufferGeometry();
   wing.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, -0.25, 0, 0, 0.25, 1.1, 0, 0], 3));
-  const birds: { root: THREE.Group; l: THREE.Mesh; r: THREE.Mesh; cx: number; cz: number; rad: number; a: number; sp: number; y: number; ph: number }[] = [];
-  for (let i = 0; i < 7; i++) {
-    const root = new THREE.Group();
-    const l = new THREE.Mesh(wing, birdMat);
-    const r = new THREE.Mesh(wing, birdMat);
+  type Rig = { root: THREE.Object3D; l: THREE.Object3D; r: THREE.Object3D };
+  const rig = (): Rig => {
+    const root = new THREE.Object3D();
+    const l = new THREE.Object3D();
+    const r = new THREE.Object3D();
     r.scale.x = -1;
     root.add(l, r);
-    root.scale.setScalar(0.9);
-    g.add(root);
-    birds.push({ root, l, r, cx: (rnd() - 0.5) * 120, cz: -20 + (rnd() - 0.5) * 140, rad: 25 + rnd() * 40, a: rnd() * 6, sp: (0.12 + rnd() * 0.1) * (rnd() < 0.5 ? 1 : -1), y: 32 + rnd() * 25, ph: rnd() * 6 });
+    return { root, l, r };
+  };
+  const birds: (Rig & { cx: number; cz: number; rad: number; a: number; sp: number; y: number; ph: number })[] = [];
+  for (let i = 0; i < 7; i++) {
+    const b = rig();
+    b.root.scale.setScalar(0.9);
+    birds.push({ ...b, cx: (rnd() - 0.5) * 120, cz: -20 + (rnd() - 0.5) * 140, rad: 25 + rnd() * 40, a: rnd() * 6, sp: (0.12 + rnd() * 0.1) * (rnd() < 0.5 ? 1 : -1), y: 32 + rnd() * 25, ph: rnd() * 6 });
   }
+  const birdWings = new THREE.InstancedMesh(wing, birdMat, birds.length * 2);
+  birdWings.frustumCulled = false;
+  g.add(birdWings);
 
   // ── papillons autour des massifs du jardin ──────────────────────────────
   const butterflyCols = ['#ffd45e', '#ffffff', '#f49ac1', '#8fc0ff', '#ff9a5c'];
-  const flies: { root: THREE.Group; l: THREE.Mesh; r: THREE.Mesh; home: THREE.Vector3; ph: number; sp: number }[] = [];
+  const flies: (Rig & { home: THREE.Vector3; ph: number; sp: number })[] = [];
   const bwing = new THREE.CircleGeometry(0.07, 5);
   bwing.translate(0.06, 0, 0);
-  for (let i = 0; i < Math.min(18, beds.length); i++) {
+  const nFlies = Math.min(18, beds.length);
+  const flyWings = new THREE.InstancedMesh(bwing, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), Math.max(1, nFlies * 2));
+  flyWings.count = nFlies * 2;
+  flyWings.frustumCulled = false;
+  const col = new THREE.Color();
+  for (let i = 0; i < nFlies; i++) {
     const home = beds[(i * 7) % beds.length]!;
-    const mat = new THREE.MeshBasicMaterial({ color: butterflyCols[i % butterflyCols.length]!, side: THREE.DoubleSide });
-    const root = new THREE.Group();
-    const l = new THREE.Mesh(bwing, mat);
-    const r = new THREE.Mesh(bwing, mat);
-    r.scale.x = -1;
-    l.rotation.x = r.rotation.x = -Math.PI / 2;
-    root.add(l, r);
-    g.add(root);
-    flies.push({ root, l, r, home, ph: rnd() * 10, sp: 0.6 + rnd() * 0.6 });
+    const f = rig();
+    f.l.rotation.x = f.r.rotation.x = -Math.PI / 2;
+    col.set(butterflyCols[i % butterflyCols.length]!);
+    flyWings.setColorAt(i * 2, col);
+    flyWings.setColorAt(i * 2 + 1, col);
+    flies.push({ ...f, home, ph: rnd() * 10, sp: 0.6 + rnd() * 0.6 });
   }
+  g.add(flyWings);
 
   const update = (t: number) => {
     // les nuages prennent la teinte du ciel (rosés au crépuscule)
@@ -85,6 +98,12 @@ export function buildLife(beds: THREE.Vector3[]): { group: THREE.Group; update: 
       b.l.rotation.z = flap;
       b.r.rotation.z = -flap;
     }
+    birds.forEach((b, i) => {
+      b.root.updateMatrixWorld(true);
+      birdWings.setMatrixAt(i * 2, b.l.matrixWorld);
+      birdWings.setMatrixAt(i * 2 + 1, b.r.matrixWorld);
+    });
+    birdWings.instanceMatrix.needsUpdate = true;
     for (const f of flies) {
       const u = t * f.sp + f.ph;
       f.root.position.set(
@@ -97,6 +116,12 @@ export function buildLife(beds: THREE.Vector3[]): { group: THREE.Group; update: 
       f.l.rotation.y = flap;
       f.r.rotation.y = -flap;
     }
+    flies.forEach((f, i) => {
+      f.root.updateMatrixWorld(true);
+      flyWings.setMatrixAt(i * 2, f.l.matrixWorld);
+      flyWings.setMatrixAt(i * 2 + 1, f.r.matrixWorld);
+    });
+    flyWings.instanceMatrix.needsUpdate = true;
   };
   return { group: g, update };
 }

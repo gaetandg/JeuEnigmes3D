@@ -3,6 +3,7 @@ import { mulberry32 } from './noise.ts';
 import { distToSegment, heightAt } from './terrain.ts';
 import { GARDEN, GATES, PANELS, PLAZA, reqIds } from './layout.ts';
 import { freeSpot, stoneMaterial } from './props.ts';
+import { mergeStatic } from '../render/merge.ts';
 import type { Colliders } from '../game/colliders.ts';
 
 /** Segments des câbles du jardin : le décor ne doit pas les recouvrir. */
@@ -93,36 +94,36 @@ export function buildGardenDecor(colliders: Colliders): { group: THREE.Group; up
   // ── bassins ──────────────────────────────────────────────────────────────
   const waterMat = new THREE.MeshStandardMaterial({ color: '#4fb3c4', roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.85 });
   const padMat = new THREE.MeshStandardMaterial({ color: '#5f9c48', roughness: 0.9, flatShading: true });
-  const pads: THREE.Mesh[] = [];
+  // les nénuphars : un seul maillage instancié (ils tournent sur eux-mêmes, lentement)
+  const pads: { pos: THREE.Vector3; r: number; a: number }[] = [];
+  const rimMat = stoneMaterial('#e6dccb');
   for (let i = 0; i < 3; i++) {
     const r = 2.2 + rnd() * 0.8;
     const s = spot(r + 0.6);
     if (!s) break;
     const y = heightAt(s.x, s.z);
-    const rim = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.45, r + 0.55, 0.5, 20, 1, true), stoneMaterial('#e6dccb'));
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.45, r + 0.55, 0.5, 20, 1, true), rimMat);
     rim.position.set(s.x, y + 0.1, s.z);
-    const rimTop = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.5, 20), stoneMaterial('#e6dccb'));
+    const rimTop = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.5, 20), rimMat);
     rimTop.rotation.x = -Math.PI / 2;
     rimTop.position.set(s.x, y + 0.35, s.z);
     const water = new THREE.Mesh(new THREE.CircleGeometry(r, 20), waterMat);
     water.rotation.x = -Math.PI / 2;
     water.position.set(s.x, y + 0.22, s.z);
+    for (const o of [rim, rimTop, water]) o.userData.static = true;
     g.add(rim, rimTop, water);
     for (let k = 0; k < 5; k++) {
       const a = rnd() * Math.PI * 2;
       const d = rnd() * (r - 0.6);
-      const pad = new THREE.Mesh(new THREE.CircleGeometry(0.28 + rnd() * 0.15, 7, 0.3, Math.PI * 1.8), padMat);
-      pad.rotation.x = -Math.PI / 2;
-      pad.rotation.z = rnd() * 6;
-      pad.position.set(s.x + Math.cos(a) * d, y + 0.24, s.z + Math.sin(a) * d);
-      g.add(pad);
-      pads.push(pad);
+      pads.push({ r: 0.28 + rnd() * 0.15, a: rnd() * 6, pos: new THREE.Vector3(s.x + Math.cos(a) * d, y + 0.24, s.z + Math.sin(a) * d) });
     }
     colliders.addCircle(s.x, s.z, r + 0.5);
   }
 
   // ── colonnes brisées et vasques ──────────────────────────────────────────
   const colMat = stoneMaterial('#efe7da');
+  const baseMat = stoneMaterial('#d8cdbb');
+  const bloomMats = palettes.map((p) => new THREE.MeshStandardMaterial({ color: p[0], flatShading: true }));
   for (let i = 0; i < 16; i++) {
     const s = spot(0.8);
     if (!s) break;
@@ -135,6 +136,7 @@ export function buildGardenDecor(colliders: Colliders): { group: THREE.Group; up
       c.rotation.y = rnd() * Math.PI;
       c.position.set(s.x, y + 0.35, s.z);
       c.castShadow = c.receiveShadow = true;
+      c.userData.static = true;
       g.add(c);
       colliders.addCircle(s.x, s.z, len / 2);
     } else if (rnd() < 0.5) {
@@ -142,9 +144,10 @@ export function buildGardenDecor(colliders: Colliders): { group: THREE.Group; up
       const c = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.45, h, 10), colMat);
       c.position.set(s.x, y + h / 2, s.z);
       c.castShadow = c.receiveShadow = true;
-      const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 1.1), stoneMaterial('#d8cdbb'));
+      const base = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 1.1), baseMat);
       base.position.set(s.x, y + 0.15, s.z);
       base.receiveShadow = true;
+      c.userData.static = base.userData.static = true;
       g.add(c, base);
       colliders.addCircle(s.x, s.z, 0.6);
     } else {
@@ -153,18 +156,44 @@ export function buildGardenDecor(colliders: Colliders): { group: THREE.Group; up
       foot.position.set(s.x, y + 0.4, s.z);
       const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.3, 0.4, 10), colMat);
       bowl.position.set(s.x, y + 0.95, s.z);
-      const bloom = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 0), new THREE.MeshStandardMaterial({ color: palettes[i % 3]![0], flatShading: true }));
+      const bloom = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45, 0), bloomMats[i % 3]!);
       bloom.scale.y = 0.6;
       bloom.position.set(s.x, y + 1.2, s.z);
-      for (const o of [foot, bowl, bloom]) o.castShadow = true;
+      for (const o of [foot, bowl, bloom]) {
+        o.castShadow = true;
+        o.userData.static = true;
+      }
       g.add(foot, bowl, bloom);
       colliders.addCircle(s.x, s.z, 0.55);
     }
   }
 
+  // bassins, colonnes et vasques ne bougent pas : un maillage par matériau
+  mergeStatic(g);
+
+  const padGeo = new THREE.CircleGeometry(1, 7, 0.3, Math.PI * 1.8);
+  padGeo.rotateX(-Math.PI / 2);
+  const padMesh = new THREE.InstancedMesh(padGeo, padMat, Math.max(1, pads.length));
+  padMesh.count = pads.length;
+  g.add(padMesh);
+  const padDummy = new THREE.Object3D();
+  const placePads = () => {
+    pads.forEach((p, i) => {
+      padDummy.position.copy(p.pos);
+      padDummy.rotation.set(0, p.a, 0);
+      padDummy.scale.setScalar(p.r);
+      padDummy.updateMatrix();
+      padMesh.setMatrixAt(i, padDummy.matrix);
+    });
+    padMesh.instanceMatrix.needsUpdate = true;
+  };
+  placePads();
+  padMesh.computeBoundingSphere();
+
   // les nénuphars dérivent doucement
   const update = (t: number) => {
-    pads.forEach((p, i) => (p.rotation.z += Math.sin(t * 0.3 + i) * 0.0006));
+    pads.forEach((p, i) => (p.a += Math.sin(t * 0.3 + i) * 0.0006));
+    placePads();
   };
   return { group: g, update, beds };
 }

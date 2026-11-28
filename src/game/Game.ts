@@ -66,6 +66,8 @@ import { BOAT_AT, FAR_LIGHT, PaperBoat } from '../render/paperBoat.ts';
 import type { MapTable } from '../world/mapTable.ts';
 
 const REACH = 5;
+/** la carte d'ombre est refaite au moins une image sur trois */
+const SHADOW_EVERY = 3;
 /** on pousse la barque du 100 % depuis le bord de l'eau */
 const BOAT_REACH = 7;
 /** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
@@ -233,6 +235,8 @@ export class Game {
     this.renderer.toneMappingExposure = 0.9;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // la carte d'ombre n'est pas refaite à chaque image (voir SHADOW_EVERY)
+    this.renderer.shadowMap.autoUpdate = false;
     this.renderer.info.autoReset = false;
 
     this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 1500);
@@ -1321,6 +1325,7 @@ export class Game {
 
   readonly boat = new PaperBoat();
   hoveredBoat = false;
+  private shadowAge = SHADOW_EVERY;
   depart: { t: number; shown: boolean } | null = null;
 
   /** Le 100 % : toutes les énigmes, éclats compris. */
@@ -1457,6 +1462,7 @@ export class Game {
       sky: !!this.save.sky,
       deep: !!this.save.deep,
       bubble: !!this.save.bubble,
+      boat: this.boat.waiting,
     };
   }
 
@@ -1711,6 +1717,7 @@ export class Game {
       shadow.mapSize.set(size, size);
       shadow.map?.dispose();
       shadow.map = null;
+      this.shadowAge = SHADOW_EVERY; // nouvelle carte : la dessiner dès l'image suivante
     }
     this.fogFar = { haute: 420, moyenne: 340, basse: 260 }[q];
     this.applyDay();
@@ -1999,12 +2006,19 @@ export class Game {
     this.timer.update();
     const dt = Math.min(0.05, this.timer.getDelta());
     this.time += dt;
-    if (!this.rise && !this.lift && !this.finale && !this.bascule && !this.passage && !this.rootsEnd && !this.appel && !this.dive && !this.ecluse) this.player.update(dt);
+    if (!this.rise && !this.lift && !this.finale && !this.bascule && !this.passage && !this.rootsEnd && !this.appel && !this.dive && !this.ecluse && !this.depart) this.player.update(dt);
     if (this.cameraOverride) {
       this.camera.position.copy(this.cameraOverride.pos);
       this.camera.lookAt(this.cameraOverride.target);
     }
-    this.lights.follow(this.cameraOverride ? this.cameraOverride.target : this.player.position);
+    // la passe d'ombre redessine tout ce qui projette une ombre (20 à 35 % des appels de dessin) :
+    // refaite aussitôt quand la zone d'ombre suit le joueur ou que le soleil bouge, sinon une image
+    // sur SHADOW_EVERY (ce qui bouge de soi-même, pièces, portes, plateaux, reste fluide à l'œil)
+    const shadowMoved = this.lights.follow(this.cameraOverride ? this.cameraOverride.target : this.player.position);
+    if (shadowMoved || ++this.shadowAge >= SHADOW_EVERY) {
+      this.renderer.shadowMap.needsUpdate = true;
+      this.shadowAge = 0;
+    }
     this.water.update(this.time);
     this.cables.update(dt);
     for (const p of this.panels.values()) {
@@ -2257,8 +2271,9 @@ export class Game {
   cheat(action: CheatAction, id: string): void {
     // les énigmes du ciel : l'île monte d'abord (sans la séquence)
     // … et pour les Racines, la grotte est ouverte (sans la bascule)
-    const bubbleTarget = VASE_IDS.includes(id);
     const all = action === 'all' || action === 'every';
+    // tout résoudre, c'est aussi la Bulle : on la compte comme visitée (sa carte, ses billets)
+    const bubbleTarget = all || VASE_IDS.includes(id);
     const deepTarget = all || ROOT_IDS.includes(id) || bubbleTarget;
     const skyTarget = deepTarget || SKY_IDS.includes(id);
     // revenir en arrière : si des énigmes au-delà du point choisi sont déjà résolues, on réécrit

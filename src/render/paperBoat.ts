@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PAPER_BOAT } from '../world/layout.ts';
 
 /** Lueur ronde et douce. */
 function glowTexture(): THREE.Texture {
@@ -50,7 +51,7 @@ function boatGeometry(): THREE.BufferGeometry {
 }
 
 /** Où attend la barque : au bord de l'eau, devant la plage du départ. */
-export const BOAT_AT = new THREE.Vector3(-5, 0, 114.5);
+export const BOAT_AT = new THREE.Vector3(PAPER_BOAT.x, 0, PAPER_BOAT.z);
 /** Où une nouvelle lumière apparaît : loin au large, vers le sud-ouest, loin de celle de la Bulle. */
 export const FAR_LIGHT = new THREE.Vector3(-170, 4, 600);
 /** Jusqu'où la barque s'en va. */
