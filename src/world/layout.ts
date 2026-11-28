@@ -256,6 +256,30 @@ export const ROOT_PANELS: PanelSpot[] = Array.from({ length: 6 }, (_, i) => {
 });
 export const RACINE_MERE = { id: 'racine-mere', x: CAVE.x, z: CAVE.z, yaw: 0, requires: endReq(seq('r', 6)), cell: 1.25 };
 
+// ── zone 7 : la Bulle (une demi-sphère de verre au fond de l'océan, juste sous la lumière qui a
+// répondu au large à la première fin) ──
+/** centre, altitude du sol et rayon de la Bulle */
+export const BUBBLE = { x: 100, z: 380, y: -50, r: 34 };
+/** on arrive au nord de la Bulle, face au centre ; la pierre du retour est juste à côté */
+export const BUBBLE_ARRIVAL = { x: BUBBLE.x, z: BUBBLE.z - 24, yaw: Math.PI };
+export const BUBBLE_LIFT = { x: BUBBLE.x + 7, z: BUBBLE.z - 27 };
+/** sur la plage du départ, la pierre qui s'allume quand la Racine-mère est reliée */
+export const BEACH_STONE = { x: START.x + 7, z: START.z - 3 };
+/** six tables de vases en cercle, la Grande Écluse au centre */
+export const VASE_PANELS: PanelSpot[] = Array.from({ length: 6 }, (_, i) => {
+  // de l'arrivée (nord), dans le sens des aiguilles d'une montre ; la place nord reste libre
+  const a = -Math.PI / 2 + ((i + 1) * Math.PI * 2) / 7;
+  const r = 21;
+  return {
+    id: `v${i + 1}`,
+    x: BUBBLE.x + Math.cos(a) * r,
+    z: BUBBLE.z + Math.sin(a) * r,
+    yaw: Math.atan2(Math.cos(a), Math.sin(a)),
+    requires: chainReq(seq('v', 6), i, ['racine-mere']),
+  };
+});
+export const GRANDE_ECLUSE = { id: 'grande-ecluse', x: BUBBLE.x, z: BUBBLE.z + 3, yaw: 0, requires: endReq(seq('v', 6)), unit: 0.55 };
+
 // ── les Éclats : énigmes secrètes ──
 export type SecretKind = 'world-light' | 'light' | 'fold-desk' | 'fold-easel' | 'shadow' | 'tilt' | 'roots';
 export interface SecretSpot extends PanelSpot {

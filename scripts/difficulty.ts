@@ -24,6 +24,10 @@ import { greedyTilt } from './tilt-gen.ts';
 import { checkRoots, distinctTurns, parseRoots, rotateMask, solveRoots } from '../src/core/roots/index.ts';
 import type { RootPuzzle, RootPuzzleDef } from '../src/core/roots/index.ts';
 import { ZONE6, ZONE6_MERE } from '../src/puzzles/zone6.ts';
+import { allMoves, isSolved as vasesSolved, parseVases, pour, solveVases } from '../src/core/vases/index.ts';
+import type { VasePuzzleDef } from '../src/core/vases/index.ts';
+import { ZONE7, ZONE7_GRANDE } from '../src/puzzles/zone7.ts';
+import { greedyVases } from './vases-gen.ts';
 import { ZONE2, ZONE2_GRAND_PLI } from '../src/puzzles/zone2.ts';
 import { ZONE3, ZONE3_CADRAN } from '../src/puzzles/zone3.ts';
 import { ZONE4_FOLD, ZONE4_LIGHT } from '../src/puzzles/zone4.ts';
@@ -207,6 +211,27 @@ function rootsRow(zone: string, def: RootPuzzleDef): Row {
   return { zone, id: def.id, kind: 'racines', pieces: free.length, minActions, space, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyRoots(p, start)) * 100) };
 }
 
+function vasesRow(zone: string, def: VasePuzzleDef): Row {
+  const p = parseVases(def);
+  const r = solveVases(p);
+  const moves = allMoves(p);
+  const runs: number[] = [];
+  for (let run = 0; run < RUNS; run++) {
+    let s = p.start;
+    let steps = 0;
+    while (!vasesSolved(p, s) && steps < CAP) {
+      const n = pour(p, s, moves[Math.floor(rnd() * moves.length)]!);
+      steps++;
+      if (n) s = n;
+      // coincé longtemps (un tuyau à sens unique a tout emporté) : la pierre de remise à zéro
+      if (steps % 60 === 0) s = p.start;
+    }
+    runs.push(steps);
+  }
+  const blind = median(runs);
+  return { zone, id: def.id, kind: 'vases', pieces: p.pipes.length, minActions: r.minMoves ?? Infinity, space: r.reachable, blind, score: Math.round(Math.log2(blind + 1) * 10) / 10, insight: Math.round((1 - greedyVases(p)) * 100) };
+}
+
 export function allRows(): Row[] {
   return [
     ...[...ZONE1, ZONE1_TOWERS].map((d) => lightRow('1 Lumière', d)),
@@ -218,7 +243,13 @@ export function allRows(): Row[] {
     }),
     ...[...ZONE5, ZONE5_GRAND].map((d) => tiltRow('5 Ciel', d)),
     ...[...ZONE6, ZONE6_MERE].map((d) => rootsRow('6 Racines', d)),
+    ...[...ZONE7, ZONE7_GRANDE].map((d) => vasesRow('7 Bulle', d)),
   ];
+}
+
+/** Seulement la Bulle (`node scripts/difficulty.ts --bulle --md`). */
+export function bubbleRows(): Row[] {
+  return [...ZONE7, ZONE7_GRANDE].map((d) => vasesRow('7 Bulle', d));
 }
 
 /** Seulement les Racines (plus rapide : `node scripts/difficulty.ts --racines --md`). */
@@ -227,7 +258,7 @@ export function rootRows(): Row[] {
 }
 
 if (process.argv[1]?.endsWith('difficulty.ts')) {
-  const rows = process.argv.includes('--racines') ? rootRows() : allRows();
+  const rows = process.argv.includes('--racines') ? rootRows() : process.argv.includes('--bulle') ? bubbleRows() : allRows();
   const md = process.argv.includes('--md');
   if (md) {
     console.log('| Zone | Énigme | Type | Pièces | Actions min. | Actions à l\'aveugle (médiane) | Difficulté | Déclic |');

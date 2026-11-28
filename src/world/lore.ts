@@ -10,7 +10,7 @@
 export interface LoreNote {
   id: string;
   /** zone où on le trouve (pour le carnet) */
-  zone: 'plage' | 'jardin' | 'atelier' | 'cloître' | 'phare' | 'secret' | 'ciel' | 'racines';
+  zone: 'plage' | 'jardin' | 'atelier' | 'cloître' | 'phare' | 'secret' | 'ciel' | 'racines' | 'bulle';
   x: number;
   z: number;
   text: string;
@@ -87,6 +87,19 @@ export const NOTES: LoreNote[] = [
     id: 'racines', zone: 'racines', x: -348, z: -36,
     text: "La lumière du phare ne vient pas d'en haut. Elle remonte d'ici, par les racines, comme la sève. Il suffit qu'une seule s'ouvre dans le vide pour que tout s'éteigne.",
   },
+  // ── la Bulle (au fond de l'océan) : cette fois, c'est l'autre qui écrit ──
+  {
+    id: 'reponse', zone: 'bulle', x: 94, z: 358,
+    text: "Tes bateaux de papier sont tous arrivés : ils ont coulé jusqu'ici, un par soir. Je les ai gardés dans l'ordre. C'est moi, la lumière qui répondait au large.",
+  },
+  {
+    id: 'garder', zone: 'bulle', x: 126.3, z: 374,
+    text: "Je n'ai jamais été loin : juste en dessous de toi. Ici, on garde l'air comme tu gardais la lumière, en le versant d'un vase à l'autre, sans en perdre une goutte.",
+  },
+  {
+    id: 'passer', zone: 'bulle', x: 79.3, z: 397.4,
+    text: "Si quelqu'un lit ceci à ta place, c'est que tu as passé la main. Qu'il remplisse la Grande Écluse : la Bulle répondra au phare, et le phare à la Bulle, comme avant.",
+  },
   {
     id: 'remonter', zone: 'racines', x: -341, z: -1,
     text: "Quand tout sera relié, le phare remontera. Il ne t'attendra plus : c'est toi qu'il éclairera, où que tu ailles.",
@@ -97,6 +110,8 @@ export const NOTES: LoreNote[] = [
 export const ENDING = {
   answer: 'Au large, une lumière a répondu.',
   full: 'Toutes les couleurs sont revenues. Sur la mer, des dizaines de lanternes rentrent vers l\'île.',
+  /** après la Grande Écluse : la Bulle répond au phare */
+  bubble: "Le phare et la Bulle se répondent, d'une lumière à l'autre, à travers toute la mer. Ce n'était pas une fin : c'était une conversation, et c'est toi qui l'as rouverte.",
   /** après la Racine-mère : le post-scriptum du gardien (la « dernière lettre » ne l'était pas) */
   roots: "P.-S. Je t'ai écrit que je n'attendais plus. Ce n'était pas tout à fait vrai : j'attendais que tu descendes jusqu'ici. Le phare ne tenait que par sa lumière ; il tient maintenant par ses racines. Il ne s'éteindra plus.",
   /** après le Grand Plateau : la dernière lettre du gardien */

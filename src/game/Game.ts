@@ -1,7 +1,12 @@
 import * as THREE from 'three';
 import { parsePuzzle } from '../core/light/index.ts';
 import { ZONE1, ZONE1_TOWERS } from '../puzzles/zone1.ts';
-import { PLAZA, SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL, skyEdge, CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, reqIds, reqMet } from '../world/layout.ts';
+import { PLAZA, SECRETS, SECRET_PLAGE, SECRET_VOILE_CELL, ATELIER, CLOITRE, PHARE, CADRAN, FINAL_PANELS, SHADOW_PANELS, FOLD_PANELS, GATES, GRAND_PLI, LIGHTHOUSE, PANELS, START, TOWERS, standPoint, towerCell, SKY, SKY_PANELS, GRAND_PLATEAU, LIFT, SKY_LIFT, SKY_ARRIVAL, skyEdge, CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, reqIds, reqMet, BUBBLE, BUBBLE_ARRIVAL, BUBBLE_LIFT, BEACH_STONE, VASE_PANELS, GRANDE_ECLUSE } from '../world/layout.ts';
+import { buildBubble } from '../world/bubble.ts';
+import type { Bubble } from '../world/bubble.ts';
+import { ZONE7, ZONE7_GRANDE } from '../puzzles/zone7.ts';
+import { parseVases } from '../core/vases/index.ts';
+import { VaseView } from '../render/vaseView.ts';
 import type { Req } from '../world/layout.ts';
 import { PIT, buildCave } from '../world/cave.ts';
 import type { Cave } from '../world/cave.ts';
@@ -69,10 +74,11 @@ const HELP_OFFER = 150;
 const HELP_COOLDOWN = 8;
 
 /** Qui alimente quoi : panneaux + énigmes d'environnement. */
-const POWER: { id: string; requires: Req[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU, ...ROOT_PANELS, RACINE_MERE];
+const POWER: { id: string; requires: Req[] }[] = [...PANELS, TOWERS, ...FOLD_PANELS, GRAND_PLI, ...SHADOW_PANELS, CADRAN, ...FINAL_PANELS, ...SKY_PANELS, GRAND_PLATEAU, ...ROOT_PANELS, RACINE_MERE, ...VASE_PANELS, GRANDE_ECLUSE];
 const SKY_IDS = [...SKY_PANELS.map((p) => p.id), GRAND_PLATEAU.id];
 const ROOT_IDS = [...ROOT_PANELS.map((p) => p.id), RACINE_MERE.id];
 /** les éclats cachés dans la suite (ils apparaissent avec leur lieu) */
+const VASE_IDS = [...VASE_PANELS.map((p) => p.id), GRANDE_ECLUSE.id];
 const SKY_SECRET = 'eclat-nuages';
 const CAVE_SECRET = 'eclat-alcove';
 
@@ -92,6 +98,10 @@ const SINK_DEPTH = 22;
 const CAVE_SKY = new THREE.Color('#a497d6');
 const CAVE_GROUND = new THREE.Color('#6a5040');
 const CAVE_FOG = new THREE.Color('#141019');
+/** sous l'océan : une lumière bleue qui vient d'en haut, une eau profonde tout autour */
+const BUBBLE_SKY = new THREE.Color('#8adfff');
+const BUBBLE_GROUND = new THREE.Color('#355f68');
+const BUBBLE_FOG = new THREE.Color('#0d3a55');
 
 /** Les énigmes qui donnent chacune un quart de lumière au phare. */
 /** dernière énigme : elle rallume le phare */
@@ -102,7 +112,7 @@ const LURE_GEO = new THREE.OctahedronGeometry(0.17, 0);
 const LURE_MAT = new THREE.MeshStandardMaterial({ color: '#fbf6ff', emissive: '#d9c8ff', emissiveIntensity: 1.1, flatShading: true, roughness: 0.2 });
 
 /** Mode test : lieux où se téléporter d'un coup, sans rien changer à la progression. */
-const PLACES: { id: string; label: string; x: number; z: number; yaw: number; needs?: 'sky' | 'deep' }[] = [
+const PLACES: { id: string; label: string; x: number; z: number; yaw: number; needs?: 'sky' | 'deep' | 'bubble' }[] = [
   { id: 'plage', label: 'La plage (départ)', x: START.x, z: START.z, yaw: START.yaw },
   { id: 'place', label: 'La place du jardin', x: PLAZA.x, z: PLAZA.z + 12, yaw: 0 },
   { id: 'tours', label: 'Le belvédère des Tours-Miroirs', x: 4, z: 1, yaw: 0 },
@@ -111,6 +121,7 @@ const PLACES: { id: string; label: string; x: number; z: number; yaw: number; ne
   { id: 'phare', label: 'Le pied du phare', x: LIFT.x + 5, z: LIFT.z + 7, yaw: 0.18 },
   { id: 'ciel', label: "L'Île du Ciel (une fois montée)", x: SKY_ARRIVAL.x, z: SKY_ARRIVAL.z, yaw: SKY_ARRIVAL.yaw, needs: 'sky' },
   { id: 'grotte', label: 'La grotte des Racines', x: CAVE_ARRIVAL.x, z: CAVE_ARRIVAL.z, yaw: CAVE_ARRIVAL.yaw, needs: 'deep' },
+  { id: 'bulle', label: 'La Bulle, au fond de l\'océan', x: BUBBLE_ARRIVAL.x, z: BUBBLE_ARRIVAL.z, yaw: BUBBLE_ARRIVAL.yaw, needs: 'bubble' },
 ];
 
 /** Liens dessinés au sol (câbles lumineux). */
@@ -400,7 +411,7 @@ export class Game {
     this.shards = new Shards(this.beacon.position, SECRET_IDS.length);
     this.scene.add(this.shards.group);
     // le récit : les billets du gardien, et la réponse de la mer à la fin
-    this.notes = new LoreNotes(NOTES.filter((n) => n.zone !== 'ciel' && n.zone !== 'racines'), this.save.notes ?? []);
+    this.notes = new LoreNotes(NOTES.filter((n) => n.zone !== 'ciel' && n.zone !== 'racines' && n.zone !== 'bulle'), this.save.notes ?? []);
     this.skyNotes = new LoreNotes(NOTES.filter((n) => n.zone === 'ciel'), this.save.notes ?? []);
     this.scene.add(this.skyNotes.group);
     // la suite : l'Île du Ciel, qui dort sous la mer jusqu'à la transformation
@@ -438,6 +449,18 @@ export class Game {
     }
     this.caveNotes = new LoreNotes(NOTES.filter((n) => n.zone === 'racines'), this.save.notes ?? []);
     this.scene.add(this.caveNotes.group);
+    // et plus loin encore : la Bulle, au fond de l'océan, sous la lumière qui répondait au large
+    this.bubble = buildBubble(this.colliders);
+    this.scene.add(this.bubble.group);
+    for (const spot of VASE_PANELS) {
+      const def = ZONE7.find((d) => d.id === spot.id)!;
+      this.addVaseView(new VaseView(parseVases(def), { x: spot.x, z: spot.z, yaw: spot.yaw, unit: 0.11, kind: 'station' }));
+      this.colliders.addCircle(spot.x, spot.z, 0.9);
+    }
+    this.addVaseView(new VaseView(parseVases(ZONE7_GRANDE), { x: GRANDE_ECLUSE.x, z: GRANDE_ECLUSE.z, yaw: GRANDE_ECLUSE.yaw, unit: GRANDE_ECLUSE.unit, kind: 'grand' }));
+    this.colliders.addCircle(GRANDE_ECLUSE.x, GRANDE_ECLUSE.z, 6.5);
+    this.bubbleNotes = new LoreNotes(NOTES.filter((n) => n.zone === 'bulle'), this.save.notes ?? []);
+    this.scene.add(this.bubbleNotes.group);
     this.scene.add(this.notes.group);
     for (const n of NOTES) this.colliders.addCircle(n.x, n.z, 0.3);
     this.answer = new SeaAnswer();
@@ -491,6 +514,7 @@ export class Game {
 
   /** Zone où se trouve le joueur (pour la musique). */
   private zoneAt(x: number, z: number): Zone {
+    if (Math.hypot(x - BUBBLE.x, z - BUBBLE.z) < BUBBLE.r + 30) return 'bulle';
     if (Math.hypot(x - CAVE.x, z - CAVE.z) < CAVE.r + 15) return 'racines';
     if (Math.hypot(x - SKY.x, z - SKY.z) < SKY.r + 10) return 'ciel';
     if (Math.hypot(x - ATELIER.x, z - ATELIER.z) < ATELIER.r + 15) return 'atelier';
@@ -626,12 +650,13 @@ export class Game {
     this.scene.environmentIntensity = 0.6 * (1 - 0.75 * k);
     if (k <= 0) return;
     const L = this.lights;
+    const sea = this.underKind === 'bubble';
     L.sun.intensity *= 1 - 0.95 * k;
-    L.hemi.intensity += (1.0 - L.hemi.intensity) * k;
-    L.hemi.color.lerp(CAVE_SKY, k);
-    L.hemi.groundColor.lerp(CAVE_GROUND, k);
-    fog.color.lerp(CAVE_FOG, k);
-    if (this.scene.background instanceof THREE.Color) this.scene.background.lerp(CAVE_FOG, k);
+    L.hemi.intensity += ((sea ? 1.15 : 1.0) - L.hemi.intensity) * k;
+    L.hemi.color.lerp(sea ? BUBBLE_SKY : CAVE_SKY, k);
+    L.hemi.groundColor.lerp(sea ? BUBBLE_GROUND : CAVE_GROUND, k);
+    fog.color.lerp(sea ? BUBBLE_FOG : CAVE_FOG, k);
+    if (this.scene.background instanceof THREE.Color) this.scene.background.lerp(sea ? BUBBLE_FOG : CAVE_FOG, k);
     this.renderer.toneMappingExposure += (1.1 - this.renderer.toneMappingExposure) * k;
   }
 
@@ -641,15 +666,44 @@ export class Game {
   /** passer d'un coup à l'ambiance du lieu (téléportation, chargement) */
   private snapCave = false;
   private fogFar = 420;
+  /** grotte (lampe chaude) ou fond de l'océan (lumière bleue) */
+  private underKind: 'cave' | 'bubble' = 'cave';
+  /** sous la surface, autour de la Bulle (en plongée ou dedans) */
+  private inDeep(p: THREE.Vector3): boolean {
+    return p.y < -1 && Math.hypot(p.x - BUBBLE.x, p.z - BUBBLE.z) < 320;
+  }
   private inCave(p: THREE.Vector3): boolean {
     return p.y < CAVE.y + 30 && Math.hypot(p.x - CAVE.x, p.z - CAVE.z) < CAVE.r + 20;
   }
 
   private updateCaveMix(dt: number): void {
-    const target = this.inCave(this.camera.position) ? 1 : 0;
+    const cam = this.camera.position;
+    const deep = this.inDeep(cam);
+    const target = deep || this.inCave(cam) ? 1 : 0;
+    // grotte ou fond de l'océan : la même lampe, déplacée et recolorée (le nombre de lumières ne
+    // change pas, donc pas de recompilation des matériaux en passant de l'un à l'autre)
+    const kind = deep ? 'bubble' : 'cave';
+    if (kind !== this.underKind) {
+      this.underKind = kind;
+      if (deep) {
+        this.caveLight.position.set(BUBBLE.x, BUBBLE.y + 16, BUBBLE.z);
+        this.caveLight.color.set('#bff0ff');
+      } else {
+        this.caveLight.position.set(CAVE.x, CAVE.y + 7, CAVE.z);
+        this.caveLight.color.set('#ffc98a');
+      }
+      this.applyDay();
+    }
     const next = this.snapCave ? target : this.caveMix + Math.sign(target - this.caveMix) * Math.min(Math.abs(target - this.caveMix), dt * 1.5);
     this.snapCave = false;
     // l'intérieur de la grotte n'est dessiné que de près (il est sous la mer, loin à l'ouest)
+    // la Bulle aussi : on ne la dessine que de près (elle est loin au large, au fond)
+    const nearBubble = Math.hypot(cam.x - BUBBLE.x, cam.z - BUBBLE.z) < 260;
+    if (this.bubble.interior.visible !== nearBubble) {
+      this.bubble.interior.visible = nearBubble;
+      this.bubbleNotes.group.visible = nearBubble;
+      for (const id of VASE_IDS) this.panels.get(id)!.group.visible = nearBubble;
+    }
     const near = this.camera.position.x < CAVE.x + 130;
     if (this.cave.interior.visible !== near) {
       this.cave.interior.visible = near;
@@ -707,7 +761,7 @@ export class Game {
   /** séquence : l'île bascule, on glisse, on tombe ; le phare s'enfonce ; réveil dans la grotte */
   bascule: { t: number; lx: number; lz: number; last: THREE.Vector3; fall: THREE.CatmullRomCurve3 | null; switched: boolean; faded: boolean } | null = null;
   /** passage d'une pierre à l'autre (grotte ↔ pied du phare) */
-  passage: { t: number; down: boolean; moved: boolean } | null = null;
+  passage: { t: number; down: boolean; moved: boolean; dest?: 'bubble' | 'beach' } | null = null;
   /** séquence : la Racine-mère reliée, la lumière remonte, le phare sort de la colline */
   rootsEnd: { t: number; switched: boolean; shown: boolean } | null = null;
   cave!: Cave;
@@ -734,7 +788,7 @@ export class Game {
 
   /** une séquence est en cours (le joueur ne marche pas, pas de menu pause) */
   get busy(): boolean {
-    return !!(this.cinematic || this.rise || this.lift || this.finale || this.bascule || this.passage || this.rootsEnd);
+    return !!(this.cinematic || this.rise || this.lift || this.finale || this.bascule || this.passage || this.rootsEnd || this.appel || this.dive || this.ecluse);
   }
 
   /** La transformation : la terre tremble, l'île monte de la mer jusqu'au ciel, le pont s'allume. */
@@ -981,6 +1035,8 @@ export class Game {
     const mere = this.isSolved(RACINE_MERE.id);
     this.setLighthouseSink(deep && !mere ? 1 : 0);
     this.cave.setGlow(mere ? 1 : 0);
+    // la Bulle illuminée une fois la Grande Écluse remplie
+    this.bubble.setGlow(this.isSolved(GRANDE_ECLUSE.id) ? 1 : 0);
   }
 
   /** Le phare s'enfonce dans la colline (1) ou se tient à sa place (0) ; son faisceau le suit. */
@@ -1012,7 +1068,9 @@ export class Game {
     q.t += dt;
     if (!q.moved && q.t >= 0.8) {
       q.moved = true;
-      if (q.down) this.player.place(CAVE_ARRIVAL.x, CAVE_ARRIVAL.z, CAVE_ARRIVAL.yaw, -0.08);
+      if (q.dest === 'bubble') this.player.place(BUBBLE_ARRIVAL.x, BUBBLE_ARRIVAL.z, BUBBLE_ARRIVAL.yaw, -0.05);
+      else if (q.dest === 'beach') this.player.place(BEACH_STONE.x - 3, BEACH_STONE.z - 4, Math.atan2(-3, -4), -0.1);
+      else if (q.down) this.player.place(CAVE_ARRIVAL.x, CAVE_ARRIVAL.z, CAVE_ARRIVAL.yaw, -0.08);
       // à côté de la pierre (pas devant), face au phare enfoncé
       else this.player.place(DEEP_LIFT.x + 4.5, DEEP_LIFT.z + 4.1, 0.33, 0.1);
       this.snapCave = true;
@@ -1088,6 +1146,169 @@ export class Game {
     this.player.place(LIFT.x + 5, LIFT.z + 7, 0.18, 0.12);
     this.snapCave = true;
     this.persist();
+    // … et ce n'est toujours pas la fin : le phare montre la mer
+    if (this.hud) this.startAppel();
+  }
+
+  // ── la Bulle : l'annonce, la plongée, la fin de l'Écluse ──
+
+  bubble!: Bubble;
+  bubbleNotes!: LoreNotes;
+  /** après les Racines : le phare montre la mer, et la pierre qui s'allume sur la plage du départ */
+  appel: { t: number } | null = null;
+  /** la plongée : une bulle nous emporte de la plage au fond de l'océan */
+  dive: { t: number; curve: THREE.CatmullRomCurve3; moved: boolean } | null = null;
+  /** la fin de la Bulle : la Grande Écluse remplie, la lumière remonte et répond au phare */
+  ecluse: { t: number; shown: boolean } | null = null;
+  /** mode test : la Bulle visitée sans avoir relié la Racine-mère */
+  private bubbleVisit = false;
+  private diveSphere: THREE.Mesh | null = null;
+
+  /** la pierre de la plage est allumée : la Racine-mère est reliée (ou mode test) */
+  private get bubbleOpen(): boolean {
+    return this.isSolved(RACINE_MERE.id) || this.bubbleVisit;
+  }
+
+  private startAppel(): void {
+    this.appel = { t: 0 };
+    this.audio.rumble();
+  }
+
+  private updateAppel(dt: number): void {
+    const a = this.appel!;
+    a.t += dt;
+    const t = a.t;
+    const S = THREE.MathUtils.smoothstep;
+    const lh = new THREE.Vector3(LIGHTHOUSE.x, heightAt(LIGHTHOUSE.x, LIGHTHOUSE.z) + 34, LIGHTHOUSE.z + 6);
+    const sea = new THREE.Vector3(BUBBLE.x, 2, BUBBLE.z);
+    const stone = new THREE.Vector3(BEACH_STONE.x, heightAt(BEACH_STONE.x, BEACH_STONE.z) + 1, BEACH_STONE.z);
+    // au large, des bulles montent là où la lumière avait répondu
+    if (t < 7 && Math.random() < 0.5) this.sparks.burst(new THREE.Vector3(BUBBLE.x + (Math.random() - 0.5) * 6, 1, BUBBLE.z + (Math.random() - 0.5) * 6), new THREE.Color('#dff6ff'), 10, 4);
+    const k = S(t, 4, 8.5);
+    const pos = lh.clone().lerp(new THREE.Vector3(stone.x + 7, stone.y + 6, stone.z - 9), k);
+    const target = sea.clone().lerp(stone, S(t, 4.5, 8.5));
+    this.cameraOverride = { pos, target };
+    if (t >= 9.5) {
+      this.appel = null;
+      this.cameraOverride = null;
+      if (this.replaying) {
+        this.endReplay();
+        return;
+      }
+      // sur la plage du départ, face à la pierre qui s'est allumée
+      this.player.place(BEACH_STONE.x - 3, BEACH_STONE.z - 4, Math.atan2(-3, -4), -0.15);
+      this.persist();
+    }
+  }
+
+  /** On monte sur la pierre de la plage : la première fois, la plongée ; ensuite, un fondu. */
+  private checkBubbleStones(): void {
+    if (!this.bubbleOpen || this.busy) return;
+    const p = this.player.position;
+    if (this.inDeep(p)) {
+      if (Math.hypot(p.x - BUBBLE_LIFT.x, p.z - BUBBLE_LIFT.z) < 1.3) {
+        this.passage = { t: 0, down: false, moved: false, dest: 'beach' };
+        this.audio.power();
+        this.hud?.fade(1, 700);
+      }
+      return;
+    }
+    if (Math.hypot(p.x - BEACH_STONE.x, p.z - BEACH_STONE.z) < 1.3) {
+      if (this.save.bubble) {
+        this.passage = { t: 0, down: true, moved: false, dest: 'bubble' };
+        this.audio.power();
+        this.hud?.fade(1, 700);
+      } else this.startDive();
+    }
+  }
+
+  startDive(): void {
+    const from = this.camera.position.clone();
+    const curve = new THREE.CatmullRomCurve3([
+      from,
+      new THREE.Vector3(from.x + 10, 7, from.z + 50),
+      new THREE.Vector3((from.x + BUBBLE.x) / 2, 6, (from.z + BUBBLE.z) / 2),
+      new THREE.Vector3(BUBBLE.x, 4, BUBBLE.z - 70),
+      new THREE.Vector3(BUBBLE.x, -14, BUBBLE.z - 52),
+      new THREE.Vector3(BUBBLE.x, BUBBLE.y + 22, BUBBLE.z - 34),
+      new THREE.Vector3(BUBBLE.x, BUBBLE.y + 6, BUBBLE.z - 26),
+      new THREE.Vector3(BUBBLE_ARRIVAL.x, heightAt(BUBBLE_ARRIVAL.x, BUBBLE_ARRIVAL.z) + 1.6, BUBBLE_ARRIVAL.z),
+    ]);
+    this.dive = { t: 0, curve, moved: false };
+    this.audio.power();
+    this.hud?.closeNote();
+    this.noteAt = null;
+    if (!this.diveSphere) {
+      this.diveSphere = new THREE.Mesh(new THREE.SphereGeometry(1.1, 24, 16), new THREE.MeshStandardMaterial({ color: '#dff6ff', transparent: true, opacity: 0.16, roughness: 0, metalness: 0.4, side: THREE.BackSide, depthWrite: false }));
+      this.scene.add(this.diveSphere);
+    }
+    this.diveSphere.visible = true;
+  }
+
+  private updateDive(dt: number): void {
+    const d = this.dive!;
+    d.t += dt;
+    const T = 11;
+    const u = THREE.MathUtils.smoothstep(d.t, 0.8, T);
+    const pos = d.curve.getPointAt(u);
+    const ahead = d.curve.getPointAt(Math.min(1, u + 0.04));
+    // au bout du voyage, on regarde le centre de la Bulle
+    const look = u > 0.9 ? ahead.lerp(new THREE.Vector3(BUBBLE.x, BUBBLE.y + 2, BUBBLE.z), (u - 0.9) * 10) : ahead;
+    this.cameraOverride = { pos, target: look };
+    const grow = THREE.MathUtils.smoothstep(d.t, 0, 0.8) * (1 + THREE.MathUtils.smoothstep(d.t, T, T + 0.6) * 3);
+    this.diveSphere!.position.copy(pos);
+    this.diveSphere!.scale.setScalar(Math.max(0.01, grow));
+    (this.diveSphere!.material as THREE.MeshStandardMaterial).opacity = 0.16 * (1 - THREE.MathUtils.smoothstep(d.t, T, T + 0.6));
+    // des bulles derrière nous, sous l'eau
+    if (pos.y < 0 && Math.random() < 0.6) this.sparks.burst(pos.clone().add(new THREE.Vector3(0, -1, 0)), new THREE.Color('#dff6ff'), 6, 1);
+    if (d.t >= T + 0.6) {
+      this.dive = null;
+      this.cameraOverride = null;
+      this.diveSphere!.visible = false;
+      this.player.place(BUBBLE_ARRIVAL.x, BUBBLE_ARRIVAL.z, BUBBLE_ARRIVAL.yaw, -0.05);
+      if (!this.save.bubble) {
+        this.save.bubble = true;
+        this.persist();
+      }
+    }
+  }
+
+  private startEcluse(): void {
+    this.ecluse = { t: 0, shown: false };
+    this.audio.finale();
+    this.input?.release();
+    this.hud?.closeNote();
+    this.noteAt = null;
+  }
+
+  private updateEcluse(dt: number): void {
+    const e = this.ecluse!;
+    e.t += dt;
+    const t = e.t;
+    const S = THREE.MathUtils.smoothstep;
+    this.bubble.setGlow(S(t, 0.5, 5));
+    if (t < 5 && Math.random() < 0.6) this.sparks.burst(new THREE.Vector3(BUBBLE.x + (Math.random() - 0.5) * 10, BUBBLE.y + 6 + Math.random() * 8, BUBBLE.z + (Math.random() - 0.5) * 10), new THREE.Color('#bff6ff'), 12, 3);
+    // dedans, on lève les yeux ; puis on remonte avec la lumière jusqu'à la surface, face au phare
+    const k = S(t, 4.5, 12);
+    const inside = new THREE.Vector3(BUBBLE.x + 14, BUBBLE.y + 3, BUBBLE.z + 14);
+    const above = new THREE.Vector3(BUBBLE.x + 40, 9, BUBBLE.z + 40);
+    const pos = inside.lerp(above, k);
+    const look = new THREE.Vector3(BUBBLE.x, BUBBLE.y + 20 + 40 * k, BUBBLE.z).lerp(new THREE.Vector3(LIGHTHOUSE.x, 40, LIGHTHOUSE.z), S(t, 11, 15));
+    this.cameraOverride = { pos, target: look };
+    if (t >= 16 && !e.shown) {
+      e.shown = true;
+      this.playing = false;
+      this.hud?.showFinale(ENDING.bubble, this.stats(), 'La Bulle a répondu.', 'Continuer');
+    }
+  }
+
+  private endEcluse(): void {
+    this.ecluse = null;
+    this.cameraOverride = null;
+    this.bubble.setGlow(1);
+    this.player.place(GRANDE_ECLUSE.x, GRANDE_ECLUSE.z - 12, 0, 0.25);
+    this.snapCave = true;
+    this.persist();
   }
 
   notes!: LoreNotes;
@@ -1153,6 +1374,7 @@ export class Game {
       ['phare', FINAL_PANELS, FINAL_ID],
       ['ciel', [...SKY_PANELS, GRAND_PLATEAU], GRAND_PLATEAU.id],
       ['racines', [...ROOT_PANELS, RACINE_MERE], RACINE_MERE.id],
+      ['bulle', [...VASE_PANELS, GRANDE_ECLUSE], GRANDE_ECLUSE.id],
     ];
     const marks: MapMark[] = zones.flatMap(([zone, spots, big]) => spots.map((p) => {
       const v = this.panels.get(p.id)!;
@@ -1172,6 +1394,7 @@ export class Game {
       player: { x: pos.x, y: pos.y, z: pos.z, yaw: this.player.yaw },
       sky: !!this.save.sky,
       deep: !!this.save.deep,
+      bubble: !!this.save.bubble,
     };
   }
 
@@ -1222,6 +1445,13 @@ export class Game {
     view.onRoll = (dur) => this.audio.roll(dur, big);
     view.onLand = (end) => (end === 'home' ? this.audio.home() : end === 'pit' ? this.audio.pit() : this.audio.bump(big));
     view.onFail = () => this.audio.denied();
+    this.panels.set(view.id, view);
+    this.scene.add(view.group);
+  }
+
+  private addVaseView(view: VaseView): void {
+    view.onSolved = () => this.onPanelSolved(view);
+    view.onPour = (amount) => this.audio.pour(amount);
     this.panels.set(view.id, view);
     this.scene.add(view.group);
   }
@@ -1343,6 +1573,7 @@ export class Game {
       else if (this.ended && !this.save.sky && !this.rise) this.startRise();
       if (this.finale && this.finale.t >= 18 && !this.replaying) this.endFinale();
       if (this.rootsEnd?.shown) this.endRoots();
+      if (this.ecluse?.shown) this.endEcluse();
       if (touchInput) {
         touchInput.enabled = true;
         this.playing = true;
@@ -1524,6 +1755,11 @@ export class Game {
     if (id === GRAND_PLATEAU.id && !this.save.solved.includes(id) && this.hud) this.startFinale();
     // la Racine-mère : le phare remonte
     if (id === RACINE_MERE.id && !this.save.solved.includes(id) && this.hud) this.startRoots();
+    // la Grande Écluse : la Bulle répond au phare
+    if (id === GRANDE_ECLUSE.id && !this.save.solved.includes(id)) {
+      if (this.hud) this.startEcluse();
+      else this.bubble.setGlow(1);
+    }
     if (this.save.solved.includes(id) === false && SECRET_IDS.includes(id)) {
       this.shards.add(this.sparkAt(panel).at);
       this.audio.finale();
@@ -1661,7 +1897,7 @@ export class Game {
     this.timer.update();
     const dt = Math.min(0.05, this.timer.getDelta());
     this.time += dt;
-    if (!this.rise && !this.lift && !this.finale && !this.bascule && !this.passage && !this.rootsEnd) this.player.update(dt);
+    if (!this.rise && !this.lift && !this.finale && !this.bascule && !this.passage && !this.rootsEnd && !this.appel && !this.dive && !this.ecluse) this.player.update(dt);
     if (this.cameraOverride) {
       this.camera.position.copy(this.cameraOverride.pos);
       this.camera.lookAt(this.cameraOverride.target);
@@ -1707,8 +1943,15 @@ export class Game {
     if (this.bascule) this.updateBascule(dt);
     if (this.passage) this.updatePassage(dt);
     if (this.rootsEnd) this.updateRoots(dt);
+    if (this.appel) this.updateAppel(dt);
+    if (this.dive) this.updateDive(dt);
+    if (this.ecluse) this.updateEcluse(dt);
     this.checkLift();
     this.checkPassage();
+    this.checkBubbleStones();
+    this.bubble.setOpen(this.bubbleOpen);
+    this.bubble.update(this.time);
+    this.bubbleNotes.update(this.time);
     this.checkBascule(dt);
     if (this.cameraOverride) {
       // la caméra des séquences a pu bouger pendant la mise à jour
@@ -1767,6 +2010,16 @@ export class Game {
 
   /** Place le joueur devant un panneau. */
   view(id: string): void {
+    const vaseSpot = VASE_PANELS.find((p) => p.id === id);
+    if (vaseSpot) {
+      const s = standPoint(vaseSpot, 2.6);
+      this.player.place(s.x, s.z, vaseSpot.yaw, -0.05);
+      return;
+    }
+    if (id === GRANDE_ECLUSE.id) {
+      this.player.place(GRANDE_ECLUSE.x, GRANDE_ECLUSE.z + 15, 0, 0.18);
+      return;
+    }
     const rootSpot = ROOT_PANELS.find((p) => p.id === id);
     if (rootSpot) {
       const s = standPoint(rootSpot, 1.5);
@@ -1871,6 +2124,7 @@ export class Game {
       this.cave.setOpen(true);
       this.caveVisit = true;
     }
+    if (p.needs === 'bubble') this.bubbleVisit = true;
     this.player.place(p.x, p.z, p.yaw, 0);
     this.snapCave = true;
   }
@@ -1885,7 +2139,8 @@ export class Game {
       { group: 'Zone 3 · Ombres', items: [...SHADOW_PANELS.map((p) => p.id), CADRAN.id].map(item) },
       { group: 'Zone 4 · Phare', items: FINAL_PANELS.map((p) => item(p.id)) },
       { group: 'Zone 5 · Ciel', items: SKY_IDS.map((id) => ({ id, label: id === GRAND_PLATEAU.id ? 'Grand Plateau (vraie fin ?)' : id })) },
-      { group: 'Zone 6 · Racines', items: ROOT_IDS.map((id) => ({ id, label: id === RACINE_MERE.id ? 'Racine-mère (dernière)' : id })) },
+      { group: 'Zone 6 · Racines', items: ROOT_IDS.map((id) => ({ id, label: id === RACINE_MERE.id ? 'Racine-mère' : id })) },
+      { group: 'Zone 7 · Bulle', items: VASE_IDS.map((id) => ({ id, label: id === GRANDE_ECLUSE.id ? 'Grande Écluse (dernière)' : id })) },
       { group: 'Éclats (secrets)', items: SECRET_IDS.map((id) => ({ id, label: `Éclat : ${id.replace('eclat-', '')}` })) },
     ];
   }
@@ -1898,7 +2153,8 @@ export class Game {
   cheat(action: CheatAction, id: string): void {
     // les énigmes du ciel : l'île monte d'abord (sans la séquence)
     // … et pour les Racines, la grotte est ouverte (sans la bascule)
-    const deepTarget = action === 'all' || ROOT_IDS.includes(id);
+    const bubbleTarget = VASE_IDS.includes(id);
+    const deepTarget = action === 'all' || ROOT_IDS.includes(id) || bubbleTarget;
     const skyTarget = deepTarget || SKY_IDS.includes(id);
     // revenir en arrière : si des énigmes au-delà du point choisi sont déjà résolues, on réécrit
     // la sauvegarde exactement à ce point et on recharge (le plus sûr pour tout remettre à zéro)
@@ -1923,6 +2179,8 @@ export class Game {
       this.save.deep = true;
       this.applyDeep();
     }
+    // la Bulle : on y va directement (sans la plongée)
+    if (bubbleTarget && !this.save.bubble) this.save.bubble = true;
     if (action !== 'goto') {
       const order = POWER.map((p) => p.id);
       const at = order.indexOf(id);
@@ -1998,6 +2256,11 @@ export class Game {
     } else if (which === 'bascule') {
       this.setSkyRisen(true);
       this.startBascule();
+    } else if (which === 'appel') {
+      this.startAppel();
+    } else if (which === 'ecluse') {
+      this.bubble.setGlow(0);
+      this.startEcluse();
     } else if (which === 'racines') {
       // la grotte éteinte et le phare enfoncé, puis tout se relie
       this.cave.setGlow(0);
@@ -2018,6 +2281,8 @@ export class Game {
     this.cinematic = null;
     this.finale = null;
     this.rootsEnd = null;
+    this.appel = null;
+    this.ecluse = null;
     if (this.bascule) {
       this.bascule = null;
       this.sky.setTilt(0);
@@ -2050,8 +2315,13 @@ export class Game {
       if (this.bascule) this.updateBascule(0.05);
       if (this.passage) this.updatePassage(0.05);
       if (this.rootsEnd) this.updateRoots(0.05);
+      if (this.appel) this.updateAppel(0.05);
+      if (this.dive) this.updateDive(0.05);
+      if (this.ecluse) this.updateEcluse(0.05);
       this.checkLift();
       this.checkPassage();
+      this.checkBubbleStones();
+      this.bubble.setOpen(this.bubbleOpen);
       this.cave.update(this.time);
       this.updateDay(0.05);
       this.sparks.update(0.05);

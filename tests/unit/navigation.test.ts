@@ -5,6 +5,7 @@ import {
   CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, PLAZA, SECRETS, SECRET_PLAGE, SHADOW_PANELS, START, standPoint, towerCell, towerCells,
   LIFT, SKY, SKY_ARRIVAL, SKY_LIFT, SKY_PANELS, GRAND_PLATEAU, skyEdge,
   CAVE, CAVE_ARRIVAL, CAVE_LIFT, DEEP_LIFT, ROOT_PANELS, RACINE_MERE, caveEdge, MAP_TABLE,
+  BUBBLE, BUBBLE_ARRIVAL, BUBBLE_LIFT, BEACH_STONE, VASE_PANELS, GRANDE_ECLUSE,
 } from '../../src/world/layout.ts';
 import { buildGates, buildLighthouse, buildPlaza, buildVegetation, buildWalls } from '../../src/world/props.ts';
 import { buildAtelier } from '../../src/world/atelier.ts';
@@ -18,6 +19,7 @@ import { SECRET_LIGHT } from '../../src/puzzles/secrets.ts';
 import { NOTES } from '../../src/world/lore.ts';
 import { buildSkyIsland } from '../../src/world/sky.ts';
 import { buildCave } from '../../src/world/cave.ts';
+import { buildBubble } from '../../src/world/bubble.ts';
 
 /**
  * Test de navigation : on reconstruit tous les obstacles du jeu (sans rendu) et on vérifie,
@@ -49,6 +51,10 @@ function world(open: Set<string>) {
   // la grotte des Racines : fosse de la Racine-mère, pupitres
   buildCave(c);
   for (const s of ROOT_PANELS) c.addCircle(s.x, s.z, 0.6);
+  // la Bulle : son bord, ses tables, la Grande Écluse
+  buildBubble(c);
+  for (const s of VASE_PANELS) c.addCircle(s.x, s.z, 0.9);
+  c.addCircle(GRANDE_ECLUSE.x, GRANDE_ECLUSE.z, 6.5);
   for (const n of NOTES) c.addCircle(n.x, n.z, 0.3);
   // index spatial des cercles
   const B = 4;
@@ -135,7 +141,10 @@ describe('navigation — on peut marcher jusqu\'à chaque énigme', () => {
   });
 
   it('chaque billet du gardien (lore) et la pierre d\'envol au pied du phare', () => {
-    expect(NOTES.filter((n) => n.zone !== 'ciel' && n.zone !== 'racines' && !reach(n.x, n.z)).map((n) => n.id)).toEqual([]);
+    expect(NOTES.filter((n) => n.zone !== 'ciel' && n.zone !== 'racines' && n.zone !== 'bulle' && !reach(n.x, n.z)).map((n) => n.id)).toEqual([]);
+    // la pierre de la plage, d'où l'on plonge vers la Bulle
+    expect(reach(BEACH_STONE.x, BEACH_STONE.z)).toBe(true);
+    expect(reach(BEACH_STONE.x - 3, BEACH_STONE.z - 4)).toBe(true);
     expect(reach(LIFT.x, LIFT.z)).toBe(true);
     // et la pierre qui descend à la grotte (après la bascule)
     expect(reach(DEEP_LIFT.x, DEEP_LIFT.z)).toBe(true);
@@ -271,5 +280,26 @@ describe('énigmes d\'environnement : rayons horizontaux', () => {
     expect(Math.max(...beach) - Math.min(...beach)).toBeLessThan(0.05);
     const towers = towerCells().map(([c, r]) => { const t = towerCell(c, r); return heightAt(t.x, t.z); });
     expect(Math.max(...towers) - Math.min(...towers)).toBeLessThan(0.4); // grandes tours : les rayons suivent le sol
+  });
+});
+
+describe('navigation — la Bulle', () => {
+  const reach = explore(ALL_GATES, BUBBLE_ARRIVAL, { x0: BUBBLE.x - 42, z0: BUBBLE.z - 42, size: 84 });
+  it('depuis l\'arrivée : chaque table de vases, la Grande Écluse, les billets et la pierre du retour', () => {
+    const missing: string[] = [];
+    for (const s of VASE_PANELS) {
+      const p = standPoint(s, 2.6);
+      if (!reach(p.x, p.z)) missing.push(s.id);
+    }
+    if (!reach(GRANDE_ECLUSE.x, GRANDE_ECLUSE.z + 15)) missing.push(GRANDE_ECLUSE.id);
+    for (const n of NOTES.filter((m) => m.zone === 'bulle')) if (!reach(n.x, n.z)) missing.push(n.id);
+    if (!reach(BUBBLE_LIFT.x, BUBBLE_LIFT.z)) missing.push('pierre du retour');
+    expect(missing).toEqual([]);
+  });
+  it('contrôle : on ne sort pas dans l\'eau', () => {
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      expect(reach(BUBBLE.x + Math.cos(a) * (BUBBLE.r + 3), BUBBLE.z + Math.sin(a) * (BUBBLE.r + 3)), `cap ${i}`).toBe(false);
+    }
   });
 });

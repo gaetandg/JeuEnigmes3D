@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
 test('le jeu démarre sans erreur et seul le premier panneau est allumé', async ({ page }) => {
   await boot(page);
   const panels = await page.evaluate(() => window.__game.panels());
-  expect(panels).toHaveLength(81);
+  expect(panels).toHaveLength(88);
   expect(panels.filter((p) => p.powered && !p.id.startsWith('eclat-')).map((p) => p.id)).toEqual(['a1']);
   await page.screenshot({ path: 'test-results/depart.png' });
   expect(errors).toEqual([]);
@@ -710,5 +710,61 @@ test("l'aide se demande, par paliers : où regarder, puis la pièce, puis le ges
     window.__game.requestHelp();
   });
   expect(await page.evaluate(() => window.__game.help('a2'))).toMatchObject({ level: 2, gesture: true });
+  expect(errors).toEqual([]);
+});
+
+test("la Bulle : la pierre de la plage, la plongée, les vases, et la pierre du retour", async ({ page }) => {
+  test.setTimeout(300_000);
+  await boot(page);
+  await page.evaluate(() => {
+    sessionStorage.setItem('keep', '1');
+    window.__game.cheat('upto', 'racine-mere');
+    window.__game.teleport(7, 101, 0);
+    window.__game.advance(0.1);
+  });
+  // la plongée : une bulle nous emporte au fond de l'océan
+  expect((await page.evaluate(() => window.__game.bubble())).dive).toBe(true);
+  await page.evaluate(() => window.__game.advance(8));
+  await page.screenshot({ path: 'test-results/bulle-plongee.png' });
+  await page.evaluate(() => window.__game.advance(5));
+  const b = await page.evaluate(() => window.__game.bubble());
+  expect(b.dive).toBe(false);
+  expect(b.visited).toBe(true);
+  expect((await page.evaluate(() => window.__game.player())).y).toBeLessThan(-40);
+  // sous la Bulle, à pied sec : on marche
+  const p0 = await page.evaluate(() => window.__game.player());
+  await page.evaluate(() => window.__game.move(1, 0, 1));
+  const p1 = await page.evaluate(() => window.__game.player());
+  expect(Math.hypot(p1.x - p0.x, p1.z - p0.z)).toBeGreaterThan(1.5);
+  // v1 : verser le grand tube dans le petit
+  await page.evaluate(() => window.__game.view('v1'));
+  expect((await page.evaluate(() => window.__game.panels())).find((x) => x.id === 'v1')!.powered).toBe(true);
+  expect(await page.evaluate(() => window.__game.interact('v1', 0, true))).toBe('denied');
+  expect(await page.evaluate(() => window.__game.interact('v1', 0))).toBe('ok');
+  await page.evaluate(() => window.__game.advance(1));
+  expect((await page.evaluate(() => window.__game.panels())).find((x) => x.id === 'v1')!.solved).toBe(true);
+  await page.screenshot({ path: 'test-results/bulle-v1.png' });
+  // la pierre du retour ramène sur la plage ; la suivante plonge d'un fondu
+  await page.evaluate(() => {
+    window.__game.teleport(107, 353, 0);
+    window.__game.advance(0.1);
+    window.__game.advance(2);
+  });
+  expect((await page.evaluate(() => window.__game.player())).y).toBeGreaterThan(1);
+  await page.evaluate(() => {
+    window.__game.teleport(7, 101, 0);
+    window.__game.advance(0.1);
+  });
+  expect((await page.evaluate(() => window.__game.bubble())).dive).toBe(false);
+  await page.evaluate(() => window.__game.advance(2));
+  expect((await page.evaluate(() => window.__game.player())).y).toBeLessThan(-40);
+  // la Grande Écluse (via le mode test) : la Bulle s'illumine
+  await page.evaluate(() => {
+    window.__game.cheat('before', 'grande-ecluse');
+    window.__game.solve('grande-ecluse');
+    window.__game.advance(1);
+  });
+  expect((await page.evaluate(() => window.__game.panels())).find((x) => x.id === 'grande-ecluse')!.solved).toBe(true);
+  await page.screenshot({ path: 'test-results/bulle-ecluse.png' });
   expect(errors).toEqual([]);
 });

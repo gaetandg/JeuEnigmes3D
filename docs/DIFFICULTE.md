@@ -42,6 +42,11 @@ la déduction locale laisse indécises. Les grilles sont désormais choisies pou
 réseaux entiers. Deux règles y aident : une **deuxième lumière** (bleue, dès r3), dont le réseau ne
 doit jamais toucher celui de l'or, chaque cristal attendant sa couleur ; et des **trous** dans la grille.
 
+**La Bulle** (vases) : v1 est une leçon (un geste). Ensuite l'agent glouton échoue toujours : pour
+amener l'eau à un anneau, il faut presque toujours s'en éloigner d'abord (remplir, vider, transvaser).
+Le saut v3 → v4 est voulu : à partir de v4, le hasard ne trouve plus (le joueur doit raisonner sur
+les quantités, comme dans le problème des trois cruches) ; c'est la dernière zone.
+
 | Zone | Énigme | Type | Pièces | Actions min. | Actions à l'aveugle (médiane) | Difficulté | Déclic |
 |---|---|---|---|---|---|---|---|
 | 1 Lumière | a1 | lumière | 1 | 1 | 1 | 1.0 █ | 0 % |
@@ -116,3 +121,10 @@ doit jamais toucher celui de l'or, chaque cristal attendant sa couleur ; et des 
 | 6 Racines | r5 | racines | 22 | 26 | 20000 | 14.3 ██████████████ | 100 % |
 | 6 Racines | r6 | racines | 25 | 28 | 20000 | 14.3 ██████████████ | 100 % |
 | 6 Racines | racine-mere | racines | 36 | 48 | 20000 | 14.3 ██████████████ | 100 % |
+| 7 Bulle | v1 | vases | 1 | 1 | 2 | 1.6 ██ | 0 % |
+| 7 Bulle | v2 | vases | 3 | 3 | 68 | 6.1 ██████ ⚠ saut | 100 % |
+| 7 Bulle | v3 | vases | 2 | 6 | 70 | 6.1 ██████ | 100 % |
+| 7 Bulle | v4 | vases | 3 | 7 | 12248 | 13.6 ██████████████ ⚠ saut | 100 % |
+| 7 Bulle | v5 | vases | 3 | 9 | 19825 | 14.3 ██████████████ | 100 % |
+| 7 Bulle | v6 | vases | 4 | 11 | 20000 | 14.3 ██████████████ | 100 % |
+| 7 Bulle | grande-ecluse | vases | 6 | 14 | 20000 | 14.3 ██████████████ | 100 % |
