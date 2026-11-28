@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Perlin2D, clamp, lerp, smoothstep } from './noise.ts';
-import { ATELIER, BUBBLE, CAVE, FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PHARE, PLATEAUS, PLAZA, SKY, caveEdge, skyEdge } from './layout.ts';
+import { ATELIER, BUBBLE, CAVE, ECHO, FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PHARE, PLATEAUS, PLAZA, SKY, caveEdge, skyEdge } from './layout.ts';
 
 const noise = new Perlin2D(7);
 const ISLAND_CENTER = { x: 0, z: -15 };
@@ -111,7 +111,7 @@ export type Surface = 'grass' | 'sand' | 'path' | 'stone' | 'water';
  * des plages, l'eau au bord de la mer, la terre battue des chemins, et l'herbe ailleurs.
  */
 export function surfaceAt(x: number, z: number): Surface {
-  if (inCave(x, z)) return 'stone';
+  if (inCave(x, z) || inEcho(x, z)) return 'stone';
   if (inBubble(x, z)) return 'sand';
   const h = heightAt(x, z);
   if (h < 0.2) return 'water';
@@ -124,9 +124,14 @@ export function surfaceAt(x: number, z: number): Surface {
   return 'grass';
 }
 
+/** Dans la Grotte des Échos (à pied sec, jusqu'à sa paroi). */
+export function inEcho(x: number, z: number): boolean {
+  return Math.hypot(x - ECHO.x, z - ECHO.z) < ECHO.r - 1.2;
+}
+
 /** Peut-on poser le pied ici ? Pas dans la mer (la grotte et la Bulle, elles, sont à pied sec). */
 export function walkable(x: number, z: number): boolean {
-  return inCave(x, z) || inBubble(x, z) || heightAt(x, z) >= -0.3;
+  return inCave(x, z) || inBubble(x, z) || inEcho(x, z) || heightAt(x, z) >= -0.3;
 }
 
 function groundHeight(x: number, z: number): number {
@@ -137,6 +142,9 @@ function groundHeight(x: number, z: number): number {
   // la Bulle : un sol de sable presque plat, au fond de l'océan
   const db = Math.hypot(x - BUBBLE.x, z - BUBBLE.z);
   if (db < BUBBLE.r + 4) return BUBBLE.y + noise.noise(x * 0.12, z * 0.12) * 0.25 * smoothstep(6, 12, db) - Math.max(0, db - BUBBLE.r) * 0.3;
+  // la Grotte des Échos : un sol de pierre presque plat
+  const de = Math.hypot(x - ECHO.x, z - ECHO.z);
+  if (de < ECHO.r + 3) return ECHO.y + noise.noise(x * 0.15, z * 0.15) * 0.12 * smoothstep(ECHO.r - 4, ECHO.r - 1, de);
   // la grotte des Racines : un sol de terre sous la mer ; au-delà de ses parois, le roc
   if (inCave(x, z)) {
     const dc = Math.hypot(x - CAVE.x, z - CAVE.z);

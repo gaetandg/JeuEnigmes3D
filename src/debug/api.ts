@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { ECHO_MODULES, echoStones } from '../world/layout.ts';
+import type { EchoLang } from '../world/layout.ts';
 import type { Game } from '../game/Game.ts';
 import { CADRAN, FINAL_PANELS, FOLD_PANELS, GRAND_PLI, PANELS, SHADOW_PANELS, TOWERS } from '../world/layout.ts';
 
@@ -91,6 +93,17 @@ export function exposeDebugApi(game: Game): void {
     symbols: (on: boolean) => game.setSymbols(on),
     /** la Bulle : plongée faite, séquences */
     bubble: () => ({ visited: !!game.save.bubble, dive: !!game.dive, appel: !!game.appel, ecluse: !!game.ecluse }),
+    /** la Grotte des Échos : alcôves allumées, énigme en cours de chacune, total résolu */
+    echo: () => ({
+      total: game.echo.total,
+      modules: ECHO_MODULES.map((m) => {
+        const v = game.echo.view(m.kind);
+        return { kind: m.kind, tier: game.echo.tierOf(m.kind), id: v?.id ?? null, powered: !!v?.powered, solved: !!v?.solved, count: game.echo.save.counts[m.kind] ?? 0 };
+      }),
+    }),
+    echoTier: (kind: EchoLang, tier: 0 | 1 | 2) => game.echo.setTier(kind, tier),
+    /** où sont les pierres de taille d'une alcôve (petite, moyenne, grande) */
+    echoStones: (kind: EchoLang) => echoStones(ECHO_MODULES.find((m) => m.kind === kind)!),
     /** la barque du 100 % : là, visée, en route, partie */
     boat: () => ({ waiting: game.boat.waiting, hovered: game.hoveredBoat, depart: !!game.depart, departed: !!game.save.departed, everything: game.everything }),
     aimBoat: () => game.aimAtBoat(),

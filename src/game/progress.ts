@@ -38,6 +38,8 @@ export interface SaveData {
   bubble?: boolean;
   /** le 100 % : la barque de papier est partie au large */
   departed?: boolean;
+  /** la Grotte des Échos : énigmes résolues par langage, taille choisie par alcôve */
+  echo?: { counts: Record<string, number>; tiers: Record<string, number> };
   settings?: Settings;
 }
 
@@ -54,7 +56,13 @@ export function loadSave(): SaveData {
       const settings = d?.settings && typeof d.settings === 'object' ? d.settings : undefined;
       const playTime = Number.isFinite(d?.playTime) ? d!.playTime : undefined;
       const notes = Array.isArray(d?.notes) ? d.notes.filter((x): x is string => typeof x === 'string') : [];
-      return { solved, states, player, settings, playTime, notes, sky: d?.sky === true, deep: d?.deep === true, bubble: d?.bubble === true, departed: d?.departed === true };
+      const nums = (o: unknown): Record<string, number> => {
+        const out: Record<string, number> = {};
+        if (o && typeof o === 'object' && !Array.isArray(o)) for (const [k, v] of Object.entries(o)) if (Number.isInteger(v) && (v as number) >= 0) out[k] = v as number;
+        return out;
+      };
+      const echo = d?.echo && typeof d.echo === 'object' ? { counts: nums(d.echo.counts), tiers: nums(d.echo.tiers) } : undefined;
+      return { solved, states, player, settings, playTime, notes, sky: d?.sky === true, deep: d?.deep === true, bubble: d?.bubble === true, departed: d?.departed === true, echo };
     }
   } catch {
     /* stockage indisponible */

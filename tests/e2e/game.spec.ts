@@ -799,3 +799,63 @@ test("la Bulle : la pierre de la plage, la plongée, les vases, et la pierre du 
   await page.screenshot({ path: 'test-results/bulle-ecluse.png' });
   expect(errors).toEqual([]);
 });
+
+test("la Grotte des Échos : un rocher creux, des énigmes tirées au hasard, sans fin", async ({ page }) => {
+  test.setTimeout(240_000);
+  await boot(page);
+  await page.evaluate(() => sessionStorage.setItem('keep', '1'));
+  const mod = async (kind: string) => (await page.evaluate(() => window.__game.echo())).modules.find((m) => m.kind === kind)!;
+  // au début, aucun langage maîtrisé : les alcôves sont éteintes
+  expect((await page.evaluate(() => window.__game.echo())).modules.every((m) => m.id === null)).toBe(true);
+  // l'ouverture du rocher, sur la côte ouest, mène à la salle
+  await page.evaluate(() => {
+    window.__game.teleport(-100.5, -10, -Math.PI / 2, 0);
+    window.__game.advance(0.1);
+    window.__game.advance(2);
+  });
+  expect((await page.evaluate(() => window.__game.player())).y).toBeLessThan(-50);
+  // le jardin fini (les Tours-Miroirs) : l'alcôve de la lumière s'allume, une énigme s'y forme
+  await page.evaluate(() => window.__game.cheat('upto', 'tours'));
+  await page.waitForFunction(() => window.__game.echo().modules.find((m) => m.kind === 'lumiere')!.id === 'echo-lumiere', null, { timeout: 20_000 });
+  expect((await mod('lumiere')).powered).toBe(true);
+  expect((await mod('pliage')).id).toBeNull();
+  await page.evaluate(() => {
+    window.__game.view('echo-lumiere');
+    window.__game.advance(0.2);
+  });
+  await page.screenshot({ path: 'test-results/echos-lumiere.png' });
+  // résolue : un cristal de plus, puis une nouvelle énigme
+  await page.evaluate(() => window.__game.solve('echo-lumiere'));
+  await page.evaluate(() => window.__game.advance(0.5));
+  expect(await mod('lumiere')).toMatchObject({ solved: true, count: 1 });
+  expect((await page.evaluate(() => window.__game.echo())).total).toBe(1);
+  await page.evaluate(() => window.__game.advance(3));
+  await page.waitForFunction(() => {
+    const m = window.__game.echo().modules.find((x) => x.kind === 'lumiere')!;
+    return m.id !== null && !m.solved;
+  }, null, { timeout: 20_000 });
+  // la grande pierre : on s'y tient un instant, une grande énigme se forme
+  const stones = await page.evaluate(() => window.__game.echoStones('lumiere'));
+  await page.evaluate((s) => {
+    window.__game.teleport(s.x, s.z, 0, 0);
+    window.__game.advance(1);
+  }, stones[2]!);
+  expect((await mod('lumiere')).tier).toBe(2);
+  await page.waitForFunction(() => window.__game.echo().modules.find((x) => x.kind === 'lumiere')!.id !== null, null, { timeout: 20_000 });
+  // ce n'est pas la progression : le 100 % et le bilan n'en tiennent pas compte
+  expect((await page.evaluate(() => window.__game.boat())).everything).toBe(false);
+  // gardé : après rechargement, le compte et la taille choisie
+  await page.reload();
+  await page.waitForFunction(() => window.__game?.ready === true);
+  expect(await mod('lumiere')).toMatchObject({ count: 1, tier: 2 });
+  // la pierre du retour ramène devant le rocher
+  await page.evaluate(() => {
+    window.__game.teleport(-300 + 3.2, 260 + 10.2, 0, 0);
+    window.__game.advance(0.1);
+    window.__game.advance(2);
+  });
+  const out = await page.evaluate(() => window.__game.player());
+  expect(out.y).toBeGreaterThan(0);
+  expect(Math.hypot(out.x - -104.5, out.z - -10)).toBeLessThan(1);
+  expect(errors).toEqual([]);
+});
