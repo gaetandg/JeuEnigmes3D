@@ -25,9 +25,9 @@ export interface HudCallbacks {
   onHelp: () => void;
 }
 
-export type Cinematic = 'phare' | 'ile' | 'vraie' | 'bascule' | 'racines' | 'appel' | 'ecluse';
+export type Cinematic = 'phare' | 'ile' | 'vraie' | 'bascule' | 'racines' | 'appel' | 'ecluse' | 'barque';
 
-export type CheatAction = 'goto' | 'before' | 'upto' | 'all';
+export type CheatAction = 'goto' | 'before' | 'upto' | 'all' | 'every';
 /** Énigmes proposées au mode test, groupées par zone, dans l'ordre de progression. */
 export type CheatList = { group: string; items: { id: string; label: string }[] }[];
 
@@ -117,6 +117,7 @@ export class Hud {
               <button class="ghost" data-cheat="before" title="Résoudre tout ce qui vient avant, puis y aller">Valider ce qui précède</button>
               <button class="ghost" data-cheat="upto" title="Résoudre tout ce qui vient avant et celle-ci, puis y aller">Valider jusqu'ici</button>
               <button class="ghost" data-cheat="all" title="Résoudre toutes les énigmes principales">Tout résoudre</button>
+              <button class="ghost" data-cheat="every" title="Tout résoudre, éclats compris (le 100 %), puis aller à la plage">Le 100 %</button>
             </div>
             <p class="cheat-note">Place la progression exactement à ce point (en avant comme en arrière), portes et câbles compris, et sauvegarde.</p>
             <label>Lieu <select data-cheat="place">${places.map((p) => `<option value="${esc(p.id)}">${esc(p.label)}</option>`).join('')}</select></label>
@@ -132,6 +133,7 @@ export class Hud {
                 <option value="racines">Les racines reliées (le phare remonte)</option>
                 <option value="appel">Le phare montre la mer (la Bulle)</option>
                 <option value="ecluse">La Grande Écluse (la Bulle répond)</option>
+                <option value="barque">La barque de papier (le 100 %)</option>
               </select>
             </label>
             <div class="cheat-actions">
@@ -157,7 +159,7 @@ export class Hud {
       cb.onTeleport(place.value);
       cb.onStart();
     });
-    for (const action of ['goto', 'before', 'upto', 'all'] as const) {
+    for (const action of ['goto', 'before', 'upto', 'all', 'every'] as const) {
       this.root.querySelector(`[data-cheat="${action}"]`)!.addEventListener('click', () => {
         cb.onCheat(action, target.value);
         cb.onStart(); // reprendre la partie tout de suite, devant l'énigme

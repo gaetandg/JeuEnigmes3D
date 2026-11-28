@@ -110,6 +110,8 @@ export const NOTES: LoreNote[] = [
 export const ENDING = {
   answer: 'Au large, une lumière a répondu.',
   full: 'Toutes les couleurs sont revenues. Sur la mer, des dizaines de lanternes rentrent vers l\'île.',
+  /** le 100 % : la barque de papier part au large, et quelqu'un, très loin, répond */
+  boat: "Tout est rallumé, jusqu'au dernier éclat. Ce soir, c'est toi qui as plié le bateau de papier et qui l'as confié à la mer. Très loin, une lumière que personne ne connaît encore vient de s'allumer. Quelqu'un arrivera.",
   /** après la Grande Écluse : la Bulle répond au phare */
   bubble: "Le phare et la Bulle se répondent, d'une lumière à l'autre, à travers toute la mer. Ce n'était pas une fin : c'était une conversation, et c'est toi qui l'as rouverte.",
   /** après la Racine-mère : le post-scriptum du gardien (la « dernière lettre » ne l'était pas) */
