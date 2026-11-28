@@ -303,3 +303,18 @@ describe('navigation — la Bulle', () => {
     }
   });
 });
+
+describe('bruits de pas : ce qu’on a sous les pieds', () => {
+  it('chaque lieu a son sol', async () => {
+    const { surfaceAt } = await import('../../src/world/terrain.ts');
+    const L = await import('../../src/world/layout.ts');
+    expect(surfaceAt(L.START.x, L.START.z)).toBe('path'); // le chemin part de la plage
+    expect(surfaceAt(L.START.x + 12, L.START.z)).toBe('sand'); // la plage du départ
+    expect(surfaceAt(L.START.x, L.START.z + 12)).toBe('water'); // le bord de l'eau
+    expect(surfaceAt(L.PLAZA.x, L.PLAZA.z)).toBe('stone'); // la place dallée
+    expect(surfaceAt(L.ATELIER.x, L.ATELIER.z)).toBe('stone');
+    expect(surfaceAt(L.CAVE_ARRIVAL.x, L.CAVE_ARRIVAL.z)).toBe('stone'); // la grotte
+    expect(surfaceAt(L.BUBBLE_ARRIVAL.x, L.BUBBLE_ARRIVAL.z)).toBe('sand'); // le fond de la Bulle
+    expect(surfaceAt(L.CLOITRE.x + 8, L.CLOITRE.z + 8)).toBe('grass');
+  });
+});

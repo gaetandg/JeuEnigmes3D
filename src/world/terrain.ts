@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Perlin2D, clamp, lerp, smoothstep } from './noise.ts';
-import { BUBBLE, CAVE, FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PLATEAUS, SKY, caveEdge, skyEdge } from './layout.ts';
+import { ATELIER, BUBBLE, CAVE, FLATS, GARDEN, GARDEN_Y, LIGHTHOUSE, PATHS, PHARE, PLATEAUS, PLAZA, SKY, caveEdge, skyEdge } from './layout.ts';
 
 const noise = new Perlin2D(7);
 const ISLAND_CENTER = { x: 0, z: -15 };
@@ -101,6 +101,27 @@ export function inCave(x: number, z: number): boolean {
 /** Sous la Bulle (au fond de l'océan, mais à l'air libre). */
 export function inBubble(x: number, z: number): boolean {
   return Math.hypot(x - BUBBLE.x, z - BUBBLE.z) < BUBBLE.r - 1.2;
+}
+
+export type Surface = 'grass' | 'sand' | 'path' | 'stone' | 'water';
+
+/**
+ * Ce qu'on a sous les pieds, pour le bruit des pas (même logique que les couleurs du terrain) :
+ * la pierre de la grotte, des dallages (place, atelier, plateau du phare), le sable de la Bulle et
+ * des plages, l'eau au bord de la mer, la terre battue des chemins, et l'herbe ailleurs.
+ */
+export function surfaceAt(x: number, z: number): Surface {
+  if (inCave(x, z)) return 'stone';
+  if (inBubble(x, z)) return 'sand';
+  const h = heightAt(x, z);
+  if (h < 0.2) return 'water';
+  if (Math.hypot(x - PLAZA.x, z - PLAZA.z) < PLAZA.r + 0.5 || Math.hypot(x - ATELIER.x, z - ATELIER.z) < ATELIER.r - 2) return 'stone';
+  if (Math.hypot(x - PHARE.x, z - PHARE.z) < PHARE.r) return 'stone';
+  if (h > 0.5 && distToPath(x, z) < 1.7) return 'path';
+  if (h < 1.2) return 'sand';
+  // la plage du sud, jusqu'au mur du jardin
+  if (z > GARDEN.z1 + 3 && Math.abs(x) < 50 && h < 4.5) return 'sand';
+  return 'grass';
 }
 
 /** Peut-on poser le pied ici ? Pas dans la mer (la grotte et la Bulle, elles, sont à pied sec). */
