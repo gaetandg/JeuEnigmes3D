@@ -231,3 +231,52 @@ test("la carte du gardien : une table qui sort du sol à la fin du jardin, des l
   expect(await page.locator('details.carte').count()).toBe(0);
   expect(errors).toEqual([]);
 });
+
+test("le 100 % : une barque de papier attend sur la plage, on la pousse au large, une lumière répond", async ({ page }) => {
+  test.setTimeout(240_000);
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.addInitScript(() => {
+    if (!sessionStorage.getItem('keep')) localStorage.clear();
+  });
+  await page.goto('./?debug');
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60_000 });
+  // avant le 100 %, pas de barque
+  expect((await page.evaluate(() => window.__game.boat())).waiting).toBe(false);
+  await page.locator('details.cheat summary').click();
+  await page.locator('[data-cheat="every"]').click();
+  // tout est résolu, éclats compris : la barque attend au bord de l'eau, et l'on est devant
+  const b = await page.evaluate(() => window.__game.boat());
+  expect(b.everything).toBe(true);
+  expect(b.waiting).toBe(true);
+  expect(await page.evaluate(() => window.__game.shards())).toBe(9);
+  // on la vise, on clique : elle part
+  const aimed = await page
+    .waitForFunction(() => {
+      window.__game.aimBoat();
+      return window.__game.boat().hovered;
+    }, null, { timeout: 15_000 })
+    .then(() => true, () => false);
+  expect(aimed).toBe(true);
+  await page.screenshot({ path: 'test-results/barque-visee.png' });
+  await page.evaluate(() => window.__game.press());
+  expect((await page.evaluate(() => window.__game.boat())).depart).toBe(true);
+  await page.evaluate(() => window.__game.advance(12));
+  await page.screenshot({ path: 'test-results/barque-au-large.png' });
+  await page.evaluate(() => window.__game.advance(4));
+  await expect(page.locator('.finale')).toBeVisible();
+  await expect(page.locator('.finale')).toContainText('bateau de papier');
+  await page.locator('.finale [data-action="continue"]').click();
+  const after = await page.evaluate(() => window.__game.boat());
+  expect(after.depart).toBe(false);
+  expect(after.departed).toBe(true);
+  expect(after.waiting).toBe(false);
+  // c'est gardé : après rechargement, la barque est partie (la lumière lointaine reste)
+  await page.evaluate(() => sessionStorage.setItem('keep', '1'));
+  await page.reload();
+  await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60_000 });
+  const kept = await page.evaluate(() => window.__game.boat());
+  expect(kept.departed).toBe(true);
+  expect(kept.waiting).toBe(false);
+  expect(errors).toEqual([]);
+});

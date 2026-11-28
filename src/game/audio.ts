@@ -506,6 +506,24 @@ export class Audio {
     chords.forEach((ch, i) => ch.forEach((f) => this.tone(f, t + i * 0.9, 3.2, 0.06, 'sine')));
   }
 
+  /** Le 100 % : un appel doux, qui monte et reste suspendu (quelque chose attend sur la plage). */
+  boatReady(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    [392, 523.25, 659.25, 783.99].forEach((f, i) => this.tone(f, t + i * 0.35, 3.5 - i * 0.4, 0.05, 'sine'));
+    this.tone(1567.98, t + 1.4, 2.5, 0.015, 'sine');
+  }
+
+  /** Très loin, une lumière répond : trois éclats aigus, lointains (beaucoup d'écho, peu de son). */
+  farAnswer(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    [0, 0.4, 0.8].forEach((d) => this.tone(1174.66, t + d, 1.2, 0.03, 'sine'));
+    this.tone(587.33, t + 1.3, 2.4, 0.03, 'sine');
+  }
+
   /** Un cristal s'allume : une note de carillon propre à sa couleur. */
   crystal(color: number): void {
     const ctx = this.ctx;

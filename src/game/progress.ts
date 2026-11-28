@@ -36,6 +36,8 @@ export interface SaveData {
   deep?: boolean;
   /** on a plongé jusqu'à la Bulle (la première plongée est une séquence) */
   bubble?: boolean;
+  /** le 100 % : la barque de papier est partie au large */
+  departed?: boolean;
   settings?: Settings;
 }
 
@@ -52,7 +54,7 @@ export function loadSave(): SaveData {
       const settings = d?.settings && typeof d.settings === 'object' ? d.settings : undefined;
       const playTime = Number.isFinite(d?.playTime) ? d!.playTime : undefined;
       const notes = Array.isArray(d?.notes) ? d.notes.filter((x): x is string => typeof x === 'string') : [];
-      return { solved, states, player, settings, playTime, notes, sky: d?.sky === true, deep: d?.deep === true, bubble: d?.bubble === true };
+      return { solved, states, player, settings, playTime, notes, sky: d?.sky === true, deep: d?.deep === true, bubble: d?.bubble === true, departed: d?.departed === true };
     }
   } catch {
     /* stockage indisponible */

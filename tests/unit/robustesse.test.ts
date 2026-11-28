@@ -53,6 +53,13 @@ describe('sauvegarde abîmée mais lisible', () => {
     expect(s.solved).toEqual(['a1']);
     expect(s.states).toEqual({ a1: [0] });
   });
+  it("chaque étape de l'histoire survit au rechargement (ciel, grotte, Bulle, barque partie)", () => {
+    stub(JSON.stringify({ solved: [], states: {}, sky: true, deep: true, bubble: true, departed: true }));
+    const s = loadSave();
+    expect([s.sky, s.deep, s.bubble, s.departed]).toEqual([true, true, true, true]);
+    stub(JSON.stringify({ solved: [], states: {}, departed: 'oui' }));
+    expect(loadSave().departed).toBe(false);
+  });
 });
 
 describe('manette', () => {

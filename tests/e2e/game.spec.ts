@@ -736,6 +736,17 @@ test("la Bulle : la pierre de la plage, la plongée, les vases, et la pierre du 
   await page.evaluate(() => window.__game.move(1, 0, 1));
   const p1 = await page.evaluate(() => window.__game.player());
   expect(Math.hypot(p1.x - p0.x, p1.z - p0.z)).toBeGreaterThan(1.5);
+  // un billet de la Bulle se vise et se lit (il manquait à la liste des billets visables)
+  await page.evaluate(() => window.__game.teleport(94, 361, Math.PI));
+  const aimed = await page
+    .waitForFunction(() => {
+      window.__game.aimNote('reponse');
+      return window.__game.hoveredNote() === 'reponse';
+    }, null, { timeout: 15_000 })
+    .then(() => true, () => false);
+  expect(aimed).toBe(true);
+  await page.evaluate(() => window.__game.readNote('reponse'));
+  expect(await page.evaluate(() => window.__game.notes())).toContain('reponse');
   // v1 : verser le grand tube dans le petit
   await page.evaluate(() => window.__game.view('v1'));
   expect((await page.evaluate(() => window.__game.panels())).find((x) => x.id === 'v1')!.powered).toBe(true);

@@ -62,9 +62,12 @@ import type { CheatAction, CheatList, Cinematic } from '../ui/hud.ts';
 import type { MapData, MapMark, MapZone, MarkState } from '../ui/map.ts';
 import { prepareMap } from '../ui/map.ts';
 import { buildMapTable } from '../world/mapTable.ts';
+import { BOAT_AT, FAR_LIGHT, PaperBoat } from '../render/paperBoat.ts';
 import type { MapTable } from '../world/mapTable.ts';
 
 const REACH = 5;
+/** on pousse la barque du 100 % depuis le bord de l'eau */
+const BOAT_REACH = 7;
 /** une aide apparaît après ce temps passé près d'une énigme sans la résoudre (s) */
 /** temps passé devant une énigme avant de pouvoir demander de l'aide (s) */
 const HELP_READY = 45;
@@ -465,6 +468,7 @@ export class Game {
     for (const n of NOTES) this.colliders.addCircle(n.x, n.z, 0.3);
     this.answer = new SeaAnswer();
     this.scene.add(this.answer.group);
+    this.scene.add(this.boat.group);
 
     // rais de lumière jusqu'au phare (visibles une fois chaque zone finie)
     const crystal = towerCell(3, 0);
@@ -789,7 +793,7 @@ export class Game {
 
   /** une séquence est en cours (le joueur ne marche pas, pas de menu pause) */
   get busy(): boolean {
-    return !!(this.cinematic || this.rise || this.lift || this.finale || this.bascule || this.passage || this.rootsEnd || this.appel || this.dive || this.ecluse);
+    return !!(this.cinematic || this.rise || this.lift || this.finale || this.bascule || this.passage || this.rootsEnd || this.appel || this.dive || this.ecluse || this.depart);
   }
 
   /** La transformation : la terre tremble, l'île monte de la mer jusqu'au ciel, le pont s'allume. */
@@ -1315,6 +1319,59 @@ export class Game {
     this.persist();
   }
 
+  readonly boat = new PaperBoat();
+  hoveredBoat = false;
+  depart: { t: number; shown: boolean } | null = null;
+
+  /** Le 100 % : toutes les énigmes, éclats compris. */
+  get everything(): boolean {
+    return [...this.panels.keys()].every((id) => this.isSolved(id));
+  }
+
+  /** On pousse la barque : elle part au large, et au loin une autre lumière s'allume. */
+  startDepart(): void {
+    if (this.depart) return;
+    this.depart = { t: 0, shown: false };
+    this.hoveredBoat = false;
+    this.boat.setHover(false);
+    this.audio.solved();
+    this.input?.release();
+    this.hud?.closeNote();
+    this.noteAt = null;
+    this.dayTarget = 4;
+  }
+
+  private updateDepart(dt: number): void {
+    const d = this.depart!;
+    d.t += dt;
+    const t = d.t;
+    const S = THREE.MathUtils.smoothstep;
+    const k = S(t, 1.2, 14);
+    const far = S(t, 6, 8.5);
+    this.boat.sail(k, far);
+    if (t < 1.2 && Math.random() < 0.5) this.sparks.burst(this.boat.position.clone().add(new THREE.Vector3(0, 1, 0)), new THREE.Color('#ffd98a'), 10, 1.2);
+    if (t - dt < 6.4 && t >= 6.4) this.audio.farAnswer();
+    // depuis la plage, on la regarde partir ; puis le regard file vers la lumière lointaine
+    const pos = new THREE.Vector3(BOAT_AT.x + 3, 2.6 + 1.5 * S(t, 2, 12), BOAT_AT.z - 9);
+    const look = this.boat.position.clone().setY(0.8).lerp(FAR_LIGHT, S(t, 7, 13) * 0.6);
+    this.cameraOverride = { pos, target: look };
+    if (t >= 15 && !d.shown) {
+      d.shown = true;
+      this.playing = false;
+      this.hud?.showFinale(ENDING.boat, this.stats(), 'Tout est rallumé.', 'Continuer');
+    }
+  }
+
+  private endDepart(): void {
+    this.depart = null;
+    this.cameraOverride = null;
+    this.save.departed = true;
+    this.boat.set(false, true);
+    this.player.place(BOAT_AT.x + 3, BOAT_AT.z - 9, Math.atan2(-(FAR_LIGHT.x - BOAT_AT.x), -(FAR_LIGHT.z - BOAT_AT.z)), 0.02);
+    this.updatePower(false);
+    this.persist();
+  }
+
   notes!: LoreNotes;
   answer!: SeaAnswer;
   /** billet visé (lecture au clic) */
@@ -1335,6 +1392,7 @@ export class Game {
     this.notes.markRead(id);
     this.skyNotes.markRead(id);
     this.caveNotes.markRead(id);
+    this.bubbleNotes.markRead(id);
     this.audio.click();
     this.hud?.showNote(NOTES[i]!.text, `billet ${i + 1} sur ${NOTES.length}${first ? '' : ' · déjà lu'}`);
     this.noteAt = this.player.position.clone();
@@ -1416,9 +1474,20 @@ export class Game {
     this.hud?.setJournal(NOTES.filter((n) => read.has(n.id) || known(n.zone)).map((n) => ({ zone: labels[n.zone] ?? n.zone, text: read.has(n.id) ? n.text : null })));
   }
 
+  /** Vise la barque du 100 % (tests). */
+  aimAtBoat(): void {
+    const d = this.boat.position.clone().setY(1).sub(this.player.position);
+    this.player.place(this.player.position.x, this.player.position.z, Math.atan2(-d.x, -d.z), Math.atan2(d.y, Math.hypot(d.x, d.z)));
+  }
+
+  /** Un clic du joueur (tests). */
+  press(reverse = false): void {
+    this.click(reverse);
+  }
+
   /** Vise un billet (tests). */
   aimAtNote(id: string): void {
-    const a = this.notes.anchor(id) ?? this.skyNotes.anchor(id) ?? this.caveNotes.anchor(id);
+    const a = this.notes.anchor(id) ?? this.skyNotes.anchor(id) ?? this.caveNotes.anchor(id) ?? this.bubbleNotes.anchor(id);
     if (!a) throw new Error(`billet ${id} introuvable`);
     a.y += 0.25;
     const d = a.sub(this.player.position);
@@ -1587,6 +1656,7 @@ export class Game {
       if (this.finale && this.finale.t >= 18 && !this.replaying) this.endFinale();
       if (this.rootsEnd?.shown) this.endRoots();
       if (this.ecluse?.shown) this.endEcluse();
+      if (this.depart?.shown) this.endDepart();
       if (touchInput) {
         touchInput.enabled = true;
         this.playing = true;
@@ -1664,6 +1734,7 @@ export class Game {
     this.restoring = false;
     this.updatePower(true);
     for (const id of SECRET_IDS) if (this.isSolved(id)) this.shards.add(null);
+    this.boat.set(this.everything, !!this.save.departed);
     const p = this.save.player;
     if (p) this.player.place(p.x, p.z, p.yaw);
     else this.player.place(START.x, START.z, START.yaw);
@@ -1710,7 +1781,8 @@ export class Game {
     // chaque zone terminée donne un quart de lumière au phare ; le dernier panneau l'allume
     const steps = BEACON_STEPS.filter((id) => this.isSolved(id)).length;
     // après la transformation, l'aube se lève sur l'Île du Ciel (la vraie fin ramène la nuit)
-    this.dayTarget = this.finale ? 4 : this.save.sky ? 5 : steps;
+    // … et après le départ de la barque, c'est le soir pour de bon : les lumières se voient
+    this.dayTarget = this.finale || this.depart || this.save.departed ? 4 : this.save.sky ? 5 : steps;
     if (instant) {
       this.day = steps;
       this.applyDay();
@@ -1784,7 +1856,13 @@ export class Game {
       this.sparks.burst(s.at, new THREE.Color('#ffaa2e'), s.big ? 220 : 70, s.big ? 3 : 0.7);
       navigator.vibrate?.([30, 50, 70]);
     }
+    const was = this.everything;
     if (!this.save.solved.includes(id)) this.save.solved.push(id);
+    // le 100 % : la barque de papier attend sur la plage
+    if (!was && this.everything && !this.save.departed) {
+      this.boat.set(true, false);
+      window.setTimeout(() => this.audio.boatReady(), 2600);
+    }
     this.helpLevel.delete(id);
     this.gestureHelp.delete(id);
     // sans la séquence (tests) : le phare remonte aussitôt
@@ -1816,6 +1894,10 @@ export class Game {
     }
     if (this.hoveredNote) {
       this.readNote(this.hoveredNote);
+      return;
+    }
+    if (this.hoveredBoat) {
+      this.startDepart();
       return;
     }
     if (!this.hovered) return;
@@ -1869,20 +1951,27 @@ export class Game {
       ? this.raycaster.intersectObjects(candidates, false).find((h) => h.distance <= (h.object.userData.panel as PuzzleView).reach)
       : undefined;
     // un billet du gardien, plus proche qu'une pièce d'énigme ?
-    const notePicks = [...this.notes.pickables, ...(this.save.sky ? this.skyNotes.pickables : []), ...(this.save.deep ? this.caveNotes.pickables : [])];
+    const notePicks = [...this.notes.pickables, ...(this.save.sky ? this.skyNotes.pickables : []), ...(this.save.deep ? this.caveNotes.pickables : []), ...(this.save.bubble ? this.bubbleNotes.pickables : [])];
     const noteHit = this.raycaster.intersectObjects(notePicks, false)[0];
     const note = noteHit && noteHit.distance <= NOTE_REACH && (!hit || noteHit.distance < hit.distance) ? (noteHit.object.userData.note as string) : null;
     if (note !== this.hoveredNote) {
       this.hoveredNote = note;
-      for (const n of [this.notes, this.skyNotes, this.caveNotes]) n.setHover(note);
+      for (const n of [this.notes, this.skyNotes, this.caveNotes, this.bubbleNotes]) n.setHover(note);
     }
-    const next = hit && !note ? { panel: hit.object.userData.panel as PuzzleView, k: hit.object.userData.k as number } : null;
+    // la barque du 100 %, au bord de l'eau
+    const boatHit = this.boat.waiting && !this.busy ? this.raycaster.intersectObject(this.boat.pick, false)[0] : undefined;
+    const boat = !!boatHit && boatHit.distance <= BOAT_REACH && !note && (!hit || boatHit.distance < hit.distance);
+    if (boat !== this.hoveredBoat) {
+      this.hoveredBoat = boat;
+      this.boat.setHover(boat);
+    }
+    const next = hit && !note && !boat ? { panel: hit.object.userData.panel as PuzzleView, k: hit.object.userData.k as number } : null;
     if (this.hovered && (!next || next.panel !== this.hovered.panel || next.k !== this.hovered.k)) {
       this.hovered.panel.setHover(null);
     }
     this.hovered = next;
     if (next) next.panel.setHover(next.k);
-    this.hud?.setCrosshairActive(!!next || !!note);
+    this.hud?.setCrosshairActive(!!next || !!note || boat);
     // la carte d'un billet se range quand on s'éloigne
     if (this.noteAt && this.hud?.noteOpen && this.noteAt.distanceTo(this.player.position) > 3) {
       this.hud.closeNote();
@@ -1959,6 +2048,8 @@ export class Game {
     if (this.appel) this.updateAppel(dt);
     if (this.dive) this.updateDive(dt);
     if (this.ecluse) this.updateEcluse(dt);
+    if (this.depart) this.updateDepart(dt);
+    this.boat.update(this.time, this.camera.position);
     this.checkLift();
     this.checkPassage();
     this.checkBubbleStones();
@@ -2167,7 +2258,8 @@ export class Game {
     // les énigmes du ciel : l'île monte d'abord (sans la séquence)
     // … et pour les Racines, la grotte est ouverte (sans la bascule)
     const bubbleTarget = VASE_IDS.includes(id);
-    const deepTarget = action === 'all' || ROOT_IDS.includes(id) || bubbleTarget;
+    const all = action === 'all' || action === 'every';
+    const deepTarget = all || ROOT_IDS.includes(id) || bubbleTarget;
     const skyTarget = deepTarget || SKY_IDS.includes(id);
     // revenir en arrière : si des énigmes au-delà du point choisi sont déjà résolues, on réécrit
     // la sauvegarde exactement à ce point et on recharge (le plus sûr pour tout remettre à zéro)
@@ -2197,8 +2289,11 @@ export class Game {
     if (action !== 'goto') {
       const order = POWER.map((p) => p.id);
       const at = order.indexOf(id);
-      const until = action === 'all' ? order.length : at < 0 ? 0 : action === 'before' ? at : at + 1;
+      const until = all ? order.length : at < 0 ? 0 : action === 'before' ? at : at + 1;
       const targets = new Set(order.slice(0, until));
+      // le 100 % : les éclats aussi
+      const shardsBefore = SECRET_IDS.filter((s) => this.isSolved(s)).length;
+      if (action === 'every') for (const s of SECRET_IDS) targets.add(s);
       // un Éclat ne dépend de rien : « jusqu'ici » le résout seul (avec son éclat qui s'envole)
       if (at < 0 && action === 'upto' && SECRET_IDS.includes(id)) this.solvePanel(id);
       this.restoring = true;
@@ -2214,9 +2309,14 @@ export class Game {
       this.restoring = false;
       this.updatePower(true);
       this.applyDeep();
+      // les éclats résolus d'un coup rejoignent la lampe
+      for (let i = SECRET_IDS.filter((s) => this.isSolved(s)).length - shardsBefore; i > 0; i--) this.shards.add(null);
+      if (this.answer.answered && this.allSecrets()) this.answer.bringLanterns();
+      this.boat.set(this.everything, !!this.save.departed);
       this.persist();
     }
-    this.view(action === 'all' ? FINAL_ID : id);
+    if (action === 'every') this.player.place(BOAT_AT.x + 2, BOAT_AT.z - 6, Math.atan2(2, -6), 0);
+    else this.view(action === 'all' ? FINAL_ID : id);
     this.snapCave = true;
     this.refreshJournal();
   }
@@ -2275,6 +2375,9 @@ export class Game {
     } else if (which === 'ecluse') {
       this.bubble.setGlow(0);
       this.startEcluse();
+    } else if (which === 'barque') {
+      this.boat.set(true, false);
+      this.startDepart();
     } else if (which === 'racines') {
       // la grotte éteinte et le phare enfoncé, puis tout se relie
       this.cave.setGlow(0);
@@ -2297,6 +2400,10 @@ export class Game {
     this.rootsEnd = null;
     this.appel = null;
     this.ecluse = null;
+    if (this.depart) {
+      this.depart = null;
+      this.boat.set(this.everything, !!this.save.departed);
+    }
     if (this.bascule) {
       this.bascule = null;
       this.sky.setTilt(0);
@@ -2332,6 +2439,7 @@ export class Game {
       if (this.appel) this.updateAppel(0.05);
       if (this.dive) this.updateDive(0.05);
       if (this.ecluse) this.updateEcluse(0.05);
+      if (this.depart) this.updateDepart(0.05);
       this.checkLift();
       this.checkPassage();
       this.checkBubbleStones();

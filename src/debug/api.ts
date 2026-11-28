@@ -91,6 +91,11 @@ export function exposeDebugApi(game: Game): void {
     symbols: (on: boolean) => game.setSymbols(on),
     /** la Bulle : plongée faite, séquences */
     bubble: () => ({ visited: !!game.save.bubble, dive: !!game.dive, appel: !!game.appel, ecluse: !!game.ecluse }),
+    /** la barque du 100 % : là, visée, en route, partie */
+    boat: () => ({ waiting: game.boat.waiting, hovered: game.hoveredBoat, depart: !!game.depart, departed: !!game.save.departed, everything: game.everything }),
+    aimBoat: () => game.aimAtBoat(),
+    /** un clic du joueur (gauche, ou droit avec `reverse`) sur ce qui est visé */
+    press: (reverse = false) => game.press(reverse),
     answered: () => game.answer.answered,
     homecoming: () => game.answer.homecoming,
     guides: () => game.guides.mesh.count,

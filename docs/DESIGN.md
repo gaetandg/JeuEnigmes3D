@@ -308,6 +308,17 @@ l'Île du Ciel (12 gestes), et un pupitre de racines à deux lumières au fond d
 grotte (14 tuiles indécises). Les lanternes de la première fin attendent les sept de l'île ;
 l'irisation du faisceau, les neuf.
 
+## 6 septies. Le 100 % : la barque de papier
+
+Quand tout est résolu, les 79 énigmes et les neuf éclats, une **barque de papier** dorée attend au
+bord de l'eau, devant la plage du départ, sous une colonne de lumière visible de toute l'île (et un
+appel doux se fait entendre). C'est le geste du gardien, qui pliait un bateau chaque soir : cette
+fois, c'est le joueur. On la vise, on clique : elle s'éloigne vers le large, le soir tombe, sa
+lanterne s'amenuise… et très loin, **une lumière que personne ne connaît encore** se met à
+clignoter (trois éclats, une pause : pas la même voix que la Bulle). La boucle se ferme : *garde-la
+allumée pour qui arrivera ensuite par la mer*. Ensuite, c'est le soir pour de bon, et la lumière
+lointaine reste à l'horizon. (Mode test : « Le 100 % », et la cinématique « La barque de papier ».)
+
 ## 7. Direction artistique
 
 - Low-poly à facettes, géométrie générée par le code (aucun modèle importé requis).

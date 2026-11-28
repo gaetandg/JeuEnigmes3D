@@ -4,7 +4,7 @@ Une île silencieuse, des ruines de pierre blanche, un phare éteint. Des langag
 d'énigmes à comprendre **sans un seul mot** : la lumière, le pliage, les ombres… et d'autres,
 qu'on ne découvre qu'après avoir cru finir.
 
-**Le jeu est complet** : 7 zones, 79 énigmes (et 9 éclats secrets), quatre fins.
+**Le jeu est complet** : 7 zones, 79 énigmes (et 9 éclats secrets), quatre fins, et une récompense pour le 100 %.
 
 | Zone | Langage | Contenu |
 |---|---|---|
@@ -54,7 +54,8 @@ A agir, B ou X sens inverse, Start pause.
 
 Vingt et un **billets** sont cachés près des chemins (dix-huit du gardien, et trois réponses) : on les vise et on clique pour les lire,
 et le **carnet** (menu pause) les rassemble. À la fin, regardez la mer… et avec les sept éclats,
-encore plus.
+encore plus. Tout résoudre, les neuf éclats compris, fait apparaître quelque chose au bord de
+l'eau, sur la plage du départ.
 
 ## Mode test (triche)
 
